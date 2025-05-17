@@ -117,15 +117,15 @@ const DebtMarketplace = () => {
                 </code>
               </div>
               <p className="text-soft-gray mb-4">
-                Premium scales from 0 → max as CR (Collateral Ratio) moves from LTV (Loan-to-Value) → MaxCR.
+                Premium scales from 0 up, as CR (Collateral Ratio) moves upwards from initial LTV (Loan-to-Value).
               </p>
               
               <div className="bg-deep-blue p-4 rounded-lg">
                 <h4 className="font-bold mb-2">Example:</h4>
                 <ul className="list-disc list-inside text-soft-gray space-y-2">
-                  <li>Collateral: 1 ETH ($2,000)</li>
+                  <li>Collateral: 1 goETH ($2,000)</li>
                   <li>Debt: 1,000 USDC</li>
-                  <li>CR: 200%, LTV: 120%, MaxCR: 300%</li>
+                  <li>CR: 200%, LTV: 120%, MinCR: 120%</li>
                   <li>Buyout Price: $1,000 + ($2,000 - $1,000) × 0.4 = $1,400</li>
                 </ul>
               </div>
@@ -133,18 +133,7 @@ const DebtMarketplace = () => {
           </motion.div>
         </motion.div>
         
-        {/* Interactive Demo Placeholder */}
-        <motion.div 
-          className="mt-12 p-6 border border-dashed border-neon-teal border-opacity-30 rounded-xl text-center"
-          initial={{ opacity: 0 }}
-          animate={inView ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-        >
-          <h3 className="font-sora text-xl font-bold mb-2">Interactive Demo Coming Soon</h3>
-          <p className="text-soft-gray">
-            Experience the marketplace in action with our interactive simulator.
-          </p>
-        </motion.div>
+        
       </div>
       
       {/* Background gradients */}
