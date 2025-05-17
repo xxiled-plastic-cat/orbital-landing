@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-space-dark text-white font-inter overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .container-section {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24;
+  }
+  
+  .orbital-btn-primary {
+    @apply bg-neon-teal text-space-dark px-6 py-3 rounded-md font-medium transition-all
+    hover:shadow-neon-hover hover:bg-opacity-90 inline-flex items-center gap-2;
+  }
+  
+  .orbital-btn-secondary {
+    @apply bg-transparent border border-neon-teal text-neon-teal px-6 py-3 rounded-md font-medium
+    transition-all hover:shadow-neon hover:bg-neon-teal hover:bg-opacity-10 inline-flex items-center gap-2;
+  }
+  
+  .section-title {
+    @apply text-4xl md:text-5xl font-sora font-bold mb-6 md:mb-10 text-white;
+  }
+  
+  .section-subtitle {
+    @apply text-xl md:text-2xl mb-8 max-w-3xl text-soft-gray;
+  }
+  
+  .feature-card {
+    @apply bg-space-gray rounded-xl p-6 border border-neon-teal border-opacity-20
+    hover:shadow-neon hover:border-opacity-40 transition-all;
+  }
+  
+  .orbital-grid {
+    @apply bg-orbital-grid bg-[size:20px_20px];
+  }
+}
