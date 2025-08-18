@@ -1,6 +1,8 @@
 import Router from "./Router";
+import { Toast } from "./components/app/Toast";
 import { Providers } from "./components/app/provider";
 import { WalletConnectionModal } from "./components/app/walletConnectModal";
+import { ToastProvider } from "./components/context/toastContext";
 import { WalletContextProvider } from "./components/context/wallet";
 
 function App() {
@@ -8,7 +10,10 @@ function App() {
     <Providers>
       <WalletContextProvider>
         <WalletConnectionModal />
-        <Router />
+        <ToastProvider>
+          <Toast />
+          <Router />
+        </ToastProvider>
       </WalletContextProvider>
     </Providers>
   );

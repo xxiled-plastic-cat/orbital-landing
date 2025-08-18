@@ -6,7 +6,10 @@ const walletManager = new WalletManager({
   wallets: [
     WalletId.DEFLY,
     WalletId.PERA,
-   
+    {
+      id: WalletId.LUTE,
+      options: { siteName: 'https://orbital.compx.io' },
+  },
   ],
   defaultNetwork: NetworkId.TESTNET
 })

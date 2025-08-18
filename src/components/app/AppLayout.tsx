@@ -1,8 +1,8 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Wallet } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import OrbitalBackground from './OrbitalBackground';
-import { WalletContext } from '../context/wallet';
+import WalletButton from './WalletButton';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -15,7 +15,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   showBackButton = true, 
   title = "Orbital Lending Testnet" 
 }) => {
-  const { setDisplayWalletConnectModal } = useContext(WalletContext);
   return (
     <div className="min-h-screen text-white font-inter relative">
       {/* Orbital Background */}
@@ -42,18 +41,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
                 <h1 className="text-xl font-sora font-bold">{title}</h1>
               </div>
               
-              {/* Connect Wallet Button with glassmorphism */}
-              <button className="group relative overflow-hidden"
-              onClick={() => setDisplayWalletConnectModal(true)}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-neon-teal to-neon-purple opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
-                <div className="relative backdrop-blur-sm bg-white bg-opacity-10 border border-neon-teal border-opacity-30 px-6 py-3 rounded-lg hover:bg-opacity-20 transition-all duration-300 flex items-center gap-2">
-                    <div className="bg-neon-teal bg-opacity-10 rounded-full h-min">
-                        <Wallet className="w-4 h-4 text-neon-teal" />
-                    </div>
-                    <p className="text-neon-teal font-medium hidden md:block">Connect</p>
-                </div>
-              </button>
+              {/* Wallet Button Component */}
+              <WalletButton />
             </div>
           </div>
         </div>
