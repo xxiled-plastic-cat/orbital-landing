@@ -47,5 +47,65 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addUtilities, theme }) {
+      const cutCorners = {
+        '.cut-corners-sm': {
+          '--corner-size': '8px',
+          'position': 'relative',
+          'background': 'currentColor',
+          'clip-path': 'polygon(var(--corner-size) 0%, 100% 0%, 100% calc(100% - var(--corner-size)), calc(100% - var(--corner-size)) 100%, 0% 100%, 0% var(--corner-size))',
+          '&::before': {
+            'content': '""',
+            'position': 'absolute',
+            'inset': '1px',
+            'background': 'rgb(30 41 59)',
+            'clip-path': 'polygon(calc(var(--corner-size) - 1px) 0%, 100% 0%, 100% calc(100% - var(--corner-size) + 1px), calc(100% - var(--corner-size) + 1px) 100%, 0% 100%, 0% calc(var(--corner-size) - 1px))',
+            'z-index': '1'
+          },
+          '& > *': {
+            'position': 'relative',
+            'z-index': '2'
+          }
+        },
+        '.cut-corners-md': {
+          '--corner-size': '12px',
+          'position': 'relative',
+          'background': 'currentColor',
+          'clip-path': 'polygon(var(--corner-size) 0%, 100% 0%, 100% calc(100% - var(--corner-size)), calc(100% - var(--corner-size)) 100%, 0% 100%, 0% var(--corner-size))',
+          '&::before': {
+            'content': '""',
+            'position': 'absolute',
+            'inset': '1px',
+            'background': 'rgb(30 41 59)',
+            'clip-path': 'polygon(calc(var(--corner-size) - 1px) 0%, 100% 0%, 100% calc(100% - var(--corner-size) + 1px), calc(100% - var(--corner-size) + 1px) 100%, 0% 100%, 0% calc(var(--corner-size) - 1px))',
+            'z-index': '1'
+          },
+          '& > *': {
+            'position': 'relative',
+            'z-index': '2'
+          }
+        },
+        '.cut-corners-lg': {
+          '--corner-size': '16px',
+          'position': 'relative',
+          'background': 'currentColor',
+          'clip-path': 'polygon(var(--corner-size) 0%, 100% 0%, 100% calc(100% - var(--corner-size)), calc(100% - var(--corner-size)) 100%, 0% 100%, 0% var(--corner-size))',
+          '&::before': {
+            'content': '""',
+            'position': 'absolute',
+            'inset': '1px',
+            'background': 'rgb(30 41 59)',
+            'clip-path': 'polygon(calc(var(--corner-size) - 1px) 0%, 100% 0%, 100% calc(100% - var(--corner-size) + 1px), calc(100% - var(--corner-size) + 1px) 100%, 0% 100%, 0% calc(var(--corner-size) - 1px))',
+            'z-index': '1'
+          },
+          '& > *': {
+            'position': 'relative',
+            'z-index': '2'
+          }
+        }
+      }
+      addUtilities(cutCorners)
+    }
+  ],
 };

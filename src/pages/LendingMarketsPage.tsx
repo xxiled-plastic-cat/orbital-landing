@@ -84,7 +84,6 @@ const LendingMarketsPage = () => {
   return (
     <AppLayout>
       <div className="container-section py-8">
-        {/* Header Section */}
         {/* Mission Control Header */}
         <motion.div
           className="mb-8"
@@ -95,8 +94,7 @@ const LendingMarketsPage = () => {
           {/* Mission Control Strip */}
           <div className="relative mb-6">
             {/* Background with subtle noise texture */}
-            <div className="absolute inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm border border-slate-700 rounded-lg"></div>
-            <div className="relative px-6 py-4">
+            <div className="text-slate-600 cut-corners-lg p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
@@ -120,7 +118,7 @@ const LendingMarketsPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-3 py-1 rounded-md">
+                  <div className="text-amber-400 cut-corners-sm px-3 py-1">
                     <span className="text-amber-400 text-sm font-mono">TESTNET</span>
                   </div>
                   <div className="flex items-center gap-1 text-cyan-400">
@@ -184,7 +182,7 @@ const LendingMarketsPage = () => {
             { label: 'TOTAL BORROWED', value: `${formatNumber(LENDING_MARKETS.reduce((acc, market) => acc + market.totalBorrows, 0))}M`, icon: TrendingDown, unit: '' },
           ].map((stat, index) => (
             <div key={stat.label} className="relative">
-              <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 hover:border-slate-500 transition-all duration-150">
+              <div className="text-slate-600 cut-corners-md p-4 hover:text-slate-500 transition-all duration-150">
                 <div className="flex items-center justify-between mb-3">
                   <stat.icon className="w-5 h-5 text-cyan-400" />
                   <div className="text-xs font-mono text-slate-400">{stat.label}</div>
@@ -207,8 +205,8 @@ const LendingMarketsPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
             >
-              {/* Planet Card - Industrial Design */}
-              <div className="relative bg-slate-800 border border-slate-600 rounded-xl p-6 hover:border-slate-500 hover:bg-slate-750 transition-all duration-150">
+              {/* Planet Card - Industrial Design with Cut Corners */}
+              <div className="text-slate-600 cut-corners-lg p-6 hover:text-slate-500 transition-all duration-150">
                 
                 {/* Planet Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -236,10 +234,10 @@ const LendingMarketsPage = () => {
 
                   {/* Orbital Parameters */}
                   <div className="flex flex-col items-end gap-2">
-                    <div className="bg-cyan-500 bg-opacity-20 border border-cyan-500 border-opacity-30 px-3 py-1 rounded-md">
+                    <div className="text-cyan-400 cut-corners-sm px-3 py-1">
                       <span className="text-cyan-400 text-xs font-mono">LTV {market.ltv}%</span>
                     </div>
-                    <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-3 py-1 rounded-md">
+                    <div className="text-amber-400 cut-corners-sm px-3 py-1">
                       <span className="text-amber-400 text-xs font-mono">LT {market.liquidationThreshold}%</span>
                     </div>
                   </div>
@@ -247,14 +245,14 @@ const LendingMarketsPage = () => {
 
                 {/* Primary Telemetry */}
                 <div className="grid grid-cols-2 gap-6 mb-6">
-                  <div className="bg-slate-900 border border-slate-600 rounded-lg p-4">
+                  <div className="text-slate-600 cut-corners-sm p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp className="w-4 h-4 text-cyan-400" />
                       <span className="text-slate-400 text-xs font-mono">BORROW APR</span>
                     </div>
                     <div className="text-3xl font-mono font-bold text-cyan-400">{market.currentApr.toFixed(2)}%</div>
                   </div>
-                  <div className="bg-slate-900 border border-slate-600 rounded-lg p-4">
+                  <div className="text-slate-600 cut-corners-sm p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Info className="w-4 h-4 text-slate-400" />
                       <span className="text-slate-400 text-xs font-mono">UTILIZATION</span>
@@ -311,22 +309,24 @@ const LendingMarketsPage = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setSelectedMarket(market.id)}
-                    className="flex-1 bg-slate-700 border border-slate-600 text-slate-300 px-4 py-3 rounded-lg font-mono text-sm hover:border-slate-500 hover:bg-slate-600 hover:text-white transition-all duration-150"
+                    className="flex-1 text-slate-600 cut-corners-sm px-4 py-3 font-mono text-sm hover:text-slate-500 transition-all duration-150"
                   >
-                    DETAILS
+                    <span className="text-slate-300 hover:text-white">DETAILS</span>
                   </button>
-                  <button className="flex-1 bg-cyan-600 border border-cyan-500 text-white px-4 py-3 rounded-lg font-mono text-sm hover:bg-cyan-500 transition-all duration-150">
-                    SUPPLY
+                  <button className="flex-1 text-cyan-500 cut-corners-sm px-4 py-3 font-mono text-sm hover:text-cyan-400 transition-all duration-150">
+                    <span className="text-white">SUPPLY</span>
                   </button>
                   <button
-                    className={`flex-1 px-4 py-3 rounded-lg font-mono text-sm transition-all duration-150 ${
+                    className={`flex-1 px-4 py-3 cut-corners-sm font-mono text-sm transition-all duration-150 ${
                       market.availableToBorrow > 0
-                        ? 'bg-blue-600 border border-blue-500 text-white hover:bg-blue-500'
-                        : 'bg-slate-600 border border-slate-500 text-slate-400 cursor-not-allowed'
+                        ? 'text-blue-500 hover:text-blue-400'
+                        : 'text-slate-500 cursor-not-allowed'
                     }`}
                     disabled={market.availableToBorrow === 0}
                   >
-                    {market.availableToBorrow > 0 ? 'BORROW' : 'AT CAP'}
+                    <span className={market.availableToBorrow > 0 ? 'text-white' : 'text-slate-400'}>
+                      {market.availableToBorrow > 0 ? 'BORROW' : 'AT CAP'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -342,14 +342,14 @@ const LendingMarketsPage = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="bg-slate-800 border border-slate-600 rounded-lg p-8">
+            <div className="text-slate-600 cut-corners-lg p-8">
               <Radio className="w-12 h-12 text-slate-500 mx-auto mb-4" />
               <div className="text-slate-400 font-mono mb-4">NO ORBITAL SIGNALS DETECTED</div>
               <button
                 onClick={() => setSearchQuery('')}
-                className="bg-cyan-600 border border-cyan-500 text-white px-6 py-2 rounded-lg font-mono text-sm hover:bg-cyan-500 transition-all duration-150"
+                className="text-cyan-500 cut-corners-sm px-6 py-2 font-mono text-sm hover:text-cyan-400 transition-all duration-150"
               >
-                RESET SCAN
+                <span className="text-white">RESET SCAN</span>
               </button>
             </div>
           </motion.div>
