@@ -111,7 +111,7 @@ const AppPage = () => {
               <h3 className="text-2xl font-sora font-bold text-center">Development Roadmap</h3>
             </div>
             
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-3 gap-6">
               {/* Phase 1 */}
               <motion.div 
                 className="relative"
@@ -135,12 +135,12 @@ const AppPage = () => {
                       <span>Orbital Background ✅</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
-                      <span>Wallet Integration</span>
+                      <div className="w-2 h-2 bg-neon-teal rounded-full animate-pulse"></div>
+                      <span>Wallet Integration ✅</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
-                      <span>Testnet Faucet</span>
+                      <div className="w-2 h-2 bg-neon-teal rounded-full animate-pulse"></div>
+                      <span>Testnet Faucet ✅</span>
                     </li>
                   </ul>
                 </div>
@@ -149,25 +149,51 @@ const AppPage = () => {
               {/* Phase 2 */}
               <motion.div 
                 className="relative"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.4 }}
               >
                 <div className="absolute inset-0 bg-neon-purple opacity-5 rounded-lg blur-sm"></div>
                 <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-neon-purple border-opacity-20 rounded-lg p-6">
                   <h4 className="font-bold text-neon-purple mb-4 flex items-center gap-2">
                     <Zap className="w-5 h-5" />
-                    Phase 2: Core Features
+                    Phase 2: Core Lending
                   </h4>
                   <ul className="space-y-3 text-soft-gray">
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
-                      <span>Smart Contract Integration</span>
+                      <span>Smart Contract Integration 🛠️</span>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <span>Oracle Deployment</span>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <span>Interest Accruals</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
                       <span>Borrowing Interface</span>
                     </li>
+                  </ul>
+                </div>
+              </motion.div>
+
+              {/* Phase 3 */}
+              <motion.div 
+                className="relative"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 1.6 }}
+              >
+                <div className="absolute inset-0 bg-neon-pink opacity-5 rounded-lg blur-sm"></div>
+                <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-neon-pink border-opacity-20 rounded-lg p-6">
+                  <h4 className="font-bold text-neon-pink mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Phase 3: Debt Marketplace
+                  </h4>
+                  <ul className="space-y-3 text-soft-gray">
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
                       <span>Marketplace Trading</span>
@@ -175,6 +201,14 @@ const AppPage = () => {
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
                       <span>Portfolio Management</span>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <span>Position Analytics</span>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <span>Risk Assessment</span>
                     </li>
                   </ul>
                 </div>
