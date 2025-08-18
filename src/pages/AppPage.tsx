@@ -1,9 +1,60 @@
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { TrendingUp, DollarSign, BarChart3, Droplets, Zap, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AppLayout from '../components/app/AppLayout';
+import UnauthorizedAccess from '../components/app/UnauthorizedAccess';
+import { WalletContext } from '../components/context/wallet';
+import { useWallet } from "@txnlab/use-wallet-react";
 
 const AppPage = () => {
+  const { activeAccount, activeWallet } = useWallet();
+  const { isEligible, isCheckingEligibility, checkEligibility } = useContext(WalletContext);
+
+  // Trigger eligibility check when wallet connects but hasn't been checked yet
+  useEffect(() => {
+    console.log("activeAccount", activeAccount);
+    console.log("isEligible", isEligible);
+    console.log("isCheckingEligibility", isCheckingEligibility);
+    if (activeAccount?.address && !isCheckingEligibility) {
+      console.log("Triggering eligibility check for connected wallet");
+      checkEligibility(activeAccount.address);
+    }
+  }, [activeAccount?.address, isEligible]);
+
+  // Show loading state while checking eligibility
+  if (activeAccount && activeWallet && isCheckingEligibility) {
+    return (
+      <AppLayout>
+        <div className="container-section py-12 min-h-[60vh] flex items-center justify-center">
+          <motion.div 
+            className="text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="relative mx-auto w-16 h-16 mb-6">
+              <div className="absolute inset-0 bg-neon-teal opacity-20 rounded-full blur-sm animate-pulse"></div>
+              <div className="relative bg-neon-teal bg-opacity-20 rounded-full p-4 flex items-center justify-center animate-pulse">
+                <Shield className="w-8 h-8 text-neon-teal" />
+              </div>
+            </div>
+            <h3 className="text-2xl font-sora font-bold mb-4">Checking Eligibility</h3>
+            <p className="text-soft-gray">Verifying your NFT holdings for testnet access...</p>
+          </motion.div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Show unauthorized access if wallet is connected but not eligible
+  if (activeAccount && activeWallet && isEligible === false) {
+    return (
+      <AppLayout>
+        <UnauthorizedAccess />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="container-section py-12">
