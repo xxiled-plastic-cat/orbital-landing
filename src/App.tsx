@@ -1,29 +1,21 @@
-import React from 'react';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import StatelessLending from './components/StatelessLending';
-import TokenizedDebt from './components/TokenizedDebt';
-import DebtMarketplace from './components/DebtMarketplace';
-import MarketplaceLayer from './components/MarketplaceLayer';
-import WhyOrbital from './components/WhyOrbital';
-import CallToAction from './components/CallToAction';
-import Footer from './components/Footer';
+import Router from "./Router";
+import { Toast } from "./components/app/Toast";
+import { Providers } from "./components/app/provider";
+import { WalletConnectionModal } from "./components/app/walletConnectModal";
+import { ToastProvider } from "./components/context/toastContext";
+import { WalletContextProvider } from "./components/context/wallet";
 
 function App() {
   return (
-    <div className="min-h-screen bg-space-dark text-white font-inter overflow-hidden">
-      <Navbar />
-      <main>
-        <Hero />
-        <StatelessLending />
-        <TokenizedDebt />
-        <DebtMarketplace />
-        <MarketplaceLayer />
-        <WhyOrbital />
-        <CallToAction />
-      </main>
-      <Footer />
-    </div>
+    <Providers>
+      <WalletContextProvider>
+        <WalletConnectionModal />
+        <ToastProvider>
+          <Toast />
+          <Router />
+        </ToastProvider>
+      </WalletContextProvider>
+    </Providers>
   );
 }
 

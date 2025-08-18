@@ -30,8 +30,8 @@ const TokenizedDebt = () => {
     },
     {
       id: 2,
-      title: "NFT Minted",
-      description: "A unique Loaner NFT is created to represent the loan position",
+      title: "Position Created",
+      description: "A unique debt position is created to represent the loan and collateral",
       icon: CircleDollarSign,
     },
     {
@@ -54,9 +54,9 @@ const TokenizedDebt = () => {
             animate={inView ? 'visible' : 'hidden'}
             variants={variants}
           >
-            <h2 className="section-title">Your Loan is an NFT</h2>
+            <h2 className="section-title">Tradeable Debt Positions</h2>
             <p className="section-subtitle">
-              We've reimagined debt as a digital asset, bringing unprecedented liquidity and flexibility to lending markets.
+              We've reimagined debt as tradeable positions, bringing unprecedented liquidity and flexibility to lending markets through automatic marketplace listing.
             </p>
             
             <ul className="space-y-8 mt-8">
@@ -71,7 +71,7 @@ const TokenizedDebt = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold mb-2">Unique Digital Representation</h3>
-                  <p className="text-soft-gray">Every loan is minted as a unique Loaner NFT that represents the debt position and collateral claim rights.</p>
+                  <p className="text-soft-gray">Every loan creates a unique debt position that represents the borrower's obligations and collateral claim rights.</p>
                 </div>
               </motion.li>
               

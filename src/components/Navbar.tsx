@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Rocket } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -52,12 +53,12 @@ const Navbar = () => {
                 {link.name}
               </a>
             ))}
-            <a 
-              href="#launch-app"
+            <Link 
+              to="/app"
               className="orbital-btn-primary"
             >
               Launch App
-            </a>
+            </Link>
           </div>
           
           {/* Mobile Menu Button */}
@@ -91,13 +92,13 @@ const Navbar = () => {
                 {link.name}
               </a>
             ))}
-            <a
-              href="#launch-app"
+            <Link
+              to="/app"
               className="block px-3 py-2 text-base font-medium text-neon-teal hover:bg-neon-teal hover:bg-opacity-10 rounded-md"
               onClick={() => setMobileMenuOpen(false)}
             >
               Launch App
-            </a>
+            </Link>
           </div>
         </motion.div>
       )}
