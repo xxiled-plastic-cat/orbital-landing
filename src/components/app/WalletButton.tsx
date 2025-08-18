@@ -96,7 +96,7 @@ const WalletButton: React.FC = () => {
         className="group relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-neon-teal to-neon-purple opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
-        <div className="relative backdrop-blur-sm bg-white bg-opacity-10 border border-neon-teal border-opacity-30 px-6 py-3 rounded-lg hover:bg-opacity-20 transition-all duration-300 flex items-center gap-2">
+        <div className="relative backdrop-blur-sm bg-white bg-opacity-10 border border-neon-teal border-opacity-30 px-6 py-3 rounded-2xl hover:bg-opacity-20 transition-all duration-300 flex items-center gap-2">
           <div className="bg-neon-teal bg-opacity-10 rounded-full p-1">
             <Wallet className="w-4 h-4 text-neon-teal" />
           </div>
@@ -114,8 +114,8 @@ const WalletButton: React.FC = () => {
         onClick={toggleDropdown}
         className="group relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-neon-teal to-neon-purple opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
-        <div className="relative backdrop-blur-sm bg-white bg-opacity-10 border border-neon-teal border-opacity-30 px-4 py-3 rounded-lg hover:bg-opacity-20 transition-all duration-300 flex items-center gap-3">
+        <div className="absolute inset-0 bg-gradient-to-r from-neon-teal to-neon-purple opacity-20 group-hover:opacity-30 rounded-2xl transition-opacity duration-300"></div>
+        <div className="relative backdrop-blur-sm bg-white bg-opacity-10 border border-neon-teal border-opacity-30 px-4 py-3 rounded-2xl hover:bg-opacity-20 transition-all duration-300 flex items-center gap-3">
           {/* Wallet icon */}
           <div className="bg-neon-teal bg-opacity-20 rounded-full p-1">
             <Wallet className="w-4 h-4 text-neon-teal" />
@@ -157,17 +157,17 @@ const WalletButton: React.FC = () => {
               }}
             >
               {/* Background glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-neon-teal via-neon-purple to-neon-pink opacity-20 rounded-xl blur-sm"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-neon-teal via-neon-purple to-neon-pink opacity-20 rounded-3xl blur-sm"></div>
 
               {/* Dropdown content */}
-              <div className="relative backdrop-blur-md bg-white bg-opacity-10 border border-white border-opacity-20 rounded-xl p-4 shadow-2xl">
+              <div className="relative backdrop-blur-md bg-white bg-opacity-10 border border-white border-opacity-20 rounded-3xl p-4 shadow-2xl">
                 {/* Wallet info header */}
                 <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white border-opacity-10">
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-white bg-opacity-10 flex items-center justify-center">
                     <img
                       src={activeWallet.metadata.icon}
                       alt={`${activeWallet.metadata.name} logo`}
-                      className="w-6 h-6 object-contain"
+                      className="w-6 h-6 object-contain rounded-full"
                     />
                   </div>
                   <div className="flex-1">
