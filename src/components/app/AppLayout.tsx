@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Radio } from 'lucide-react';
 import OrbitalBackground from './OrbitalBackground';
 import WalletButton from './WalletButton';
 
@@ -20,25 +20,34 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Orbital Background */}
       <OrbitalBackground />
       
-      {/* Header with glassmorphism */}
-      <header className="relative z-10 border-b border-neon-teal border-opacity-20">
-        <div className="backdrop-blur-md bg-space-gray bg-opacity-20 border-b border-white border-opacity-10">
+      {/* Industrial Header */}
+      <header className="relative z-10 border-b border-slate-700">
+        <div className="bg-slate-900 bg-opacity-95 backdrop-blur-sm">
           <div className="container-section py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-6">
                 {showBackButton && (
                   <>
                     <Link 
                       to="/" 
-                      className="flex items-center gap-2 text-soft-gray hover:text-neon-teal transition-colors duration-300 group"
+                      className="flex items-center gap-2 bg-slate-800 border border-slate-600 px-4 py-2 rounded-lg text-slate-300 hover:text-cyan-400 hover:border-slate-500 transition-all duration-150 group font-mono text-sm"
                     >
-                      <ArrowLeft className="w-5 h-5 group-hover:transform group-hover:-translate-x-1 transition-transform duration-300" />
-                      Back to Landing
+                      <ArrowLeft className="w-4 h-4 group-hover:transform group-hover:-translate-x-1 transition-transform duration-150" />
+                      BACK TO LANDING
                     </Link>
-                    <div className="h-6 w-px bg-neon-teal bg-opacity-30"></div>
+                    <div className="h-6 w-px bg-slate-600"></div>
                   </>
                 )}
-                <h1 className="text-xl font-sora font-bold">{title}</h1>
+                <div className="flex items-center gap-3">
+                  <div className="bg-slate-800 border border-slate-600 p-2 rounded-lg">
+                    <img 
+                      src="/orbital-logo.png" 
+                      alt="Orbital Lending" 
+                      className="h-5 w-5"
+                    />
+                  </div>
+                  <h1 className="text-lg font-mono font-bold text-white">{title.toUpperCase()}</h1>
+                </div>
               </div>
               
               {/* Wallet Button Component */}

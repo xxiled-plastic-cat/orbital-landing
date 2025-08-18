@@ -23,7 +23,7 @@ const WhyOrbital = () => {
   };
 
   return (
-    <section id="why-orbital" className="relative py-24 bg-space-gradient orbital-grid">
+    <section id="why-orbital" className="relative py-24 bg-slate-900">
       <OrbitalParticles count={15} />
       
       <div className="container-section relative z-10">
@@ -34,8 +34,8 @@ const WhyOrbital = () => {
           variants={titleVariants}
           className="text-center mb-16"
         >
-          <h2 className="section-title">Why Build on Orbital?</h2>
-          <p className="section-subtitle mx-auto">
+          <h2 className="text-4xl md:text-5xl font-mono font-bold mb-6 text-white">WHY BUILD ON <span className="text-cyan-400">ORBITAL</span>?</h2>
+          <p className="text-xl text-slate-300 max-w-4xl mx-auto font-mono">
             The next generation of DeFi infrastructure — designed for maximum flexibility, security, and decentralization.
           </p>
         </motion.div>
@@ -71,81 +71,81 @@ const WhyOrbital = () => {
         </div>
         
         <motion.div 
-          className="mt-16 p-8 border border-neon-teal border-opacity-20 rounded-xl bg-space-dark relative overflow-hidden"
+          className="mt-16 p-8 bg-slate-800 border border-slate-700 rounded-xl relative overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.8, delay: 0.5 }}
         >
-          {/* Background effect */}
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-neon-purple opacity-10 blur-[80px] rounded-full"></div>
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-neon-teal opacity-10 blur-[80px] rounded-full"></div>
+          {/* Subtle background effects */}
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-slate-600 opacity-5 blur-[80px] rounded-full"></div>
+          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-400 opacity-5 blur-[80px] rounded-full"></div>
           
           <div className="relative">
-            <h3 className="text-2xl font-sora font-bold mb-6 text-center">Compare the Difference</h3>
+            <h3 className="text-2xl font-mono font-bold mb-6 text-center text-white">COMPARE THE DIFFERENCE</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-space-gray bg-opacity-70 p-5 rounded-lg">
-                <h4 className="font-bold text-center mb-4 text-soft-gray">Traditional Lending</h4>
+              <div className="bg-slate-700 border border-slate-600 p-6 rounded-lg">
+                <h4 className="font-mono font-bold text-center mb-4 text-slate-400">TRADITIONAL LENDING</h4>
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <span className="text-red-500">✕</span>
-                    <span className="text-soft-gray text-sm">Per-user state tracking</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-400 font-mono">×</span>
+                    <span className="text-slate-300 text-sm font-mono">Per-user state tracking</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-red-500">✕</span>
-                    <span className="text-soft-gray text-sm">Illiquid debt positions</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-400 font-mono">×</span>
+                    <span className="text-slate-300 text-sm font-mono">Illiquid debt positions</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-red-500">✕</span>
-                    <span className="text-soft-gray text-sm">Limited composability</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-400 font-mono">×</span>
+                    <span className="text-slate-300 text-sm font-mono">Limited composability</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-red-500">✕</span>
-                    <span className="text-soft-gray text-sm">Centralized risk management</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-400 font-mono">×</span>
+                    <span className="text-slate-300 text-sm font-mono">Centralized risk management</span>
                   </li>
                 </ul>
               </div>
               
-              <div className="bg-space-gray bg-opacity-70 p-5 rounded-lg md:border-l md:border-r border-neon-teal border-opacity-20">
-                <h4 className="font-bold text-center mb-4">DeFi 2.0</h4>
+              <div className="bg-slate-700 border border-slate-600 p-6 rounded-lg md:border-l-2 md:border-r-2 md:border-amber-400">
+                <h4 className="font-mono font-bold text-center mb-4 text-amber-400">DEFI 2.0</h4>
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-500">⟳</span>
-                    <span className="text-soft-gray text-sm">Reduced state tracking</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-amber-400 font-mono">~</span>
+                    <span className="text-slate-300 text-sm font-mono">Reduced state tracking</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-500">⟳</span>
-                    <span className="text-soft-gray text-sm">Some tokenized positions</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-amber-400 font-mono">~</span>
+                    <span className="text-slate-300 text-sm font-mono">Some tokenized positions</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-500">⟳</span>
-                    <span className="text-soft-gray text-sm">Improved composability</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-amber-400 font-mono">~</span>
+                    <span className="text-slate-300 text-sm font-mono">Improved composability</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-500">⟳</span>
-                    <span className="text-soft-gray text-sm">Hybrid risk management</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-amber-400 font-mono">~</span>
+                    <span className="text-slate-300 text-sm font-mono">Hybrid risk management</span>
                   </li>
                 </ul>
               </div>
               
-              <div className="bg-neon-teal bg-opacity-5 p-5 rounded-lg border border-neon-teal border-opacity-20">
-                <h4 className="font-bold text-center mb-4 text-neon-teal">Orbital Lending</h4>
+              <div className="bg-cyan-500 bg-opacity-10 border-2 border-cyan-400 p-6 rounded-lg">
+                <h4 className="font-mono font-bold text-center mb-4 text-cyan-400">ORBITAL LENDING</h4>
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <span className="text-neon-teal">✓</span>
-                    <span className="text-white text-sm">Zero user state tracking</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-400 font-mono">✓</span>
+                    <span className="text-white text-sm font-mono">Zero user state tracking</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-neon-teal">✓</span>
-                    <span className="text-white text-sm">Fully liquid NFT debt positions</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-400 font-mono">✓</span>
+                    <span className="text-white text-sm font-mono">Fully liquid NFT debt positions</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-neon-teal">✓</span>
-                    <span className="text-white text-sm">Maximum composability</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-400 font-mono">✓</span>
+                    <span className="text-white text-sm font-mono">Maximum composability</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-neon-teal">✓</span>
-                    <span className="text-white text-sm">Decentralized risk transfer</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-400 font-mono">✓</span>
+                    <span className="text-white text-sm font-mono">Decentralized risk transfer</span>
                   </li>
                 </ul>
               </div>

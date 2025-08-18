@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { motion } from 'framer-motion';
 import { ChevronDown, Rocket, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -17,19 +17,15 @@ const Hero = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-sora font-bold mb-6 leading-tight">
-              Orbital Lending
-              <motion.span 
-                className="block text-neon-teal"
-                animate={{ textShadow: ["0 0 7px rgba(102, 252, 241, 0.6)", "0 0 10px rgba(102, 252, 241, 0.8)", "0 0 7px rgba(102, 252, 241, 0.6)"] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              >
-                Stateless borrowing meets on-chain debt trading.
-              </motion.span>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-mono font-bold mb-6 leading-tight">
+              ORBITAL LENDING
+              <span className="block text-cyan-400 mt-4">
+                STATELESS BORROWING MEETS ON-CHAIN DEBT TRADING
+              </span>
             </h1>
             
             <motion.p 
-              className="text-xl mb-8 text-soft-gray max-w-xl"
+              className="text-xl mb-8 text-slate-300 max-w-xl font-mono"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -44,13 +40,13 @@ const Hero = () => {
               transition={{ duration: 0.8, delay: 0.4 }}
               style={{ pointerEvents: 'auto' }}
             >
-              <a href="#markets" className="orbital-btn-primary relative z-20">
+              <a href="#markets" className="bg-cyan-600 border border-cyan-500 text-white px-8 py-4 rounded-lg font-mono text-sm hover:bg-cyan-500 transition-all duration-150 flex items-center gap-3 relative z-20">
                 <BarChart3 size={20} />
-                Explore Markets
+                EXPLORE MARKETS
               </a>
-              <Link to="/app" className="orbital-btn-secondary relative z-20">
+              <Link to="/app" className="bg-slate-700 border border-slate-600 text-slate-300 px-8 py-4 rounded-lg font-mono text-sm hover:border-slate-500 hover:bg-slate-600 hover:text-white transition-all duration-150 flex items-center gap-3 relative z-20">
                 <Rocket size={20} />
-                Launch App
+                LAUNCH APP
               </Link>
             </motion.div>
           </motion.div>
@@ -66,18 +62,18 @@ const Hero = () => {
         </div>
         
         <motion.div 
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-neon-teal flex flex-col items-center"
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-cyan-400 flex flex-col items-center"
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
-          <p className="text-sm mb-2">Discover More</p>
+          <p className="text-sm mb-2 font-mono">DISCOVER MORE</p>
           <ChevronDown />
         </motion.div>
       </div>
       
-      {/* Background gradient effects */}
-      <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-neon-purple opacity-5 blur-[150px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-neon-teal opacity-5 blur-[150px] rounded-full pointer-events-none"></div>
+      {/* Subtle background effects */}
+      <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-cyan-400 opacity-5 blur-[150px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-slate-600 opacity-10 blur-[150px] rounded-full pointer-events-none"></div>
     </section>
   );
 };

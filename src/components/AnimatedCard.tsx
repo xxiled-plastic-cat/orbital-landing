@@ -48,14 +48,14 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({
       initial="hidden"
       animate={controls}
       variants={variants}
-      className={`feature-card ${className}`}
+      className={`bg-slate-700 border border-slate-600 rounded-xl p-6 hover:border-slate-500 hover:bg-slate-650 transition-all duration-150 ${className}`}
     >
       <div className="flex flex-col h-full">
-        <div className="bg-deep-blue p-3 rounded-full w-14 h-14 flex items-center justify-center mb-4">
-          <Icon className="text-neon-teal w-7 h-7" />
+        <div className="bg-slate-600 border border-slate-500 p-3 rounded-lg w-14 h-14 flex items-center justify-center mb-6">
+          <Icon className="text-cyan-400 w-7 h-7" />
         </div>
-        <h3 className="font-sora text-xl font-bold mb-3 text-white">{title}</h3>
-        <p className="text-soft-gray flex-grow">{description}</p>
+        <h3 className="font-mono text-xl font-bold mb-4 text-white">{title.toUpperCase()}</h3>
+        <p className="text-slate-300 flex-grow font-mono text-sm leading-relaxed">{description}</p>
       </div>
     </motion.div>
   );

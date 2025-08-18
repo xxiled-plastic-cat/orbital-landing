@@ -1,6 +1,7 @@
-import React, { useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { TrendingUp, DollarSign, BarChart3, Droplets, Zap, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import AppLayout from '../components/app/AppLayout';
 import UnauthorizedAccess from '../components/app/UnauthorizedAccess';
 import { WalletContext } from '../components/context/wallet';
@@ -58,207 +59,221 @@ const AppPage = () => {
   return (
     <AppLayout>
       <div className="container-section py-12">
-        {/* Welcome Section */}
+        {/* Mission Control Header */}
         <motion.div 
-          className="text-center mb-12"
+          className="mb-12"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-4xl md:text-5xl font-sora font-bold mb-6">
-            Welcome to <span className="text-neon-teal">Orbital Lending</span>
-          </h2>
-          <p className="text-xl text-soft-gray max-w-3xl mx-auto mb-8">
-            Experience the future of decentralized lending on Algorand testnet. 
-            Create loans, trade debt positions, and explore permissionless finance.
-          </p>
-          
-          {/* Glassmorphism testnet warning */}
-          <motion.div 
-            className="relative max-w-2xl mx-auto group"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-neon-purple to-neon-pink opacity-20 rounded-full blur-sm group-hover:opacity-30 transition-opacity duration-300"></div>
-            <div className="relative backdrop-blur-md bg-white bg-opacity-10 border border-neon-purple border-opacity-30 rounded-full p-6">
+          {/* Status Strip */}
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm border border-slate-700 rounded-lg"></div>
+            <div className="relative px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-cyan-400" />
+                    <span className="text-sm font-mono text-slate-300">ORBITAL LENDING</span>
+                  </div>
+                  <div className="h-6 w-px bg-slate-600"></div>
+                  <div className="flex items-center gap-1 text-cyan-400">
+                    <Zap className="w-4 h-4" />
+                    <span className="text-sm font-mono">SYSTEM ONLINE</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-3 py-1 rounded-md">
+                    <span className="text-amber-400 text-sm font-mono">TESTNET</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <h2 className="text-4xl md:text-5xl font-mono font-bold mb-6 text-white">
+              ORBITAL <span className="text-cyan-400">LENDING</span>
+            </h2>
+            <p className="text-xl text-slate-300 max-w-3xl mx-auto mb-8 font-mono">
+              Decentralized lending protocol on Algorand testnet. 
+              Supply assets, borrow funds, trade debt positions.
+            </p>
+            
+            {/* Testnet Notice */}
+            <div className="bg-amber-500 bg-opacity-10 border border-amber-500 border-opacity-30 rounded-lg p-4 max-w-2xl mx-auto">
               <div className="flex items-center justify-center gap-3">
-                <Zap className="w-5 h-5 text-neon-purple" />
-                <p className="text-neon-teal font-medium">
-                 This is a testnet environment. All transactions use test tokens with no real value.
+                <Zap className="w-5 h-5 text-amber-400" />
+                <p className="text-amber-400 font-mono text-sm">
+                 TESTNET ENVIRONMENT - All transactions use test tokens with no real value
                 </p>
               </div>
             </div>
-          </motion.div>
+          </div>
         </motion.div>
 
-        {/* Quick Actions Grid */}
+                {/* Operations Grid */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {[
             {
               icon: DollarSign,
-              title: "Create Loan",
-              description: "Deposit collateral and borrow against your assets with competitive rates.",
-              color: "neon-teal",
+              title: "Lending Markets",
+              description: "Supply assets to earn interest or borrow against your collateral with competitive rates.",
               delay: 0.4
             },
             {
               icon: TrendingUp,
-              title: "Browse Marketplace",
-              description: "Discover and trade debt positions with automated pricing and liquidity.",
-              color: "neon-purple",
+              title: "Debt Marketplace",
+              description: "Discover and trade debt positions with automated pricing and instant liquidity.",
               delay: 0.6
             },
             {
               icon: BarChart3,
               title: "Portfolio",
-              description: "Monitor your positions, track performance, and manage your debt portfolio.",
-              color: "neon-pink",
+              description: "Monitor your positions, track performance, and manage your lending portfolio.",
               delay: 0.8
             }
           ].map((item) => (
             <motion.div
               key={item.title}
-              className="relative group"
+              className="relative"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: item.delay }}
             >
-              {/* Glassmorphism background with glow effect */}
-              <div className={`absolute inset-0 bg-gradient-to-br from-${item.color} to-${item.color} opacity-10 rounded-3xl blur-sm group-hover:opacity-20 transition-opacity duration-300`}></div>
-              <div className="relative backdrop-blur-md bg-white bg-opacity-5 border border-white border-opacity-10 rounded-3xl p-8 text-center hover:bg-opacity-10 transition-all duration-300">
-                <div className={`bg-${item.color} bg-opacity-20 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                  <item.icon className={`text-${item.color} w-8 h-8`} />
+              {/* Industrial Card */}
+              <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 hover:border-slate-500 hover:bg-slate-750 transition-all duration-150">
+                <div className="bg-slate-700 border border-slate-600 p-4 rounded-lg w-16 h-16 flex items-center justify-center mb-6">
+                  <item.icon className="text-cyan-400 w-8 h-8" />
                 </div>
-                <h3 className="font-sora text-xl font-bold mb-4">{item.title}</h3>
-                <p className="text-soft-gray mb-6 leading-relaxed">
+                <h3 className="font-mono text-xl font-bold mb-4 text-white">{item.title}</h3>
+                <p className="text-slate-300 mb-6 leading-relaxed text-sm">
                   {item.description}
                 </p>
-                <button className="relative overflow-hidden group/btn w-full">
-                  <div className={`absolute inset-0 bg-gradient-to-r from-${item.color} to-${item.color} opacity-20 group-hover/btn:opacity-30 transition-opacity duration-300 rounded-full`}></div>
-                  <div className="relative backdrop-blur-sm bg-white bg-opacity-10 border border-white border-opacity-20 px-6 py-3 rounded-full hover:bg-opacity-20 transition-all duration-300">
-                    Coming Soon
-                  </div>
-                </button>
+                {item.title === "Lending Markets" ? (
+                  <Link to="/app/markets" className="block w-full">
+                    <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-6 py-3 rounded-lg font-mono text-sm hover:bg-cyan-500 transition-all duration-150">
+                      EXPLORE MARKETS
+                    </button>
+                  </Link>
+                ) : (
+                  <button className="w-full bg-slate-600 border border-slate-500 text-slate-400 px-6 py-3 rounded-lg font-mono text-sm cursor-not-allowed">
+                    COMING SOON
+                  </button>
+                )}
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* Development Status with Glassmorphism */}
+        {/* System Status */}
         <motion.div 
-          className="relative group"
+          className="relative"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1.0 }}
-        >
-          {/* Background glow */}
-          <div className="absolute inset-0 bg-gradient-to-r rounded-3xl from-neon-teal via-neon-purple to-neon-pink opacity-10  blur-sm group-hover:opacity-15 transition-opacity duration-300"></div>
-          
-          {/* Glassmorphism container */}
-          <div className="relative backdrop-blur-md bg-white bg-opacity-5 border border-white border-opacity-10 rounded-3xl p-8">
+        >          
+          {/* Industrial container */}
+          <div className="bg-slate-800 border border-slate-600 rounded-xl p-8">
             <div className="flex items-center justify-center gap-3 mb-6"> 
-              <Shield className="w-6 h-6 text-neon-teal" />
-              <h3 className="text-2xl font-sora font-bold text-center">Development Roadmap</h3>
+              <Shield className="w-6 h-6 text-cyan-400" />
+              <h3 className="text-2xl font-mono font-bold text-center text-white">SYSTEM STATUS</h3>
             </div>
             
             <div className="grid md:grid-cols-3 gap-6">
-              {/* Phase 1 */}
+              {/* Module 1 */}
               <motion.div 
                 className="relative"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 1.2 }}
               >
-                <div className="absolute inset-0 bg-neon-teal opacity-5 rounded-2xl blur-sm"></div>
-                <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-neon-teal border-opacity-20 rounded-2xl p-6">
-                  <h4 className="font-bold text-neon-teal mb-4 flex items-center gap-2">
+                <div className="bg-slate-700 border border-slate-600 rounded-lg p-6">
+                  <h4 className="font-mono font-bold text-cyan-400 mb-4 flex items-center gap-2">
                     <Droplets className="w-5 h-5" />
-                    Phase 1: Foundation
+                    FOUNDATION
                   </h4>
-                  <ul className="space-y-3 text-soft-gray">
+                  <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-neon-teal rounded-full animate-pulse"></div>
-                      <span>Routing Infrastructure ✅</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Routing Infrastructure ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-neon-teal rounded-full opacity-50"></div>
-                      <span>Orbital Background ✅</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Industrial UI Theme ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-neon-teal rounded-full animate-pulse"></div>
-                      <span>Wallet Integration ✅</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Wallet Integration ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-neon-teal rounded-full animate-pulse"></div>
-                      <span>Testnet Faucet ✅</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Testnet Faucet ✓</span>
                     </li>
                   </ul>
                 </div>
               </motion.div>
 
-              {/* Phase 2 */}
+              {/* Module 2 */}
               <motion.div 
                 className="relative"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.4 }}
               >
-                <div className="absolute inset-0 bg-neon-purple opacity-5 rounded-2xl blur-sm"></div>
-                <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-neon-purple border-opacity-20 rounded-2xl p-6">
-                  <h4 className="font-bold text-neon-purple mb-4 flex items-center gap-2">
+                <div className="bg-slate-700 border border-slate-600 rounded-lg p-6">
+                  <h4 className="font-mono font-bold text-amber-400 mb-4 flex items-center gap-2">
                     <Zap className="w-5 h-5" />
-                    Phase 2: Core Lending
+                    CORE LENDING
                   </h4>
-                  <ul className="space-y-3 text-soft-gray">
+                  <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
-                      <span>Smart Contract Integration 🛠️</span>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
+                      <span>Smart Contract Integration</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
                       <span>Oracle Deployment</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
                       <span>Interest Accruals</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
-                      <span>Borrowing Interface</span>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
+                      <span>Supply/Borrow Interface</span>
                     </li>
                   </ul>
                 </div>
               </motion.div>
 
-              {/* Phase 3 */}
+              {/* Module 3 */}
               <motion.div 
                 className="relative"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.6 }}
               >
-                <div className="absolute inset-0 bg-neon-pink opacity-5 rounded-2xl blur-sm"></div>
-                <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-neon-pink border-opacity-20 rounded-2xl p-6">
-                  <h4 className="font-bold text-neon-pink mb-4 flex items-center gap-2">
+                <div className="bg-slate-700 border border-slate-600 rounded-lg p-6">
+                  <h4 className="font-mono font-bold text-red-400 mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5" />
-                    Phase 3: Debt Marketplace
+                    DEBT MARKETPLACE
                   </h4>
-                  <ul className="space-y-3 text-soft-gray">
+                  <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
                       <span>Marketplace Trading</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
                       <span>Portfolio Management</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
                       <span>Position Analytics</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-soft-gray rounded-full"></div>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
                       <span>Risk Assessment</span>
                     </li>
                   </ul>

@@ -23,7 +23,7 @@ const StatelessLending = () => {
   };
 
   return (
-    <section id="markets" className="relative py-24 bg-space-gradient orbital-grid">
+    <section id="markets" className="relative py-24 bg-slate-800">
       <OrbitalParticles count={10} className="opacity-50" />
       
       <div className="container-section relative z-10">
@@ -34,8 +34,8 @@ const StatelessLending = () => {
           variants={titleVariants}
           className="text-center mb-16"
         >
-          <h2 className="section-title">Built for Modularity</h2>
-          <p className="section-subtitle mx-auto">
+          <h2 className="text-4xl md:text-5xl font-mono font-bold mb-6 text-white">BUILT FOR <span className="text-cyan-400">MODULARITY</span></h2>
+          <p className="text-xl text-slate-300 max-w-4xl mx-auto font-mono">
             A revolutionary lending platform designed from the ground up for maximum 
             composability and minimal overhead.
           </p>
@@ -72,18 +72,18 @@ const StatelessLending = () => {
         </div>
         
         <motion.div 
-          className="mt-16 p-6 border border-neon-teal border-opacity-20 rounded-xl bg-space-gray bg-opacity-50 backdrop-blur-sm"
+          className="mt-16 p-8 bg-slate-700 border border-slate-600 rounded-xl"
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.8, delay: 0.5 }}
         >
-          <h3 className="text-2xl font-sora font-bold mb-4">How It Works</h3>
+          <h3 className="text-2xl font-mono font-bold mb-6 text-white">SYSTEM ARCHITECTURE</h3>
           <div className="space-y-4">
-            <p className="text-soft-gray">
+            <p className="text-slate-300 font-mono">
               Each supported asset (e.g., ALGO, USDC) has its own standalone smart contract.
               Depositing mints Liquid Staking Tokens (LSTs) that accrue value over time.
             </p>
-            <p className="text-soft-gray">
+            <p className="text-slate-300 font-mono">
               Users can borrow any asset in the ecosystem—across contracts—if their LST is accepted as collateral.
               Zero per-user state means full composability with minimal overhead.
             </p>
@@ -91,8 +91,8 @@ const StatelessLending = () => {
         </motion.div>
       </div>
       
-      {/* Background gradient */}
-      <div className="absolute top-1/4 right-1/4 w-1/2 h-1/2 bg-neon-purple opacity-5 blur-[120px] rounded-full"></div>
+      {/* Subtle background effect */}
+      <div className="absolute top-1/4 right-1/4 w-1/2 h-1/2 bg-slate-600 opacity-10 blur-[120px] rounded-full"></div>
     </section>
   );
 };

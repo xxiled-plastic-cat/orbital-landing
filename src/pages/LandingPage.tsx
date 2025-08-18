@@ -1,4 +1,4 @@
-import React from 'react';
+
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import StatelessLending from '../components/StatelessLending';
@@ -10,7 +10,7 @@ import Footer from '../components/Footer';
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-space-dark text-white font-inter overflow-hidden">
+    <div className="min-h-screen bg-slate-900 text-white font-mono overflow-hidden">
       <Navbar />
       <main>
         <Hero />
