@@ -6,13 +6,25 @@ import { WalletContext } from "../context/wallet";
 
 export const WalletConnectionModal: React.FC = () => {
   const { wallets } = useWallet();
-  const { displayWalletConnectModal, setDisplayWalletConnectModal } =
-    useContext(WalletContext);
+  const { 
+    displayWalletConnectModal, 
+    setDisplayWalletConnectModal,
+    checkEligibility,
+    isCheckingEligibility
+  } = useContext(WalletContext);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleOnConnect = async (wallet: any) => {
     try {
       await wallet.connect();
+      
+      // After successful connection, check eligibility
+      // Note: We need to wait for activeAccount to be updated, so we'll get it from the wallet
+      if (wallet.activeAccount?.address) {
+        console.log("Wallet connected, checking eligibility...");
+        await checkEligibility(wallet.activeAccount.address);
+      }
+      
       setDisplayWalletConnectModal(false);
     } catch (error) {
       console.error("Failed to connect wallet:", error);
@@ -74,11 +86,14 @@ export const WalletConnectionModal: React.FC = () => {
                 </button>
               </div>
 
-              {/* Security notice */}
+              {/* Security notice / Eligibility status */}
               <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-neon-teal bg-opacity-5 border border-neon-teal border-opacity-20">
-                <Shield className="w-5 h-5 text-neon-teal flex-shrink-0" />
+                <Shield className={`w-5 h-5 text-neon-teal flex-shrink-0 ${isCheckingEligibility ? 'animate-pulse' : ''}`} />
                 <p className="text-sm text-soft-gray">
-                  Connect your wallet to interact with Orbital Lending on Algorand testnet
+                  {isCheckingEligibility ? 
+                    "Checking testnet eligibility..." : 
+                    "Connect your wallet to interact with Orbital Lending on Algorand testnet"
+                  }
                 </p>
               </div>
 
