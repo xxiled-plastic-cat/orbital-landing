@@ -39,11 +39,22 @@ export default {
       backgroundImage: {
         'space-gradient': 'linear-gradient(180deg, #0b0c10 0%, #1b1e3a 100%)',
         'orbital-grid': 'radial-gradient(circle, rgba(102, 252, 241, 0.1) 1px, transparent 1px)',
+        // Industrial textures
+        'noise-light': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.03\'/%3E%3C/svg%3E")',
+        'noise-dark': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.02\'/%3E%3C/svg%3E")',
       },
       boxShadow: {
         'neon': '0 0 10px rgba(102, 252, 241, 0.5), 0 0 20px rgba(102, 252, 241, 0.3)',
         'neon-hover': '0 0 15px rgba(102, 252, 241, 0.7), 0 0 30px rgba(102, 252, 241, 0.5)',
         'neon-purple': '0 0 10px rgba(138, 43, 226, 0.5), 0 0 20px rgba(138, 43, 226, 0.3)',
+        // Industrial depth shadows
+        'industrial': '0 8px 24px rgba(0, 0, 0, 0.25)',
+        'industrial-hover': '0 12px 32px rgba(0, 0, 0, 0.3)',
+        'inset': 'inset 0 2px 4px rgba(0, 0, 0, 0.3)',
+        'button-inset': 'inset 0 1px 2px rgba(0, 0, 0, 0.4)',
+        // Edge lighting
+        'edge-glow': '0 -2px 0 rgba(102, 252, 241, 0.3)',
+        'top-highlight': '0 1px 0 rgba(255, 255, 255, 0.1)',
       },
     },
   },
@@ -106,6 +117,63 @@ export default {
         }
       }
       addUtilities(cutCorners)
+      
+      // Industrial design utilities
+      const industrialUtilities = {
+        '.tabular-nums': {
+          'font-variant-numeric': 'tabular-nums'
+        },
+        '.industrial-card': {
+          'background': 'rgb(30 41 59)',
+          'background-image': 'var(--tw-gradient-to-r), var(--noise-texture)',
+          'border': '2px solid rgb(51 65 85)',
+          'box-shadow': '0 8px 24px rgba(0, 0, 0, 0.25), 0 1px 0 rgba(255, 255, 255, 0.1)',
+          'position': 'relative',
+          '&:hover': {
+            'transform': 'translateY(-2px)',
+            'box-shadow': '0 12px 32px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.1)'
+          },
+          'transition': 'all 150ms ease-out'
+        },
+        '.industrial-button': {
+          'height': '48px',
+          'font-weight': '600',
+          'box-shadow': 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.2)',
+          'transition': 'all 150ms ease-out',
+          '&:hover': {
+            'transform': 'translateY(-1px)',
+            'box-shadow': 'inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 6px 16px rgba(0, 0, 0, 0.25)'
+          },
+          '&:active': {
+            'transform': 'translateY(1px)',
+            'box-shadow': 'inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)'
+          },
+          '&:disabled': {
+            'transform': 'none',
+            'box-shadow': 'inset 0 2px 4px rgba(0, 0, 0, 0.3)',
+            'opacity': '0.6',
+            'cursor': 'not-allowed'
+          }
+        },
+        '.inset-panel': {
+          'box-shadow': 'inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 -1px 0 rgba(255, 255, 255, 0.05)',
+          'background': 'rgb(24 33 47)',
+          'border': '1px solid rgb(15 23 42)'
+        },
+        '.orbital-ring': {
+          'height': '14px',
+          'border-radius': '7px',
+          'box-shadow': 'inset 0 1px 0 rgba(0, 0, 0, 0.4)',
+          'background': 'rgb(71 85 105)',
+          'position': 'relative',
+          'overflow': 'hidden'
+        },
+        '.planet-ring': {
+          'box-shadow': '0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(102, 252, 241, 0.2)',
+          'border-radius': '50%'
+        }
+      }
+      addUtilities(industrialUtilities)
     }
   ],
 };
