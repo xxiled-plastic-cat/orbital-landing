@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Rocket, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import OrbitalAnimation from './OrbitalAnimation';
 import OrbitalParticles from './OrbitalParticles';
 
@@ -37,19 +38,20 @@ const Hero = () => {
             </motion.p>
             
             <motion.div 
-              className="flex flex-wrap gap-4"
+              className="flex flex-wrap gap-4 relative z-20"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.4 }}
+              style={{ pointerEvents: 'auto' }}
             >
-              <a href="#markets" className="orbital-btn-primary">
+              <a href="#markets" className="orbital-btn-primary relative z-20">
                 <BarChart3 size={20} />
                 Explore Markets
               </a>
-              <a href="#launch-app" className="orbital-btn-secondary">
+              <Link to="/app" className="orbital-btn-secondary relative z-20">
                 <Rocket size={20} />
                 Launch App
-              </a>
+              </Link>
             </motion.div>
           </motion.div>
           
@@ -74,8 +76,8 @@ const Hero = () => {
       </div>
       
       {/* Background gradient effects */}
-      <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-neon-purple opacity-5 blur-[150px] rounded-full"></div>
-      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-neon-teal opacity-5 blur-[150px] rounded-full"></div>
+      <div className="absolute top-0 right-0 w-2/3 h-2/3 bg-neon-purple opacity-5 blur-[150px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-neon-teal opacity-5 blur-[150px] rounded-full pointer-events-none"></div>
     </section>
   );
 };

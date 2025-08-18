@@ -27,21 +27,21 @@ const DebtMarketplace = () => {
     {
       id: 1,
       title: "Buyouts (CR > LTV)",
-      description: "Pay debt + premium based on collateral ratio. NFT transfers to buyer.",
+      description: "Pay debt + premium based on collateral ratio. Debt position transfers to buyer.",
       icon: CircleDollarSign,
       color: "neon-teal",
     },
     {
       id: 2,
       title: "Liquidation (CR ≤ LTV)",
-      description: "Anyone can repay full debt and claim collateral. NFT is burned.",
+      description: "Anyone can repay full debt and claim collateral. Debt position is closed.",
       icon: Gavel,
       color: "neon-purple",
     },
     {
       id: 3,
       title: "Voluntary Repayment",
-      description: "NFT holder repays and retrieves collateral. NFT is burned.",
+      description: "Debt holder repays and retrieves collateral. Debt position is closed.",
       icon: RefreshCw,
       color: "neon-pink",
     },
@@ -61,7 +61,7 @@ const DebtMarketplace = () => {
         >
           <h2 className="section-title">Permissionless Debt Trading</h2>
           <p className="section-subtitle mx-auto">
-            Buy, liquidate, or repay loans—directly on-chain, with no intermediaries.
+            All debt positions are automatically listed on our marketplace. Buy, liquidate, or repay loans—directly on-chain, with no intermediaries.
           </p>
         </motion.div>
         
