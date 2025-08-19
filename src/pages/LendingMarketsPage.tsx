@@ -1,50 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, TrendingUp, TrendingDown, Radio, Zap } from 'lucide-react';
+import { Search, Filter, TrendingUp, TrendingDown, Radio, Zap, AlertCircle, Loader } from 'lucide-react';
 import AppLayout from '../components/app/AppLayout';
 import MarketCard from '../components/MarketCard';
-import { LendingMarket } from '../types/lending';
+import { useMarkets } from '../hooks/useMarkets';
 
-// Mock market data based on the testnet tokens
-const LENDING_MARKETS: LendingMarket[] = [
-  {
-    id: "744427912",
-    name: "xUSD Testnet",
-    symbol: "xUSDt",
-    image: "/xUSDt.svg",
-    ltv: 70.0,
-    liquidationThreshold: 82.0,
-    supplyApr: 40.50,
-    borrowApr: 12.31,
-    utilizationRate: 100.0,
-    totalDeposits: 2.00,
-    totalBorrows: 1.65,
-    availableToBorrow: 0,
-    isActive: true,
-  },
-  {
-    id: "744427950",
-    name: "CompX Token Testnet",
-    symbol: "COMPXt",
-    image: "/COMPXt.svg",
-    ltv: 75.0,
-    liquidationThreshold: 85.0,
-    supplyApr: 12.31,
-    borrowApr: 40.50,
-    utilizationRate: 54.5,
-    totalDeposits: 5.50,
-    totalBorrows: 2.40,
-    availableToBorrow: 2.00,
-    isActive: true,
-  },
-];
+
 
 const LendingMarketsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const { data: markets, isLoading, error, isError } = useMarkets();
 
-  const filteredMarkets = LENDING_MARKETS.filter(market =>
+  const filteredMarkets = (markets || []).filter(market =>
     market.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    market.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+    (market.symbol?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const formatNumber = (num: number, decimals = 2) => {
@@ -85,15 +54,21 @@ const LendingMarketsPage = () => {
                   <div className="flex items-center gap-8 text-sm">
                     <div>
                       <span className="text-slate-400 uppercase tracking-wide">TVL:</span>
-                      <span className="ml-3 font-mono font-bold text-white tabular-nums text-lg">{formatNumber(LENDING_MARKETS.reduce((acc, market) => acc + market.totalDeposits, 0))}M</span>
+                      <span className="ml-3 font-mono font-bold text-white tabular-nums text-lg">
+                        {isLoading ? '...' : `${formatNumber((markets || []).reduce((acc, market) => acc + market.totalDeposits, 0))}`}
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-400 uppercase tracking-wide">Total Borrowed:</span>
-                      <span className="ml-3 font-mono font-bold text-white tabular-nums text-lg">{formatNumber(LENDING_MARKETS.reduce((acc, market) => acc + market.totalBorrows, 0))}M</span>
+                      <span className="ml-3 font-mono font-bold text-white tabular-nums text-lg">
+                        {isLoading ? '...' : `${formatNumber((markets || []).reduce((acc, market) => acc + market.totalBorrows, 0))}`}
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-400 uppercase tracking-wide">Avg Util:</span>
-                      <span className="ml-3 font-mono font-bold text-cyan-400 tabular-nums text-lg">{(LENDING_MARKETS.reduce((acc, market) => acc + market.utilizationRate, 0) / LENDING_MARKETS.length).toFixed(1)}%</span>
+                      <span className="ml-3 font-mono font-bold text-cyan-400 tabular-nums text-lg">
+                        {isLoading ? '...' : markets && markets.length > 0 ? `${((markets.reduce((acc, market) => acc + market.utilizationRate, 0) / markets.length).toFixed(1))}%` : '0.0%'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -157,9 +132,9 @@ const LendingMarketsPage = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           {[
-            { label: 'ACTIVE MARKETS', value: LENDING_MARKETS.length, icon: Radio, unit: '' },
-            { label: 'TOTAL SUPPLIED', value: `${formatNumber(LENDING_MARKETS.reduce((acc, market) => acc + market.totalDeposits, 0))}M`, icon: TrendingUp, unit: '' },
-            { label: 'TOTAL BORROWED', value: `${formatNumber(LENDING_MARKETS.reduce((acc, market) => acc + market.totalBorrows, 0))}M`, icon: TrendingDown, unit: '' },
+            { label: 'ACTIVE MARKETS', value: isLoading ? '...' : (markets?.length || 0), icon: Radio, unit: '' },
+            { label: 'TOTAL SUPPLIED', value: isLoading ? '...' : `${formatNumber((markets || []).reduce((acc, market) => acc + market.totalDeposits, 0))}`, icon: TrendingUp, unit: '' },
+            { label: 'TOTAL BORROWED', value: isLoading ? '...' : `${formatNumber((markets || []).reduce((acc, market) => acc + market.totalBorrows, 0))}`, icon: TrendingDown, unit: '' },
           ].map((stat) => (
             <div key={stat.label} className="relative">
               <div className="text-slate-600 cut-corners-md p-6 h-24 hover:text-slate-500 transition-all duration-150 bg-noise-dark">
@@ -177,21 +152,63 @@ const LendingMarketsPage = () => {
           ))}
         </motion.div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <motion.div
+            className="text-center py-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-slate-600 cut-corners-lg p-8">
+              <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
+              <div className="text-slate-400 font-mono mb-4">SCANNING ORBITAL MARKETS...</div>
+              <div className="text-slate-500 text-sm font-mono">Fetching market data from the blockchain</div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Error State */}
+        {isError && (
+          <motion.div
+            className="text-center py-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-slate-600 cut-corners-lg p-8">
+              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+              <div className="text-red-400 font-mono mb-4">CONNECTION ERROR</div>
+              <div className="text-slate-500 text-sm font-mono mb-4">
+                {error?.message || 'Failed to load market data'}
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-cyan-500 cut-corners-sm px-6 py-2 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
+              >
+                <span className="text-white">RETRY SCAN</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Orbital Markets Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {filteredMarkets.map((market, index) => (
-            <MarketCard
-              key={market.id}
-              market={market}
-              index={index}
-              formatNumber={formatNumber}
-              getUtilizationBgColor={getUtilizationBgColor}
-            />
-          ))}
-        </div>
+        {!isLoading && !isError && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {filteredMarkets.map((market, index) => (
+              <MarketCard
+                key={market.id}
+                market={market}
+                index={index}
+                formatNumber={formatNumber}
+                getUtilizationBgColor={getUtilizationBgColor}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
-        {filteredMarkets.length === 0 && (
+        {!isLoading && !isError && filteredMarkets.length === 0 && (
           <motion.div
             className="text-center py-12"
             initial={{ opacity: 0 }}

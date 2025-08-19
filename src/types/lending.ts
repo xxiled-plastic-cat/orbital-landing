@@ -2,8 +2,8 @@
 export interface LendingMarket {
   id: string;
   name: string;
-  symbol: string;
-  image: string;
+  symbol?: string;
+  image?: string;
   ltv: number; // Loan-to-value ratio
   liquidationThreshold: number;
   supplyApr: number;

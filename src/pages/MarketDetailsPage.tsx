@@ -15,44 +15,14 @@ import {
   Zap,
   BarChart3,
   DollarSign,
-  Wallet
+  Wallet,
+  Loader
 } from 'lucide-react';
 import AppLayout from '../components/app/AppLayout';
 import { LendingMarket } from '../types/lending';
+import { useMarket } from '../hooks/useMarkets';
 
-// Mock market data - in real app this would come from API
-const LENDING_MARKETS: LendingMarket[] = [
-  {
-    id: "744427912",
-    name: "xUSD Testnet",
-    symbol: "xUSDt",
-    image: "/xUSDt.svg",
-    ltv: 70.0,
-    liquidationThreshold: 82.0,
-    supplyApr: 40.50,
-    borrowApr: 12.31,
-    utilizationRate: 100.0,
-    totalDeposits: 2.00,
-    totalBorrows: 1.65,
-    availableToBorrow: 0,
-    isActive: true,
-  },
-  {
-    id: "744427950",
-    name: "CompX Token Testnet",
-    symbol: "COMPXt",
-    image: "/COMPXt.svg",
-    ltv: 75.0,
-    liquidationThreshold: 85.0,
-    supplyApr: 12.31,
-    borrowApr: 40.50,
-    utilizationRate: 54.5,
-    totalDeposits: 5.50,
-    totalBorrows: 2.40,
-    availableToBorrow: 2.00,
-    isActive: true,
-  },
-];
+
 
 // Mock user position data
 interface UserPosition {
@@ -80,6 +50,8 @@ const MarketDetailsPage = () => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'redeem' | 'borrow'>('deposit');
   const [amount, setAmount] = useState('');
   const [copied, setCopied] = useState(false);
+  
+  const { data: market, isLoading, error, isError } = useMarket(marketId || '');
 
   // Mock user position - in real app this would come from wallet/API
   const [userPosition] = useState<UserPosition>({
@@ -89,16 +61,62 @@ const MarketDetailsPage = () => {
     healthFactor: 0
   });
 
-  const market = LENDING_MARKETS.find(m => m.id === marketId);
-
   useEffect(() => {
-    if (!market) {
+    if (!isLoading && !market && marketId) {
       navigate('/markets');
     }
-  }, [market, navigate]);
+  }, [market, navigate, isLoading, marketId]);
 
-  if (!market) {
-    return null;
+  // Loading state
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="container-section py-8">
+          <motion.div
+            className="text-center py-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-slate-600 cut-corners-lg p-8">
+              <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
+              <div className="text-slate-400 font-mono mb-4">LOADING ORBITAL MARKET...</div>
+              <div className="text-slate-500 text-sm font-mono">Fetching market details from the blockchain</div>
+            </div>
+          </motion.div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Error state
+  if (isError || !market) {
+    return (
+      <AppLayout>
+        <div className="container-section py-8">
+          <motion.div
+            className="text-center py-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-slate-600 cut-corners-lg p-8">
+              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+              <div className="text-red-400 font-mono mb-4">MARKET NOT FOUND</div>
+              <div className="text-slate-500 text-sm font-mono mb-4">
+                {error?.message || 'The requested market could not be found'}
+              </div>
+              <button
+                onClick={() => navigate('/markets')}
+                className="text-cyan-500 cut-corners-sm px-6 py-2 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
+              >
+                <span className="text-white">RETURN TO MARKETS</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </AppLayout>
+    );
   }
 
   const formatNumber = (num: number, decimals = 2) => {
@@ -538,7 +556,7 @@ const MarketDetailsPage = () => {
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                       <span className="font-mono text-slate-400 text-sm">
-                        {activeTab === 'redeem' ? market.symbol : market.symbol.replace('t', '')}
+                        {activeTab === 'redeem' ? market?.symbol : market?.symbol?.replace('t', '')}
                       </span>
                       <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
                         <img
@@ -576,9 +594,9 @@ const MarketDetailsPage = () => {
                       {activeTab === 'borrow' && 'Available to Borrow'}
                     </span>
                     <span className="font-mono text-white">
-                      {activeTab === 'deposit' && `${formatNumber(999)}K ${market.symbol.replace('t', '')}`}
-                      {activeTab === 'redeem' && `${formatNumber(userPosition.supplied)} ${market.symbol}`}
-                      {activeTab === 'borrow' && `${formatNumber(market.availableToBorrow)}M ${market.symbol.replace('t', '')}`}
+                      {activeTab === 'deposit' && `${formatNumber(999)}K ${market?.symbol?.replace('t', '')}`}
+                      {activeTab === 'redeem' && `${formatNumber(userPosition.supplied)} ${market?.symbol}`}
+                      {activeTab === 'borrow' && `${formatNumber(market.availableToBorrow)}M ${market?.symbol?.replace('t', '')}`}
                     </span>
                   </div>
 
@@ -589,8 +607,8 @@ const MarketDetailsPage = () => {
                       {activeTab === 'borrow' && 'Collateral Required'}
                     </span>
                     <span className="font-mono text-white">
-                      {activeTab === 'deposit' && `${amount ? (parseFloat(amount) * 0.98).toFixed(2) : '0.00'} ${market.symbol}`}
-                      {activeTab === 'redeem' && `${amount ? (parseFloat(amount) * 1.02).toFixed(2) : '0.00'} ${market.symbol.replace('t', '')}`}
+                      {activeTab === 'deposit' && `${amount ? (parseFloat(amount) * 0.98).toFixed(2) : '0.00'} ${market?.symbol}`}
+                      {activeTab === 'redeem' && `${amount ? (parseFloat(amount) * 1.02).toFixed(2) : '0.00'} ${market?.symbol?.replace('t', '')}`}
                       {activeTab === 'borrow' && `${amount ? (parseFloat(amount) / (market.ltv / 100)).toFixed(2) : '0.00'} collateral`}
                     </span>
                   </div>
@@ -622,9 +640,9 @@ const MarketDetailsPage = () => {
                   }
                 >
                   <span className="relative z-20">
-                    {activeTab === 'deposit' && `DEPOSIT ${market.symbol.replace('t', '')}`}
-                    {activeTab === 'redeem' && `REDEEM ${market.symbol}`}
-                    {activeTab === 'borrow' && `BORROW ${market.symbol.replace('t', '')}`}
+                    {activeTab === 'deposit' && `DEPOSIT ${market?.symbol?.replace('t', '')}`}
+                    {activeTab === 'redeem' && `REDEEM ${market?.symbol}`}
+                    {activeTab === 'borrow' && `BORROW ${market?.symbol?.replace('t', '')}`}
                   </span>
                 </button>
 
@@ -645,19 +663,19 @@ const MarketDetailsPage = () => {
 
                 {activeTab === 'deposit' && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Deposit {market.symbol.replace('t', '')} to receive yield-bearing {market.symbol} tokens
+                    Deposit {market?.symbol?.replace('t', '')} to receive yield-bearing {market?.symbol} tokens
                   </div>
                 )}
 
                 {activeTab === 'redeem' && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Redeem your {market.symbol} tokens back to {market.symbol.replace('t', '')}
+                    Redeem your {market?.symbol} tokens back to {market?.symbol?.replace('t', '')}
                   </div>
                 )}
 
                 {activeTab === 'borrow' && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Borrow {market.symbol.replace('t', '')} against your collateral at {market.ltv}% LTV
+                    Borrow {market?.symbol?.replace('t', '')} against your collateral at {market?.ltv}% LTV
                   </div>
                 )}
               </div>
