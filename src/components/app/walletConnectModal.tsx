@@ -2,7 +2,7 @@ import { useWallet } from "@txnlab/use-wallet-react";
 import React, { useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet, Shield } from "lucide-react";
-import { WalletContext } from "../context/wallet";
+import { WalletContext } from "../../context/wallet";
 
 export const WalletConnectionModal: React.FC = () => {
   const { wallets } = useWallet();

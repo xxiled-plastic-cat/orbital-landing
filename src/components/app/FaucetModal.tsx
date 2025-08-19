@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Droplets, Loader2 } from "lucide-react";
-import { useToast } from "../context/toastContext";
+import { useToast } from "../../context/toastContext";
 import { getTestTokens } from "../../contracts/faucet/user";
 import { useWallet } from "@txnlab/use-wallet-react";
 

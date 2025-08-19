@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -149,7 +150,7 @@ const MarketDetailsPage = () => {
           transition={{ duration: 0.6 }}
         >
           <button
-            onClick={() => navigate('/markets')}
+            onClick={() => navigate('app/markets')}
             className="flex items-center gap-3 mb-6 text-slate-400 hover:text-white transition-colors duration-150"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -348,7 +349,7 @@ const MarketDetailsPage = () => {
             </motion.div>
 
             {/* Collateral Relationships */}
-            <motion.div
+           {/*  <motion.div
               className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -395,7 +396,7 @@ const MarketDetailsPage = () => {
                 </div>
               </div>
             </motion.div>
-
+ */}
             {/* Contract Information */}
             <motion.div
               className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"

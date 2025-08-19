@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, AlertTriangle, Wallet } from 'lucide-react';
-import { WalletContext } from '../context/wallet';
+import { WalletContext } from '../../context/wallet';
 import { useWallet } from '@txnlab/use-wallet-react';
 
 const UnauthorizedAccess: React.FC = () => {

@@ -2,8 +2,8 @@ import Router from "./Router";
 import { Toast } from "./components/app/Toast";
 import { Providers } from "./components/app/provider";
 import { WalletConnectionModal } from "./components/app/walletConnectModal";
-import { ToastProvider } from "./components/context/toastContext";
-import { WalletContextProvider } from "./components/context/wallet";
+import { ToastProvider } from "./context/toastContext";
+import { WalletContextProvider } from "./context/wallet";
 
 function App() {
   return (

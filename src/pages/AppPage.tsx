@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/app/AppLayout';
 import UnauthorizedAccess from '../components/app/UnauthorizedAccess';
-import { WalletContext } from '../components/context/wallet';
+import { WalletContext } from '../context/wallet';
 import { useWallet } from "@txnlab/use-wallet-react";
 
 const AppPage = () => {

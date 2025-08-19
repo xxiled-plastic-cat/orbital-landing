@@ -1,4 +1,4 @@
-import { getExistingClient } from "./getclient";
+import { getExistingClient } from "./getClient";
 import { getAlgod } from "../../utils";
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
 

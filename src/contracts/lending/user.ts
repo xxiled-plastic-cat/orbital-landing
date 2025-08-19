@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
-import { getExistingClient } from "./getclient";
-import { DepositParams } from "./interface";
+import { getExistingClient } from "./getClient";
+import { DepositParams, getLoanRecordParams, getLoanRecordReturnType,  WithdrawParams } from "./interface";
+import { microAlgo } from "@algorandfoundation/algokit-utils";
+import algosdk from "algosdk";
 
 export async function deposit({
   address,
@@ -11,6 +14,7 @@ export async function deposit({
 }: DepositParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
+    appClient.algorand.setDefaultSigner(signer);
 
     const mbrTxn = appClient.algorand.createTransaction.payment({
       sender: address,
@@ -44,5 +48,101 @@ export async function deposit({
   } catch (error) {
     console.error(error);
     throw error;
+  }
+}
+
+export async function withdraw({
+  address,
+  amount,
+  appId,
+  lstTokenId,
+  signer,
+}: WithdrawParams) {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+    appClient.algorand.setDefaultSigner(signer);
+
+    const axferTxn = appClient.algorand.createTransaction.assetTransfer({
+      sender: address,
+      receiver: appClient.appAddress,
+      assetId: BigInt(lstTokenId),
+      amount: BigInt(amount),
+      note: "Returning lst to contract",
+    });
+
+    const mbrTxn = appClient.algorand.createTransaction.payment({
+      sender: address,
+      receiver: appClient.appAddress,
+      amount: microAlgo(3000n),
+      note: "Funding withdraw",
+    });
+
+    await appClient.send.withdrawDeposit({
+      args: [axferTxn, BigInt(amount), appClient.appId, mbrTxn],
+      assetReferences: [BigInt(lstTokenId)],
+      appReferences: [appClient.appId],
+      sender: address,
+    });
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+
+export async function getLoanRecordBoxValue(
+  {
+    address,
+    appId,
+    signer,
+  }: getLoanRecordParams
+): Promise<getLoanRecordReturnType> {
+  const appClient = await getExistingClient(signer, address, appId);
+  appClient.algorand.setDefaultSigner(signer);
+
+  const loanRecordType = new algosdk.ABITupleType([
+    new algosdk.ABIAddressType(), // borrowerAddress
+    new algosdk.ABIUintType(64), // collateralTokenId
+    new algosdk.ABIUintType(64), // collateralAmount
+    new algosdk.ABITupleType([
+      // struct
+      new algosdk.ABIUintType(64), // debtChange amount
+      new algosdk.ABIUintType(8), // changeType
+      new algosdk.ABIUintType(64), // timestamp
+    ]),
+    new algosdk.ABIUintType(64), // totalDebt
+    new algosdk.ABIUintType(64), // borrowedTokenId
+    new algosdk.ABIUintType(64), // lastAccrualTimestamp
+  ])
+
+  const prefix = new TextEncoder().encode('loan_record')
+  const addressBytes = algosdk.decodeAddress(address).publicKey
+  const boxName = new Uint8Array(prefix.length + addressBytes.length)
+  boxName.set(prefix, 0)
+  boxName.set(addressBytes, prefix.length)
+
+  const value = await appClient.appClient.getBoxValueFromABIType(boxName, loanRecordType)
+  const [
+    borrowerAddress,
+    collateralTokenId,
+    collateralAmount,
+    lastDebtChange,
+    totalDebt,
+    borrowedTokenId,
+    lastAccrualTimestamp,
+  ] = value as any[]
+
+  return {
+    borrowerAddress,
+    collateralTokenId,
+    collateralAmount,
+    lastDebtChange,
+    totalDebt,
+    borrowedTokenId,
+    lastAccrualTimestamp,
+    boxRef: {
+      appIndex: appId,
+      name: boxName,
+    },
   }
 }

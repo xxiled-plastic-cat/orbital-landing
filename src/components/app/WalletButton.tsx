@@ -10,7 +10,7 @@ import {
   Check,
 } from "lucide-react";
 import { useWallet } from "@txnlab/use-wallet-react";
-import { WalletContext } from "../context/wallet";
+import { WalletContext } from "../../context/wallet";
 import FaucetModal from "./FaucetModal";
 
 const WalletButton: React.FC = () => {
