@@ -5,6 +5,7 @@ import * as algokit from "@algorandfoundation/algokit-utils";
 import { getContractState } from "../contracts/lending/state";
 import { LendingMarket, AssetMetadata, UserAssetInfo, UserAssetSummary } from "../types/lending";
 import { currentAprBps, utilNormBps } from "../utils";
+import { getPricing } from "../contracts/oracle/pricing";
 
 // Backend response interface
 interface BackendMarket {
@@ -55,6 +56,7 @@ export async function fetchMarkets(
         const utilCapBps = appGlobalState.utilCapBps ?? 10000n; // Default 100% if not set
         const ltvBps = appGlobalState.ltvBps ?? 0n;
         const liqThresholdBps = appGlobalState.liqThresholdBps ?? 0n;
+        const oracleAppId = appGlobalState.oracleApp ?? 0n;
 
         // Calculate normalized utilization (0-10000 basis points)
         const utilNormBpsValue = utilNormBps(
@@ -109,6 +111,13 @@ export async function fetchMarkets(
           image: "/default-token.svg",
         };
 
+        const baseTokenPrice = await getPricing({
+          tokenId: Number(market.baseTokenId),
+          address,
+          signer,
+          appId: Number(oracleAppId),
+        });
+
         const marketState: LendingMarket = {
           id: market.appId,
           name: tokenMeta.name,
@@ -125,6 +134,8 @@ export async function fetchMarkets(
           isActive: true,
           baseTokenId: market.baseTokenId,
           lstTokenId: market.lstTokenId,
+          oracleAppId: Number(oracleAppId),
+          baseTokenPrice: Number(baseTokenPrice),
         };
 
         marketStates.push(marketState);

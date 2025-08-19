@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
 import { getExistingClient } from "./getClient";
-import { DepositParams, getLoanRecordParams, getLoanRecordReturnType,  WithdrawParams } from "./interface";
+import {
+  DepositParams,
+  getLoanRecordParams,
+  getLoanRecordReturnType,
+  WithdrawParams,
+} from "./interface";
 import { microAlgo } from "@algorandfoundation/algokit-utils";
 import algosdk from "algosdk";
 
@@ -11,10 +16,24 @@ export async function deposit({
   appId,
   depositAssetId,
   signer,
+  lstAssetId,
 }: DepositParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
+    const upscaledAmount = amount * 10 ** 6;
+
+    let optInRequired = false;
+    const group = appClient.newGroup();
+    try {
+      await appClient.algorand.client.algod
+        .accountAssetInformation(address, lstAssetId)
+        .do();
+      optInRequired = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      optInRequired = true;
+    }
 
     const mbrTxn = appClient.algorand.createTransaction.payment({
       sender: address,
@@ -26,17 +45,27 @@ export async function deposit({
       sender: address,
       receiver: appClient.appAddress,
       assetId: BigInt(depositAssetId),
-      amount: BigInt(amount),
+      amount: BigInt(upscaledAmount),
       note: "Depositing " + depositAssetId,
       maxFee: AlgoAmount.MicroAlgos(250_000),
     });
 
-    const group = appClient.newGroup();
+    if (optInRequired) {
+      const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
+        assetId: BigInt(744441978),
+        sender: address,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
+      });
+      group.addTransaction(optInTxn);
+    }
+
     const result = await group
+
       .depositAsa({
-        args: [depositTxn, amount, mbrTxn],
+        args: [depositTxn, upscaledAmount, mbrTxn],
         assetReferences: [BigInt(depositAssetId)],
         sender: address,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
       })
       .send({
         coverAppCallInnerTransactionFees: true,
@@ -89,14 +118,11 @@ export async function withdraw({
   }
 }
 
-
-export async function getLoanRecordBoxValue(
-  {
-    address,
-    appId,
-    signer,
-  }: getLoanRecordParams
-): Promise<getLoanRecordReturnType> {
+export async function getLoanRecordBoxValue({
+  address,
+  appId,
+  signer,
+}: getLoanRecordParams): Promise<getLoanRecordReturnType> {
   const appClient = await getExistingClient(signer, address, appId);
   appClient.algorand.setDefaultSigner(signer);
 
@@ -113,15 +139,18 @@ export async function getLoanRecordBoxValue(
     new algosdk.ABIUintType(64), // totalDebt
     new algosdk.ABIUintType(64), // borrowedTokenId
     new algosdk.ABIUintType(64), // lastAccrualTimestamp
-  ])
+  ]);
 
-  const prefix = new TextEncoder().encode('loan_record')
-  const addressBytes = algosdk.decodeAddress(address).publicKey
-  const boxName = new Uint8Array(prefix.length + addressBytes.length)
-  boxName.set(prefix, 0)
-  boxName.set(addressBytes, prefix.length)
+  const prefix = new TextEncoder().encode("loan_record");
+  const addressBytes = algosdk.decodeAddress(address).publicKey;
+  const boxName = new Uint8Array(prefix.length + addressBytes.length);
+  boxName.set(prefix, 0);
+  boxName.set(addressBytes, prefix.length);
 
-  const value = await appClient.appClient.getBoxValueFromABIType(boxName, loanRecordType)
+  const value = await appClient.appClient.getBoxValueFromABIType(
+    boxName,
+    loanRecordType
+  );
   const [
     borrowerAddress,
     collateralTokenId,
@@ -130,7 +159,7 @@ export async function getLoanRecordBoxValue(
     totalDebt,
     borrowedTokenId,
     lastAccrualTimestamp,
-  ] = value as any[]
+  ] = value as any[];
 
   return {
     borrowerAddress,
@@ -144,5 +173,5 @@ export async function getLoanRecordBoxValue(
       appIndex: appId,
       name: boxName,
     },
-  }
+  };
 }

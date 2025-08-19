@@ -18,6 +18,8 @@ import AppLayout from "../components/app/AppLayout";
 import { useMarket } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
+import { deposit } from "../contracts/lending/user";
+import { useWallet } from "@txnlab/use-wallet-react";
 
 // Mock user position data
 interface UserPosition {
@@ -35,11 +37,13 @@ const MarketDetailsPage = () => {
   );
   const [amount, setAmount] = useState("");
   const [copied, setCopied] = useState(false);
+  const [transactionLoading, setTransactionLoading] = useState(false);
 
   const { data: market, isLoading, error, isError } = useMarket(marketId || "");
   const { algoBalance, userAssets, isLoadingAssets } =
     useContext(WalletContext);
   const { openToast } = useToast();
+  const { activeAddress, transactionSigner } = useWallet();
 
   // Mock user position - in real app this would come from wallet/API
   const [userPosition] = useState<UserPosition>({
@@ -55,6 +59,61 @@ const MarketDetailsPage = () => {
     }
   }, [market, navigate, isLoading, marketId]);
 
+  const handleAction = () => {
+    if (activeTab === "deposit") {
+      handleDeposit();
+    } else if (activeTab === "redeem") {
+      handleRedeem();
+    } else if (activeTab === "borrow") {
+      handleBorrow();
+    }
+  };
+
+  const handleDeposit = async () => {
+    try {
+      setTransactionLoading(true);
+      openToast({
+        type: "loading",
+        message: "Depositing...",
+        description: "Please wait while we deposit your tokens",
+      });
+
+      await deposit({
+        address: activeAddress as string,
+        amount: Number(amount),
+        appId: Number(market?.id),
+        depositAssetId: Number(market?.baseTokenId),
+        lstAssetId: Number(market?.lstTokenId),
+        signer: transactionSigner,
+      })
+        .then(() => {
+          openToast({
+            type: "success",
+            message: "Deposit successful",
+            description: "Your tokens have been deposited",
+          });
+        })
+        .catch((error) => {
+          console.error(error);
+          openToast({
+            type: "error",
+            message: "Deposit failed",
+            description: "Please try again",
+          });
+        });
+      setTransactionLoading(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleRedeem = () => {
+    console.log("Redeem");
+  };
+
+  const handleBorrow = () => {
+    console.log("Borrow");
+  };
 
   // Loading state
   if (isLoading) {
@@ -144,13 +203,13 @@ const MarketDetailsPage = () => {
   // Helper function to get base token symbol (removes 'c' prefix if LST)
   const getBaseTokenSymbol = (symbol?: string): string => {
     if (!symbol) return "";
-    return symbol.startsWith('c') ? symbol.substring(1) : symbol;
+    return symbol.startsWith("c") ? symbol.substring(1) : symbol;
   };
 
   // Helper function to get LST token symbol (adds 'c' prefix if not already there)
   const getLSTTokenSymbol = (symbol?: string): string => {
     if (!symbol) return "";
-    return symbol.startsWith('c') ? symbol : `c${symbol}`;
+    return symbol.startsWith("c") ? symbol : `c${symbol}`;
   };
 
   // Get the maximum available balance based on the active tab
@@ -591,9 +650,7 @@ const MarketDetailsPage = () => {
                     <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
                       Oracle Price
                     </span>
-                    <span className="font-mono text-white text-sm">
-                      $0.9834
-                    </span>
+                    <span className="font-mono text-white text-sm">${0.0}</span>
                   </div>
                 </div>
 
@@ -723,7 +780,7 @@ const MarketDetailsPage = () => {
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                       <span className="font-mono text-slate-400 text-sm">
                         {activeTab === "redeem"
-                          ? getLSTTokenSymbol(market?.symbol) 
+                          ? getLSTTokenSymbol(market?.symbol)
                           : getBaseTokenSymbol(market?.symbol)}
                       </span>
                       <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
@@ -775,11 +832,17 @@ const MarketDetailsPage = () => {
                       ) : (
                         <>
                           {activeTab === "deposit" &&
-                            `${formatBalance(getMaxBalance())} ${getBaseTokenSymbol(market?.symbol) || "tokens"}`}
+                            `${formatBalance(getMaxBalance())} ${
+                              getBaseTokenSymbol(market?.symbol) || "tokens"
+                            }`}
                           {activeTab === "redeem" &&
-                            `${formatBalance(getMaxBalance())} ${getLSTTokenSymbol(market?.symbol) || "LST"}`}
+                            `${formatBalance(getMaxBalance())} ${
+                              getLSTTokenSymbol(market?.symbol) || "LST"
+                            }`}
                           {activeTab === "borrow" &&
-                            `${formatBalance(getMaxBalance())} ${getBaseTokenSymbol(market?.symbol) || "tokens"}`}
+                            `${formatBalance(getMaxBalance())} ${
+                              getBaseTokenSymbol(market?.symbol) || "tokens"
+                            }`}
                         </>
                       )}
                     </span>
@@ -814,7 +877,6 @@ const MarketDetailsPage = () => {
                         } collateral`}
                     </span>
                   </div>
-
                 </div>
 
                 {/* Action Button */}
@@ -834,7 +896,9 @@ const MarketDetailsPage = () => {
                         : "bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight"
                       : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed"
                   }`}
+                  onClick={handleAction}
                   disabled={
+                    transactionLoading ||
                     !amount ||
                     parseFloat(amount) <= 0 ||
                     (activeTab === "borrow" &&
@@ -845,7 +909,8 @@ const MarketDetailsPage = () => {
                   <span className="relative z-20">
                     {activeTab === "deposit" &&
                       `DEPOSIT ${getBaseTokenSymbol(market?.symbol)}`}
-                    {activeTab === "redeem" && `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
+                    {activeTab === "redeem" &&
+                      `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
                     {activeTab === "borrow" &&
                       `BORROW ${getBaseTokenSymbol(market?.symbol)}`}
                   </span>
@@ -875,8 +940,8 @@ const MarketDetailsPage = () => {
 
                 {activeTab === "redeem" && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Redeem your {getLSTTokenSymbol(market?.symbol)} tokens back to{" "}
-                    {getBaseTokenSymbol(market?.symbol)}
+                    Redeem your {getLSTTokenSymbol(market?.symbol)} tokens back
+                    to {getBaseTokenSymbol(market?.symbol)}
                   </div>
                 )}
 

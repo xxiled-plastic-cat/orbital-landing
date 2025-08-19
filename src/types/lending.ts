@@ -15,6 +15,8 @@ export interface LendingMarket {
   isActive: boolean;
   baseTokenId?: string; // Base token asset ID
   lstTokenId?: string; // LST token asset ID
+  oracleAppId?: number; // Oracle application ID
+  baseTokenPrice?: number; // Base token price
 }
 
 // User position interface

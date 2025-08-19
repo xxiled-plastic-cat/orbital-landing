@@ -5,6 +5,7 @@ export interface DepositParams {
   amount: number;
   appId: number;
   depositAssetId: number;
+  lstAssetId: number;
   signer: TransactionSigner;
 }
 
