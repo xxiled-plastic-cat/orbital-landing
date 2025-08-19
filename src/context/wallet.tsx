@@ -4,6 +4,8 @@
 
 import { createContext, useState } from "react";
 import * as algokit from "@algorandfoundation/algokit-utils"
+import { useUserAssetsWithMetadata } from "../hooks/useAssets";
+import { UserAssetSummary } from "../types/lending";
 
 interface WalletContextType {
   address: string;
@@ -17,6 +19,12 @@ interface WalletContextType {
   isCheckingEligibility: boolean;
   setIsCheckingEligibility: (value: boolean) => void;
   checkEligibility: (walletAddress: string) => Promise<boolean>;
+  // Asset information
+  algoBalance: string;
+  userAssets: UserAssetSummary | null;
+  isLoadingAssets: boolean;
+  assetsError: Error | null;
+  refetchAssets: () => void;
 }
 
 const WalletContext = createContext<WalletContextType>({} as WalletContextType);
@@ -30,6 +38,14 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
   const [isCheckingEligibility, setIsCheckingEligibility] = useState<boolean>(false);
+  
+  // Asset information using the custom hook
+  const {
+    data: userAssets,
+    isLoading: isLoadingAssets,
+    error: assetsError,
+    refetch: refetchAssets,
+  } = useUserAssetsWithMetadata();
 
 
   const checkEligibility = async (walletAddress: string): Promise<boolean> => {
@@ -79,6 +95,12 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
         isCheckingEligibility,
         setIsCheckingEligibility,
         checkEligibility,
+        // Asset information
+        algoBalance: userAssets?.algoBalance || '0',
+        userAssets,
+        isLoadingAssets,
+        assetsError,
+        refetchAssets,
       }}
     >
       {children}

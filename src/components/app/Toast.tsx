@@ -4,6 +4,7 @@ import {
   CheckCheckIcon,
   XCircleIcon,
   StarIcon,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CgSpinner } from "react-icons/cg";
@@ -20,11 +21,11 @@ export const Toast = () => {
     toastContext.closeToast();
   };
 
-  const toastClasses = classNames("sm:w-96 border", {
-    " border-green-500": toast.type === "success",
-    " border-red-500": toast.type === "error",
-    " border-blue-500": toast.type === "loading" || toast.type === "multi-step",
-    " border-pink-accent": toast.type === "reward",
+  const toastClasses = classNames("sm:w-96 border-2", {
+    " border-cyan-500": toast.type === "success",
+    " border-red-400": toast.type === "error",
+    " border-cyan-600": toast.type === "loading" || toast.type === "multi-step",
+    " border-amber-500": toast.type === "reward",
   });
 
   const getProgressPercentage = () => {
@@ -38,15 +39,15 @@ export const Toast = () => {
     return (
       <div className="mt-3 space-y-3">
         {/* Progress Bar */}
-        <div className="w-full bg-gray-700 rounded-full h-2">
+        <div className="w-full bg-slate-700 cut-corners-sm h-2">
           <div
-            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            className="bg-cyan-400 h-2 cut-corners-sm transition-all duration-300"
             style={{ width: `${getProgressPercentage()}%` }}
           />
         </div>
 
         {/* Step Progress */}
-        <div className="text-xs text-gray-300">
+        <div className="text-xs font-mono text-slate-300 uppercase tracking-wide">
           Step {toast.currentStepIndex + 1} of {toast.steps.length}
         </div>
 
@@ -55,10 +56,10 @@ export const Toast = () => {
           {toast.steps.map((step, index) => (
             <div
               key={`toast-${toastInstanceRef.current}-step-${step.id}-${index}`}
-              className={classNames("flex items-center space-x-3 text-sm", {
-                "text-blue-400": index === toast.currentStepIndex,
-                "text-green-400": index < toast.currentStepIndex!,
-                "text-gray-500": index > toast.currentStepIndex!,
+              className={classNames("flex items-center space-x-3 text-sm font-mono", {
+                "text-cyan-400": index === toast.currentStepIndex,
+                "text-cyan-300": index < toast.currentStepIndex!,
+                "text-slate-500": index > toast.currentStepIndex!,
               })}
             >
               <div className="flex-shrink-0">
@@ -67,13 +68,13 @@ export const Toast = () => {
                 ) : index === toast.currentStepIndex ? (
                   <CgSpinner className="w-4 h-4 animate-spin" />
                 ) : (
-                  <div className="w-4 h-4 border-2 border-gray-500 rounded-full" />
+                  <div className="w-4 h-4 border-2 border-slate-500 cut-corners-sm" />
                 )}
               </div>
               <div className="flex-1">
-                <div className="font-medium">{step.name}</div>
+                <div className="font-semibold">{step.name}</div>
                 {index === toast.currentStepIndex && (
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-slate-400 mt-1">
                     {step.description}
                   </div>
                 )}
@@ -102,36 +103,39 @@ export const Toast = () => {
               toast.type === "multi-step"
                 ? "w-[20rem] sm:w-[28rem]"
                 : "w-80 sm:w-96"
-            } pt-3 pb-4 px-4 rounded-2xl bg-dark-bg/40 backdrop-blur-xl fixed top-5 z-[10001]`}
+            } cut-corners-lg pt-3 pb-4 px-4 bg-noise-dark shadow-industrial fixed top-5 z-[10001]`}
           >
             <div className="w-full flex justify-end">
-              <button className="cursor-pointer" onClick={handleCloseToast}>
-                <XCircleIcon className="w-6 h-6" />
+              <button 
+                className="cursor-pointer cut-corners-sm p-1 border border-slate-500 bg-slate-700 hover:bg-slate-600 hover:border-slate-400 transition-colors"
+                onClick={handleCloseToast}
+              >
+                <X className="w-4 h-4 text-slate-300" />
               </button>
             </div>
 
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-3">
               <div className="flex flex-col justify-start items-start">
                 {toast.type === "loading" && (
-                  <CgSpinner className="h-8 w-8 animate-spin text-blue-400" />
+                  <CgSpinner className="h-8 w-8 animate-spin text-cyan-400" />
                 )}
                 {toast.type === "success" && (
-                  <CheckCheckIcon className="w-8 h-8 " />
+                  <CheckCheckIcon className="w-8 h-8 text-cyan-400" />
                 )}
-                {toast.type === "error" && <XCircleIcon className="w-8 h-8 " />}
+                {toast.type === "error" && <XCircleIcon className="w-8 h-8 text-red-400" />}
                 {toast.type === "multi-step" && (
-                  <CgSpinner className="h-8 w-8 animate-spin text-blue-400" />
+                  <CgSpinner className="h-8 w-8 animate-spin text-cyan-400" />
                 )}
                 {toast.type === "reward" && (
-                  <StarIcon className="w-8 h-8 text-pink-accent" />
+                  <StarIcon className="w-8 h-8 text-amber-400" />
                 )}
               </div>
               <div className="flex flex-col justify-start items-start gap-2 px-2 flex-1">
-                <h4 className="text-lg font-bold font-display">
+                <h4 className="text-lg font-bold font-mono text-white">
                   {toast.message}
                 </h4>
                 {toast.type !== "multi-step" && toast.description && (
-                  <div className="text-sm">{toast.description}</div>
+                  <div className="text-sm font-mono text-slate-300">{toast.description}</div>
                 )}
                 {toast.type === "multi-step" && renderMultiStepContent()}
               </div>

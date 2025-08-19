@@ -1,28 +1,23 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  TrendingUp, 
-  TrendingDown, 
-  Info, 
-  ExternalLink, 
-  Copy, 
+import { useState, useEffect, useContext } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  TrendingUp,
+  Info,
+  ExternalLink,
+  Copy,
   CheckCircle,
   AlertCircle,
   Radio,
-  Zap,
   BarChart3,
   DollarSign,
-  Wallet,
-  Loader
-} from 'lucide-react';
-import AppLayout from '../components/app/AppLayout';
-import { LendingMarket } from '../types/lending';
-import { useMarket } from '../hooks/useMarkets';
-
-
+  Loader,
+} from "lucide-react";
+import AppLayout from "../components/app/AppLayout";
+import { useMarket } from "../hooks/useMarkets";
+import { WalletContext } from "../context/wallet";
+import { useToast } from "../context/toastContext";
 
 // Mock user position data
 interface UserPosition {
@@ -32,40 +27,34 @@ interface UserPosition {
   healthFactor: number;
 }
 
-// Mock collateral relationships
-const COLLATERAL_RELATIONSHIPS = {
-  "744427912": {
-    acceptsAsCollateral: ["744427950", "ethereum", "bitcoin"],
-    usableAsCollateralFor: ["744427950", "ethereum"]
-  },
-  "744427950": {
-    acceptsAsCollateral: ["744427912", "ethereum", "bitcoin"],
-    usableAsCollateralFor: ["744427912", "ethereum"]
-  }
-};
-
 const MarketDetailsPage = () => {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'deposit' | 'redeem' | 'borrow'>('deposit');
-  const [amount, setAmount] = useState('');
+  const [activeTab, setActiveTab] = useState<"deposit" | "redeem" | "borrow">(
+    "deposit"
+  );
+  const [amount, setAmount] = useState("");
   const [copied, setCopied] = useState(false);
-  
-  const { data: market, isLoading, error, isError } = useMarket(marketId || '');
+
+  const { data: market, isLoading, error, isError } = useMarket(marketId || "");
+  const { algoBalance, userAssets, isLoadingAssets } =
+    useContext(WalletContext);
+  const { openToast } = useToast();
 
   // Mock user position - in real app this would come from wallet/API
   const [userPosition] = useState<UserPosition>({
     supplied: 0,
     borrowed: 0,
     collateralValue: 0,
-    healthFactor: 0
+    healthFactor: 0,
   });
 
   useEffect(() => {
     if (!isLoading && !market && marketId) {
-      navigate('/markets');
+      navigate("/markets");
     }
   }, [market, navigate, isLoading, marketId]);
+
 
   // Loading state
   if (isLoading) {
@@ -80,8 +69,12 @@ const MarketDetailsPage = () => {
           >
             <div className="text-slate-600 cut-corners-lg p-8">
               <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
-              <div className="text-slate-400 font-mono mb-4">LOADING ORBITAL MARKET...</div>
-              <div className="text-slate-500 text-sm font-mono">Fetching market details from the blockchain</div>
+              <div className="text-slate-400 font-mono mb-4">
+                LOADING ORBITAL MARKET...
+              </div>
+              <div className="text-slate-500 text-sm font-mono">
+                Fetching market details from the blockchain
+              </div>
             </div>
           </motion.div>
         </div>
@@ -102,12 +95,14 @@ const MarketDetailsPage = () => {
           >
             <div className="text-slate-600 cut-corners-lg p-8">
               <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <div className="text-red-400 font-mono mb-4">MARKET NOT FOUND</div>
+              <div className="text-red-400 font-mono mb-4">
+                MARKET NOT FOUND
+              </div>
               <div className="text-slate-500 text-sm font-mono mb-4">
-                {error?.message || 'The requested market could not be found'}
+                {error?.message || "The requested market could not be found"}
               </div>
               <button
-                onClick={() => navigate('/markets')}
+                onClick={() => navigate("/markets")}
                 className="text-cyan-500 cut-corners-sm px-6 py-2 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
               >
                 <span className="text-white">RETURN TO MARKETS</span>
@@ -129,15 +124,15 @@ const MarketDetailsPage = () => {
   };
 
   const getUtilizationColor = (rate: number) => {
-    if (rate >= 90) return 'text-red-400';
-    if (rate >= 70) return 'text-amber-400';
-    return 'text-cyan-400';
+    if (rate >= 90) return "text-red-400";
+    if (rate >= 70) return "text-amber-400";
+    return "text-cyan-400";
   };
 
   const getUtilizationBgColor = (rate: number) => {
-    if (rate >= 90) return 'from-red-500 to-red-600';
-    if (rate >= 70) return 'from-amber-500 to-amber-600';
-    return 'from-cyan-500 to-blue-500';
+    if (rate >= 90) return "from-red-500 to-red-600";
+    if (rate >= 70) return "from-amber-500 to-amber-600";
+    return "from-cyan-500 to-blue-500";
   };
 
   const copyToClipboard = (text: string) => {
@@ -146,12 +141,85 @@ const MarketDetailsPage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Helper function to get base token symbol (removes 'c' prefix if LST)
+  const getBaseTokenSymbol = (symbol?: string): string => {
+    if (!symbol) return "";
+    return symbol.startsWith('c') ? symbol.substring(1) : symbol;
+  };
+
+  // Helper function to get LST token symbol (adds 'c' prefix if not already there)
+  const getLSTTokenSymbol = (symbol?: string): string => {
+    if (!symbol) return "";
+    return symbol.startsWith('c') ? symbol : `c${symbol}`;
+  };
+
+  // Get the maximum available balance based on the active tab
+  const getMaxBalance = (): string => {
+    if (!market || isLoadingAssets) return "0";
+
+    switch (activeTab) {
+      case "deposit": {
+        // For deposit, use the base token balance (the token being deposited)
+        if (market.baseTokenId === "0" || !market.baseTokenId) {
+          // If base token is ALGO
+          return algoBalance || "0";
+        } else {
+          // Find the base token in user assets
+          const baseAsset = userAssets?.assets.find(
+            (asset) => asset.assetId === market.baseTokenId && asset.isOptedIn
+          );
+          return baseAsset?.balance || "0";
+        }
+      }
+
+      case "redeem": {
+        // For redeem, use the LST token balance (the market token)
+        if (!market.lstTokenId) return "0";
+        const lstAsset = userAssets?.assets.find(
+          (asset) => asset.assetId === market.lstTokenId && asset.isOptedIn
+        );
+        return lstAsset?.balance || "0";
+      }
+
+      case "borrow":
+        // For borrow, use the available borrow amount (already calculated in market)
+        // Convert to microunits for consistency with other balances
+        return (market.availableToBorrow * Math.pow(10, 6)).toString();
+
+      default:
+        return "0";
+    }
+  };
+
+  // Format balance from microunits to display units (assuming 6 decimals for most tokens)
+  const formatBalance = (balance: string, decimals = 6): string => {
+    const balanceNum = parseFloat(balance || "0");
+    if (isNaN(balanceNum) || balanceNum === 0) return "0";
+
+    const formattedBalance = balanceNum / Math.pow(10, decimals);
+
+    // For very small amounts, show more precision
+    if (formattedBalance < 0.01 && formattedBalance > 0) {
+      return formattedBalance.toFixed(8).replace(/\.?0+$/, "");
+    }
+
+    // For normal amounts, show up to 6 decimal places
+    return formattedBalance.toFixed(6).replace(/\.?0+$/, "");
+  };
+
+  // Handle MAX button click
+  const handleMaxClick = () => {
+    const maxBalance = getMaxBalance();
+    const formattedMax = formatBalance(maxBalance);
+    setAmount(formattedMax);
+  };
+
   // Mock interest rate calculation
   const calculateInterestRate = (utilization: number) => {
     if (utilization < 50) {
-      return 2 + (utilization * 0.1);
+      return 2 + utilization * 0.1;
     } else {
-      const baseRate = 2 + (50 * 0.1);
+      const baseRate = 2 + 50 * 0.1;
       const kinkRate = (utilization - 50) * 0.4;
       return baseRate + kinkRate;
     }
@@ -168,11 +236,13 @@ const MarketDetailsPage = () => {
           transition={{ duration: 0.6 }}
         >
           <button
-            onClick={() => navigate('/app/markets')}
+            onClick={() => navigate("/app/markets")}
             className="flex items-center gap-3 mb-6 text-slate-400 hover:text-white transition-colors duration-150"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="font-mono text-sm uppercase tracking-wide">Back to Markets</span>
+            <span className="font-mono text-sm uppercase tracking-wide">
+              Back to Markets
+            </span>
           </button>
 
           {/* Market Header */}
@@ -193,11 +263,13 @@ const MarketDetailsPage = () => {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-mono font-bold text-white mb-2">{market.symbol}</h1>
+                  <h1 className="text-3xl font-mono font-bold text-white mb-2">
+                    {market.symbol}
+                  </h1>
                   <p className="text-slate-400 font-mono">{market.name}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4">
                 <div className="text-cyan-500 cut-corners-sm px-4 py-2 border border-cyan-500 shadow-inset">
                   <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
@@ -211,7 +283,9 @@ const MarketDetailsPage = () => {
                 </div>
                 <div className="flex items-center gap-2 text-cyan-400">
                   <Radio className="w-5 h-5" />
-                  <span className="text-sm font-mono font-semibold uppercase tracking-wide">ACTIVE</span>
+                  <span className="text-sm font-mono font-semibold uppercase tracking-wide">
+                    ACTIVE
+                  </span>
                 </div>
               </div>
             </div>
@@ -221,7 +295,6 @@ const MarketDetailsPage = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Main Content - Left Side */}
           <div className="xl:col-span-2 space-y-8">
-            
             {/* Market Overview */}
             <motion.div
               className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
@@ -231,50 +304,81 @@ const MarketDetailsPage = () => {
             >
               <div className="flex items-center gap-3 mb-6">
                 <BarChart3 className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">Market Overview</h2>
+                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
+                  Market Overview
+                </h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">Total Supply</div>
-                  <div className="text-2xl font-mono font-bold text-white tabular-nums">${formatNumber(market.totalDeposits * 100)}M</div>
-                  <div className="text-sm text-slate-500 font-mono">{formatNumber(market.totalDeposits)}M {market.symbol}</div>
-                </div>
-                
-                <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">Supply APR</div>
-                  <div className="text-2xl font-mono font-bold text-cyan-400 tabular-nums">{market.supplyApr.toFixed(2)}%</div>
-                </div>
-
-                <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">Borrow APR</div>
-                  <div className="text-2xl font-mono font-bold text-amber-400 tabular-nums">{market.borrowApr.toFixed(2)}%</div>
-                  
+                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+                    Total Supply
+                  </div>
+                  <div className="text-2xl font-mono font-bold text-white tabular-nums">
+                    ${formatNumber(market.totalDeposits * 100)}M
+                  </div>
+                  <div className="text-sm text-slate-500 font-mono">
+                    {formatNumber(market.totalDeposits)}M {market.symbol}
+                  </div>
                 </div>
 
                 <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">Utilization</div>
-                  <div className={`text-2xl font-mono font-bold tabular-nums ${getUtilizationColor(market.utilizationRate)}`}>
+                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+                    Supply APR
+                  </div>
+                  <div className="text-2xl font-mono font-bold text-cyan-400 tabular-nums">
+                    {market.supplyApr.toFixed(2)}%
+                  </div>
+                </div>
+
+                <div className="inset-panel cut-corners-sm p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+                    Borrow APR
+                  </div>
+                  <div className="text-2xl font-mono font-bold text-amber-400 tabular-nums">
+                    {market.borrowApr.toFixed(2)}%
+                  </div>
+                </div>
+
+                <div className="inset-panel cut-corners-sm p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+                    Utilization
+                  </div>
+                  <div
+                    className={`text-2xl font-mono font-bold tabular-nums ${getUtilizationColor(
+                      market.utilizationRate
+                    )}`}
+                  >
                     {market.utilizationRate.toFixed(1)}%
                   </div>
-                  <div className="text-sm text-slate-500 font-mono">At capacity</div>
+                  <div className="text-sm text-slate-500 font-mono">
+                    At capacity
+                  </div>
                 </div>
               </div>
 
               {/* Utilization Track */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-slate-400 text-sm font-mono uppercase tracking-wider">Market Utilization</span>
-                  <span className="text-white text-sm font-mono font-semibold tabular-nums">{market.utilizationRate.toFixed(1)}% of Cap</span>
+                  <span className="text-slate-400 text-sm font-mono uppercase tracking-wider">
+                    Market Utilization
+                  </span>
+                  <span className="text-white text-sm font-mono font-semibold tabular-nums">
+                    {market.utilizationRate.toFixed(1)}% of Cap
+                  </span>
                 </div>
                 <div className="relative">
                   <div className="orbital-ring w-full bg-noise-dark">
                     <motion.div
-                      className={`h-full bg-gradient-to-r ${getUtilizationBgColor(market.utilizationRate)} relative rounded-lg`}
+                      className={`h-full bg-gradient-to-r ${getUtilizationBgColor(
+                        market.utilizationRate
+                      )} relative rounded-lg`}
                       initial={{ width: 0 }}
                       animate={{ width: `${market.utilizationRate}%` }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
-                      style={{ minWidth: market.utilizationRate > 0 ? '14px' : '0px' }}
+                      style={{
+                        minWidth: market.utilizationRate > 0 ? "14px" : "0px",
+                      }}
                     />
                   </div>
                   <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
@@ -297,9 +401,13 @@ const MarketDetailsPage = () => {
             >
               <div className="flex items-center gap-3 mb-6">
                 <TrendingUp className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">Interest Rate Model</h2>
+                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
+                  Interest Rate Model
+                </h2>
                 <div className="text-cyan-500 cut-corners-sm px-3 py-1 border border-cyan-500 shadow-inset">
-                  <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">Kink Model</span>
+                  <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
+                    Kink Model
+                  </span>
                 </div>
               </div>
 
@@ -315,16 +423,20 @@ const MarketDetailsPage = () => {
                     <span>10%</span>
                     <span>0%</span>
                   </div>
-                  
+
                   {/* Chart area */}
                   <div className="ml-8 mr-4 h-full relative">
                     {/* Grid lines */}
-                    {[0, 1, 2, 3, 4, 5].map(i => (
-                      <div key={i} className="absolute w-full border-t border-slate-700/50" style={{ top: `${i * 20}%` }} />
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className="absolute w-full border-t border-slate-700/50"
+                        style={{ top: `${i * 20}%` }}
+                      />
                     ))}
-                    
+
                     {/* Current utilization marker */}
-                    <div 
+                    <div
                       className="absolute top-0 bottom-0 border-l-2 border-cyan-400 opacity-80"
                       style={{ left: `${market.utilizationRate}%` }}
                     >
@@ -332,7 +444,7 @@ const MarketDetailsPage = () => {
                         Current: {market.utilizationRate.toFixed(1)}%
                       </div>
                     </div>
-                    
+
                     {/* Kink point marker */}
                     <div className="absolute top-0 bottom-0 left-[50%] border-l border-yellow-400 opacity-60">
                       <div className="absolute -top-6 -left-6 text-xs font-mono text-yellow-400">
@@ -340,7 +452,7 @@ const MarketDetailsPage = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* X-axis labels */}
                   <div className="absolute bottom-0 left-8 right-4 flex justify-between text-xs font-mono text-slate-400">
                     <span>0%</span>
@@ -354,20 +466,36 @@ const MarketDetailsPage = () => {
 
               {/* Rate Model Description */}
               <div className="inset-panel cut-corners-sm p-4">
-                <h3 className="text-sm font-mono font-bold text-white mb-3 uppercase tracking-wide">Rate Formula</h3>
+                <h3 className="text-sm font-mono font-bold text-white mb-3 uppercase tracking-wide">
+                  Rate Formula
+                </h3>
                 <div className="space-y-2 text-sm font-mono text-slate-300">
-                  <div>Base Rate: <span className="text-cyan-400">2%</span></div>
-                  <div>Pre-Kink Multiplier: <span className="text-cyan-400">0.1 per % utilization</span></div>
-                  <div>Post-Kink Multiplier: <span className="text-amber-400">0.4 per % utilization</span></div>
+                  <div>
+                    Base Rate: <span className="text-cyan-400">2%</span>
+                  </div>
+                  <div>
+                    Pre-Kink Multiplier:{" "}
+                    <span className="text-cyan-400">0.1 per % utilization</span>
+                  </div>
+                  <div>
+                    Post-Kink Multiplier:{" "}
+                    <span className="text-amber-400">
+                      0.4 per % utilization
+                    </span>
+                  </div>
                   <div className="pt-2 border-t border-slate-700">
-                    Current Rate: <span className="text-white font-bold">{calculateInterestRate(market.utilizationRate).toFixed(2)}%</span>
+                    Current Rate:{" "}
+                    <span className="text-white font-bold">
+                      {calculateInterestRate(market.utilizationRate).toFixed(2)}
+                      %
+                    </span>
                   </div>
                 </div>
               </div>
             </motion.div>
 
             {/* Collateral Relationships */}
-           {/*  <motion.div
+            {/*  <motion.div
               className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -424,48 +552,74 @@ const MarketDetailsPage = () => {
             >
               <div className="flex items-center gap-3 mb-6">
                 <Info className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">Contract Information</h2>
+                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
+                  Contract Information
+                </h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Token ID</span>
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Token ID
+                    </span>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-white text-sm">{market.id}</span>
+                      <span className="font-mono text-white text-sm">
+                        {market.id}
+                      </span>
                       <button
                         onClick={() => copyToClipboard(market.id)}
                         className="text-slate-400 hover:text-cyan-400 transition-colors"
                       >
-                        {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {copied ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Decimals</span>
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Decimals
+                    </span>
                     <span className="font-mono text-white text-sm">6</span>
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Oracle Price</span>
-                    <span className="font-mono text-white text-sm">$0.9834</span>
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Oracle Price
+                    </span>
+                    <span className="font-mono text-white text-sm">
+                      $0.9834
+                    </span>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Network</span>
-                    <span className="font-mono text-white text-sm">Algorand Testnet</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Market Type</span>
-                    <span className="font-mono text-white text-sm">LST Pool</span>
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Network
+                    </span>
+                    <span className="font-mono text-white text-sm">
+                      Algorand Testnet
+                    </span>
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Explorer</span>
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Market Type
+                    </span>
+                    <span className="font-mono text-white text-sm">
+                      LST Pool
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Explorer
+                    </span>
                     <div className="flex items-center gap-2">
                       <button className="text-cyan-400 hover:text-cyan-300 transition-colors">
                         <ExternalLink className="w-4 h-4" />
@@ -484,44 +638,44 @@ const MarketDetailsPage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-
-
             {/* Action Panel */}
             <div className="text-slate-600 cut-corners-lg p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
               <div className="flex items-center gap-3 mb-6">
                 <DollarSign className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-mono font-bold text-white uppercase tracking-wide">Market Actions</h3>
+                <h3 className="text-lg font-mono font-bold text-white uppercase tracking-wide">
+                  Market Actions
+                </h3>
               </div>
 
               {/* Tab Selector */}
               <div className="flex gap-2 mb-6">
                 <button
-                  onClick={() => setActiveTab('deposit')}
+                  onClick={() => setActiveTab("deposit")}
                   className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-                    activeTab === 'deposit'
-                      ? 'bg-cyan-600 border-2 border-cyan-500 text-white'
-                      : 'bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
+                    activeTab === "deposit"
+                      ? "bg-cyan-600 border-2 border-cyan-500 text-white"
+                      : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
                   }`}
                 >
                   <span className="relative z-20">DEPOSIT</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('redeem')}
+                  onClick={() => setActiveTab("redeem")}
                   className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-                    activeTab === 'redeem'
-                      ? 'bg-green-600 border-2 border-green-500 text-white'
-                      : 'bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
+                    activeTab === "redeem"
+                      ? "bg-green-600 border-2 border-green-500 text-white"
+                      : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
                   }`}
                   disabled={userPosition.supplied === 0}
                 >
                   <span className="relative z-20">REDEEM</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('borrow')}
+                  onClick={() => setActiveTab("borrow")}
                   className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-                    activeTab === 'borrow'
-                      ? 'bg-blue-600 border-2 border-blue-500 text-white'
-                      : 'bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
+                    activeTab === "borrow"
+                      ? "bg-blue-600 border-2 border-blue-500 text-white"
+                      : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
                   }`}
                   disabled={market.availableToBorrow === 0}
                 >
@@ -533,13 +687,23 @@ const MarketDetailsPage = () => {
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Amount</span>
-                    <button className={`text-xs font-mono font-semibold uppercase tracking-wide transition-colors ${
-                      activeTab === 'deposit' ? 'text-cyan-400 hover:text-cyan-300' :
-                      activeTab === 'redeem' ? 'text-green-400 hover:text-green-300' :
-                      'text-blue-400 hover:text-blue-300'
-                    }`}>
-                      MAX
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                      Amount
+                    </span>
+                    <button
+                      onClick={handleMaxClick}
+                      disabled={isLoadingAssets}
+                      className={`text-xs font-mono font-semibold uppercase tracking-wide transition-colors ${
+                        isLoadingAssets
+                          ? "text-slate-500 cursor-not-allowed"
+                          : activeTab === "deposit"
+                          ? "text-cyan-400 hover:text-cyan-300"
+                          : activeTab === "redeem"
+                          ? "text-green-400 hover:text-green-300"
+                          : "text-blue-400 hover:text-blue-300"
+                      }`}
+                    >
+                      {isLoadingAssets ? "LOADING..." : "MAX"}
                     </button>
                   </div>
                   <div className="relative">
@@ -548,15 +712,19 @@ const MarketDetailsPage = () => {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0.00"
-                      className={`w-full h-12 px-4 bg-slate-800 border-2 border-slate-600 cut-corners-sm text-white font-mono text-lg focus:outline-none transition-colors ${
-                        activeTab === 'deposit' ? 'focus:border-cyan-400' :
-                        activeTab === 'redeem' ? 'focus:border-green-400' :
-                        'focus:border-blue-400'
+                      className={`w-full h-12 px-4 bg-slate-100 border-2 border-slate-600  text-slate-800 font-mono text-lg focus:outline-none transition-colors ${
+                        activeTab === "deposit"
+                          ? "focus:border-cyan-400"
+                          : activeTab === "redeem"
+                          ? "focus:border-green-400"
+                          : "focus:border-blue-400"
                       }`}
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                       <span className="font-mono text-slate-400 text-sm">
-                        {activeTab === 'redeem' ? market?.symbol : market?.symbol?.replace('t', '')}
+                        {activeTab === "redeem"
+                          ? getLSTTokenSymbol(market?.symbol) 
+                          : getBaseTokenSymbol(market?.symbol)}
                       </span>
                       <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
                         <img
@@ -573,109 +741,149 @@ const MarketDetailsPage = () => {
                 <div className="inset-panel cut-corners-sm p-4 space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-mono text-slate-400">
-                      {activeTab === 'deposit' && 'Deposit APR'}
-                      {activeTab === 'redeem' && 'Current Supply APR'}
-                      {activeTab === 'borrow' && 'Borrow APR'}
+                      {activeTab === "deposit" && "Deposit APR"}
+                      {activeTab === "redeem" && "Current Supply APR"}
+                      {activeTab === "borrow" && "Borrow APR"}
                     </span>
-                    <span className={`font-mono font-bold ${
-                      activeTab === 'deposit' ? 'text-cyan-400' : 
-                      activeTab === 'redeem' ? 'text-green-400' : 'text-blue-400'
-                    }`}>
-                      {activeTab === 'deposit' && `+${market.supplyApr.toFixed(2)}%`}
-                      {activeTab === 'redeem' && `+${market.supplyApr.toFixed(2)}%`}
-                      {activeTab === 'borrow' && `${market.borrowApr.toFixed(2)}%`}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="font-mono text-slate-400">
-                      {activeTab === 'deposit' && 'Wallet Balance'}
-                      {activeTab === 'redeem' && 'Your LST Balance'}
-                      {activeTab === 'borrow' && 'Available to Borrow'}
-                    </span>
-                    <span className="font-mono text-white">
-                      {activeTab === 'deposit' && `${formatNumber(999)}K ${market?.symbol?.replace('t', '')}`}
-                      {activeTab === 'redeem' && `${formatNumber(userPosition.supplied)} ${market?.symbol}`}
-                      {activeTab === 'borrow' && `${formatNumber(market.availableToBorrow)}M ${market?.symbol?.replace('t', '')}`}
+                    <span
+                      className={`font-mono font-bold ${
+                        activeTab === "deposit"
+                          ? "text-cyan-400"
+                          : activeTab === "redeem"
+                          ? "text-green-400"
+                          : "text-blue-400"
+                      }`}
+                    >
+                      {activeTab === "deposit" &&
+                        `+${market.supplyApr.toFixed(2)}%`}
+                      {activeTab === "redeem" &&
+                        `+${market.supplyApr.toFixed(2)}%`}
+                      {activeTab === "borrow" &&
+                        `${market.borrowApr.toFixed(2)}%`}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-mono text-slate-400">
-                      {activeTab === 'deposit' && 'You Will Receive'}
-                      {activeTab === 'redeem' && 'You Will Receive'}
-                      {activeTab === 'borrow' && 'Collateral Required'}
+                      {activeTab === "deposit" && "Wallet Balance"}
+                      {activeTab === "redeem" && "Your LST Balance"}
+                      {activeTab === "borrow" && "Available to Borrow"}
                     </span>
                     <span className="font-mono text-white">
-                      {activeTab === 'deposit' && `${amount ? (parseFloat(amount) * 0.98).toFixed(2) : '0.00'} ${market?.symbol}`}
-                      {activeTab === 'redeem' && `${amount ? (parseFloat(amount) * 1.02).toFixed(2) : '0.00'} ${market?.symbol?.replace('t', '')}`}
-                      {activeTab === 'borrow' && `${amount ? (parseFloat(amount) / (market.ltv / 100)).toFixed(2) : '0.00'} collateral`}
+                      {isLoadingAssets ? (
+                        <span className="text-slate-500">Loading...</span>
+                      ) : (
+                        <>
+                          {activeTab === "deposit" &&
+                            `${formatBalance(getMaxBalance())} ${getBaseTokenSymbol(market?.symbol) || "tokens"}`}
+                          {activeTab === "redeem" &&
+                            `${formatBalance(getMaxBalance())} ${getLSTTokenSymbol(market?.symbol) || "LST"}`}
+                          {activeTab === "borrow" &&
+                            `${formatBalance(getMaxBalance())} ${getBaseTokenSymbol(market?.symbol) || "tokens"}`}
+                        </>
+                      )}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-mono text-slate-400">Gas Fee</span>
-                    <span className="font-mono text-white">~0.001 ALGO</span>
+                    <span className="font-mono text-slate-400">
+                      {activeTab === "deposit" && "You Will Receive"}
+                      {activeTab === "redeem" && "You Will Receive"}
+                      {activeTab === "borrow" && "Collateral Required"}
+                    </span>
+                    <span className="font-mono text-white">
+                      {activeTab === "deposit" &&
+                        `${
+                          amount
+                            ? (parseFloat(amount) * 0.98).toFixed(2)
+                            : "0.00"
+                        } ${getLSTTokenSymbol(market?.symbol)}`}
+                      {activeTab === "redeem" &&
+                        `${
+                          amount
+                            ? (parseFloat(amount) * 1.02).toFixed(2)
+                            : "0.00"
+                        } ${getBaseTokenSymbol(market?.symbol)}`}
+                      {activeTab === "borrow" &&
+                        `${
+                          amount
+                            ? (parseFloat(amount) / (market.ltv / 100)).toFixed(
+                                2
+                              )
+                            : "0.00"
+                        } collateral`}
+                    </span>
                   </div>
+
                 </div>
 
                 {/* Action Button */}
                 <button
                   className={`w-full h-12 cut-corners-sm font-mono text-sm font-semibold transition-all duration-150 ${
-                    amount && parseFloat(amount) > 0 && 
-                    !((activeTab === 'borrow' && market.availableToBorrow === 0) || 
-                      (activeTab === 'redeem' && userPosition.supplied === 0))
-                      ? activeTab === 'deposit'
-                        ? 'bg-cyan-600 border-2 border-cyan-500 text-white hover:bg-cyan-500 shadow-top-highlight'
-                        : activeTab === 'redeem'
-                        ? 'bg-green-600 border-2 border-green-500 text-white hover:bg-green-500 shadow-top-highlight'
-                        : 'bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight'
-                      : 'bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed'
+                    amount &&
+                    parseFloat(amount) > 0 &&
+                    !(
+                      (activeTab === "borrow" &&
+                        market.availableToBorrow === 0) ||
+                      (activeTab === "redeem" && userPosition.supplied === 0)
+                    )
+                      ? activeTab === "deposit"
+                        ? "bg-cyan-600 border-2 border-cyan-500 text-white hover:bg-cyan-500 shadow-top-highlight"
+                        : activeTab === "redeem"
+                        ? "bg-green-600 border-2 border-green-500 text-white hover:bg-green-500 shadow-top-highlight"
+                        : "bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight"
+                      : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed"
                   }`}
                   disabled={
-                    !amount || 
-                    parseFloat(amount) <= 0 || 
-                    (activeTab === 'borrow' && market.availableToBorrow === 0) ||
-                    (activeTab === 'redeem' && userPosition.supplied === 0)
+                    !amount ||
+                    parseFloat(amount) <= 0 ||
+                    (activeTab === "borrow" &&
+                      market.availableToBorrow === 0) ||
+                    (activeTab === "redeem" && userPosition.supplied === 0)
                   }
                 >
                   <span className="relative z-20">
-                    {activeTab === 'deposit' && `DEPOSIT ${market?.symbol?.replace('t', '')}`}
-                    {activeTab === 'redeem' && `REDEEM ${market?.symbol}`}
-                    {activeTab === 'borrow' && `BORROW ${market?.symbol?.replace('t', '')}`}
+                    {activeTab === "deposit" &&
+                      `DEPOSIT ${getBaseTokenSymbol(market?.symbol)}`}
+                    {activeTab === "redeem" && `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
+                    {activeTab === "borrow" &&
+                      `BORROW ${getBaseTokenSymbol(market?.symbol)}`}
                   </span>
                 </button>
 
                 {/* Status Messages */}
-                {activeTab === 'borrow' && market.availableToBorrow === 0 && (
+                {activeTab === "borrow" && market.availableToBorrow === 0 && (
                   <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
                     <AlertCircle className="w-4 h-4" />
                     <span>Market at capacity</span>
                   </div>
                 )}
 
-                {activeTab === 'redeem' && userPosition.supplied === 0 && (
+                {activeTab === "redeem" && userPosition.supplied === 0 && (
                   <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
                     <AlertCircle className="w-4 h-4" />
                     <span>No LST tokens to redeem</span>
                   </div>
                 )}
 
-                {activeTab === 'deposit' && (
+                {activeTab === "deposit" && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Deposit {market?.symbol?.replace('t', '')} to receive yield-bearing {market?.symbol} tokens
+                    Deposit {getBaseTokenSymbol(market?.symbol)} to receive
+                    yield-bearing {getLSTTokenSymbol(market?.symbol)} tokens
                   </div>
                 )}
 
-                {activeTab === 'redeem' && (
+                {activeTab === "redeem" && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Redeem your {market?.symbol} tokens back to {market?.symbol?.replace('t', '')}
+                    Redeem your {getLSTTokenSymbol(market?.symbol)} tokens back to{" "}
+                    {getBaseTokenSymbol(market?.symbol)}
                   </div>
                 )}
 
-                {activeTab === 'borrow' && (
+                {activeTab === "borrow" && (
                   <div className="text-xs text-slate-500 font-mono">
-                    Borrow {market?.symbol?.replace('t', '')} against your collateral at {market?.ltv}% LTV
+                    Borrow {getBaseTokenSymbol(market?.symbol)} against your
+                    collateral at {market?.ltv}% LTV
                   </div>
                 )}
               </div>

@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
 import { TransactionSigner } from "algosdk";
+import * as algokit from "@algorandfoundation/algokit-utils";
 import { getContractState } from "../contracts/lending/state";
-import { LendingMarket } from "../types/lending";
+import { LendingMarket, AssetMetadata, UserAssetInfo, UserAssetSummary } from "../types/lending";
 import { currentAprBps, utilNormBps } from "../utils";
 
 // Backend response interface
@@ -122,6 +123,8 @@ export async function fetchMarkets(
           totalBorrows: Number(totalBorrows),
           availableToBorrow: availableToBorrow,
           isActive: true,
+          baseTokenId: market.baseTokenId,
+          lstTokenId: market.lstTokenId,
         };
 
         marketStates.push(marketState);
@@ -138,5 +141,119 @@ export async function fetchMarkets(
   } catch (error) {
     console.error("Failed to fetch markets:", error);
     throw new Error("Failed to fetch market data");
+  }
+}
+
+// Fetch asset metadata from backend
+export async function fetchAssetMetadata(assetIds: string[]): Promise<AssetMetadata[]> {
+  try {
+    const response = await axios.post(
+      `${import.meta.env.VITE_GENERAL_BACKEND_URL}/assets`,
+      { assetIds }
+    );
+    
+    // Backend returns an object with asset IDs as keys, convert to array
+    const responseData = response.data;
+    if (typeof responseData === 'object' && !Array.isArray(responseData)) {
+      // Convert object to array of AssetMetadata
+      const metadataArray: AssetMetadata[] = [];
+      for (const [assetId, assetInfo] of Object.entries(responseData)) {
+        const assetData = assetInfo as any;
+        metadataArray.push({
+          id: assetId,
+          name: assetData.name || `Asset ${assetId}`,
+          symbol: assetData.symbol || `TKN${assetId.slice(-4)}`,
+          decimals: assetData.decimals || 6,
+          image: assetData.image,
+          verified: assetData.verified,
+          total: assetData.total,
+          frozen: assetData.frozen || assetData['is-frozen'],
+        });
+      }
+      return metadataArray;
+    }
+    
+    // If it's already an array, return as-is
+    return responseData;
+  } catch (error) {
+    console.error("Failed to fetch asset metadata:", error);
+    throw new Error("Failed to fetch asset metadata");
+  }
+}
+
+// Get all unique asset IDs from markets (base tokens and LST tokens)
+export async function getMarketAssetIds(): Promise<string[]> {
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_GENERAL_BACKEND_URL}/orbital/markets`
+    );
+    const backendMarkets: BackendMarket[] = response.data;
+    
+    const assetIds = new Set<string>();
+    
+    backendMarkets.forEach(market => {
+      if (market.baseTokenId && market.baseTokenId !== '0') {
+        assetIds.add(market.baseTokenId);
+      }
+      if (market.lstTokenId && market.lstTokenId !== '0') {
+        assetIds.add(market.lstTokenId);
+      }
+    });
+    
+    return Array.from(assetIds);
+  } catch (error) {
+    console.error("Failed to fetch market asset IDs:", error);
+    throw new Error("Failed to fetch market asset IDs");
+  }
+}
+
+// Fetch user asset balances and opt-in status
+export async function fetchUserAssetInfo(
+  walletAddress: string,
+  assetIds: string[]
+): Promise<UserAssetSummary> {
+  try {
+    // Use testnet for now, but you might want to make this configurable
+    const algorand = algokit.AlgorandClient.testNet();
+    
+    // Fetch ALGO balance
+    const accountInfo = await algorand.client.algod.accountInformation(walletAddress).do();
+    const algoBalance = accountInfo.amount.toString();
+    
+    // Fetch asset information
+    const assets: UserAssetInfo[] = [];
+    
+    for (const assetId of assetIds) {
+      if (assetId === '0' || assetId === '') continue; // Skip ALGO and empty asset IDs
+      
+      try {
+        // Check if user is opted into the asset
+        const assetHolding = await algorand.client.algod
+          .accountAssetInformation(walletAddress, parseInt(assetId))
+          .do();
+        
+        assets.push({
+          assetId,
+          balance: assetHolding?.assetHolding?.amount.toString() ?? '0',
+          isOptedIn: true,
+        });
+      } catch (error) {
+        // User is not opted into this asset
+        console.log(`User not opted into asset ${assetId}:`, error);
+        assets.push({
+          assetId,
+          balance: '0',
+          isOptedIn: false,
+        });
+      }
+    }
+    
+    return {
+      algoBalance,
+      assets,
+    };
+  } catch (error) {
+    console.error("Failed to fetch user asset info:", error);
+    throw new Error("Failed to fetch user asset information");
   }
 }
