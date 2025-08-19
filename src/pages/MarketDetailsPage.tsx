@@ -77,7 +77,7 @@ const COLLATERAL_RELATIONSHIPS = {
 const MarketDetailsPage = () => {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'supply' | 'borrow'>('supply');
+  const [activeTab, setActiveTab] = useState<'deposit' | 'redeem' | 'borrow'>('deposit');
   const [amount, setAmount] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -150,7 +150,7 @@ const MarketDetailsPage = () => {
           transition={{ duration: 0.6 }}
         >
           <button
-            onClick={() => navigate('app/markets')}
+            onClick={() => navigate('/app/markets')}
             className="flex items-center gap-3 mb-6 text-slate-400 hover:text-white transition-colors duration-150"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -466,40 +466,7 @@ const MarketDetailsPage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            {/* User Position Overview */}
-            <div className="text-slate-600 cut-corners-lg p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
-              <div className="flex items-center gap-3 mb-6">
-                <Wallet className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-mono font-bold text-white uppercase tracking-wide">Your Position</h3>
-              </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-mono text-slate-400 text-sm">Supplied</span>
-                  <div className="text-right">
-                    <div className="font-mono text-white font-bold">{formatNumber(userPosition.supplied)}</div>
-                    <div className="font-mono text-slate-500 text-xs">~${formatNumber(userPosition.supplied * 100)}</div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="font-mono text-slate-400 text-sm">Borrowed</span>
-                  <div className="text-right">
-                    <div className="font-mono text-white font-bold">{formatNumber(userPosition.borrowed)}</div>
-                    <div className="font-mono text-slate-500 text-xs">~${formatNumber(userPosition.borrowed * 100)}</div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-2 border-t border-slate-700">
-                  <span className="font-mono text-slate-400 text-sm">Health Factor</span>
-                  <div className="text-right">
-                    <div className="font-mono text-green-400 font-bold">
-                      {userPosition.healthFactor > 0 ? userPosition.healthFactor.toFixed(2) : '∞'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Action Panel */}
             <div className="text-slate-600 cut-corners-lg p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
@@ -511,18 +478,29 @@ const MarketDetailsPage = () => {
               {/* Tab Selector */}
               <div className="flex gap-2 mb-6">
                 <button
-                  onClick={() => setActiveTab('supply')}
-                  className={`flex-1 h-10 px-4 cut-corners-sm font-mono text-sm font-semibold transition-all duration-150 ${
-                    activeTab === 'supply'
+                  onClick={() => setActiveTab('deposit')}
+                  className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
+                    activeTab === 'deposit'
                       ? 'bg-cyan-600 border-2 border-cyan-500 text-white'
                       : 'bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
                   }`}
                 >
-                  <span className="relative z-20">SUPPLY</span>
+                  <span className="relative z-20">DEPOSIT</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('redeem')}
+                  className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
+                    activeTab === 'redeem'
+                      ? 'bg-green-600 border-2 border-green-500 text-white'
+                      : 'bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
+                  }`}
+                  disabled={userPosition.supplied === 0}
+                >
+                  <span className="relative z-20">REDEEM</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('borrow')}
-                  className={`flex-1 h-10 px-4 cut-corners-sm font-mono text-sm font-semibold transition-all duration-150 ${
+                  className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
                     activeTab === 'borrow'
                       ? 'bg-blue-600 border-2 border-blue-500 text-white'
                       : 'bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
@@ -538,7 +516,11 @@ const MarketDetailsPage = () => {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">Amount</span>
-                    <button className="text-cyan-400 hover:text-cyan-300 text-xs font-mono font-semibold uppercase tracking-wide">
+                    <button className={`text-xs font-mono font-semibold uppercase tracking-wide transition-colors ${
+                      activeTab === 'deposit' ? 'text-cyan-400 hover:text-cyan-300' :
+                      activeTab === 'redeem' ? 'text-green-400 hover:text-green-300' :
+                      'text-blue-400 hover:text-blue-300'
+                    }`}>
                       MAX
                     </button>
                   </div>
@@ -548,10 +530,16 @@ const MarketDetailsPage = () => {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0.00"
-                      className="w-full h-12 px-4 bg-slate-800 border-2 border-slate-600 cut-corners-sm text-white font-mono text-lg focus:outline-none focus:border-cyan-400 transition-colors"
+                      className={`w-full h-12 px-4 bg-slate-800 border-2 border-slate-600 cut-corners-sm text-white font-mono text-lg focus:outline-none transition-colors ${
+                        activeTab === 'deposit' ? 'focus:border-cyan-400' :
+                        activeTab === 'redeem' ? 'focus:border-green-400' :
+                        'focus:border-blue-400'
+                      }`}
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                      <span className="font-mono text-slate-400 text-sm">{market.symbol}</span>
+                      <span className="font-mono text-slate-400 text-sm">
+                        {activeTab === 'redeem' ? market.symbol : market.symbol.replace('t', '')}
+                      </span>
                       <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
                         <img
                           src={market.image}
@@ -567,20 +555,43 @@ const MarketDetailsPage = () => {
                 <div className="inset-panel cut-corners-sm p-4 space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-mono text-slate-400">
-                      {activeTab === 'supply' ? 'Supply APR' : 'Borrow APR'}
+                      {activeTab === 'deposit' && 'Deposit APR'}
+                      {activeTab === 'redeem' && 'Current Supply APR'}
+                      {activeTab === 'borrow' && 'Borrow APR'}
                     </span>
-                    <span className="font-mono text-cyan-400 font-bold">
-                      {activeTab === 'supply' ? `+${market.supplyApr.toFixed(2)}%` : `${market.borrowApr.toFixed(2)}%`}
+                    <span className={`font-mono font-bold ${
+                      activeTab === 'deposit' ? 'text-cyan-400' : 
+                      activeTab === 'redeem' ? 'text-green-400' : 'text-blue-400'
+                    }`}>
+                      {activeTab === 'deposit' && `+${market.supplyApr.toFixed(2)}%`}
+                      {activeTab === 'redeem' && `+${market.supplyApr.toFixed(2)}%`}
+                      {activeTab === 'borrow' && `${market.borrowApr.toFixed(2)}%`}
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-mono text-slate-400">Available</span>
+                    <span className="font-mono text-slate-400">
+                      {activeTab === 'deposit' && 'Wallet Balance'}
+                      {activeTab === 'redeem' && 'Your LST Balance'}
+                      {activeTab === 'borrow' && 'Available to Borrow'}
+                    </span>
                     <span className="font-mono text-white">
-                      {activeTab === 'supply' 
-                        ? `${formatNumber(999)}M ${market.symbol}` 
-                        : `${formatNumber(market.availableToBorrow)}M ${market.symbol}`
-                      }
+                      {activeTab === 'deposit' && `${formatNumber(999)}K ${market.symbol.replace('t', '')}`}
+                      {activeTab === 'redeem' && `${formatNumber(userPosition.supplied)} ${market.symbol}`}
+                      {activeTab === 'borrow' && `${formatNumber(market.availableToBorrow)}M ${market.symbol.replace('t', '')}`}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-mono text-slate-400">
+                      {activeTab === 'deposit' && 'You Will Receive'}
+                      {activeTab === 'redeem' && 'You Will Receive'}
+                      {activeTab === 'borrow' && 'Collateral Required'}
+                    </span>
+                    <span className="font-mono text-white">
+                      {activeTab === 'deposit' && `${amount ? (parseFloat(amount) * 0.98).toFixed(2) : '0.00'} ${market.symbol}`}
+                      {activeTab === 'redeem' && `${amount ? (parseFloat(amount) * 1.02).toFixed(2) : '0.00'} ${market.symbol.replace('t', '')}`}
+                      {activeTab === 'borrow' && `${amount ? (parseFloat(amount) / (market.ltv / 100)).toFixed(2) : '0.00'} collateral`}
                     </span>
                   </div>
 
@@ -593,23 +604,60 @@ const MarketDetailsPage = () => {
                 {/* Action Button */}
                 <button
                   className={`w-full h-12 cut-corners-sm font-mono text-sm font-semibold transition-all duration-150 ${
-                    amount && parseFloat(amount) > 0
-                      ? activeTab === 'supply'
+                    amount && parseFloat(amount) > 0 && 
+                    !((activeTab === 'borrow' && market.availableToBorrow === 0) || 
+                      (activeTab === 'redeem' && userPosition.supplied === 0))
+                      ? activeTab === 'deposit'
                         ? 'bg-cyan-600 border-2 border-cyan-500 text-white hover:bg-cyan-500 shadow-top-highlight'
+                        : activeTab === 'redeem'
+                        ? 'bg-green-600 border-2 border-green-500 text-white hover:bg-green-500 shadow-top-highlight'
                         : 'bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight'
                       : 'bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed'
                   }`}
-                  disabled={!amount || parseFloat(amount) <= 0 || (activeTab === 'borrow' && market.availableToBorrow === 0)}
+                  disabled={
+                    !amount || 
+                    parseFloat(amount) <= 0 || 
+                    (activeTab === 'borrow' && market.availableToBorrow === 0) ||
+                    (activeTab === 'redeem' && userPosition.supplied === 0)
+                  }
                 >
                   <span className="relative z-20">
-                    {activeTab === 'supply' ? `SUPPLY ${market.symbol}` : `BORROW ${market.symbol}`}
+                    {activeTab === 'deposit' && `DEPOSIT ${market.symbol.replace('t', '')}`}
+                    {activeTab === 'redeem' && `REDEEM ${market.symbol}`}
+                    {activeTab === 'borrow' && `BORROW ${market.symbol.replace('t', '')}`}
                   </span>
                 </button>
 
+                {/* Status Messages */}
                 {activeTab === 'borrow' && market.availableToBorrow === 0 && (
                   <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
                     <AlertCircle className="w-4 h-4" />
                     <span>Market at capacity</span>
+                  </div>
+                )}
+
+                {activeTab === 'redeem' && userPosition.supplied === 0 && (
+                  <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>No LST tokens to redeem</span>
+                  </div>
+                )}
+
+                {activeTab === 'deposit' && (
+                  <div className="text-xs text-slate-500 font-mono">
+                    Deposit {market.symbol.replace('t', '')} to receive yield-bearing {market.symbol} tokens
+                  </div>
+                )}
+
+                {activeTab === 'redeem' && (
+                  <div className="text-xs text-slate-500 font-mono">
+                    Redeem your {market.symbol} tokens back to {market.symbol.replace('t', '')}
+                  </div>
+                )}
+
+                {activeTab === 'borrow' && (
+                  <div className="text-xs text-slate-500 font-mono">
+                    Borrow {market.symbol.replace('t', '')} against your collateral at {market.ltv}% LTV
                   </div>
                 )}
               </div>
