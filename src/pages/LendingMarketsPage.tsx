@@ -41,14 +41,6 @@ const LENDING_MARKETS: LendingMarket[] = [
 
 const LendingMarketsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
-
-  // Handle market selection (can be extended for modal/detail view)
-  const handleMarketSelect = (marketId: string) => {
-    setSelectedMarket(marketId);
-    // TODO: Open market detail modal or navigate to detail page
-    console.log('Selected market:', selectedMarket ? 'Switching from ' + selectedMarket + ' to ' + marketId : 'Selected ' + marketId);
-  };
 
   const filteredMarkets = LENDING_MARKETS.filter(market =>
     market.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -62,12 +54,6 @@ const LendingMarketsPage = () => {
       return `${(num / 1000).toFixed(decimals)}K`;
     }
     return num.toFixed(decimals);
-  };
-
-  const getUtilizationColor = (rate: number) => {
-    if (rate >= 90) return 'text-red-400'; // Danger: magenta/red
-    if (rate >= 70) return 'text-amber-400'; // Warning: amber
-    return 'text-cyan-400'; // Positive: thruster blue/cyan
   };
 
   const getUtilizationBgColor = (rate: number) => {
@@ -198,9 +184,7 @@ const LendingMarketsPage = () => {
               key={market.id}
               market={market}
               index={index}
-              onDetailsClick={handleMarketSelect}
               formatNumber={formatNumber}
-              getUtilizationColor={getUtilizationColor}
               getUtilizationBgColor={getUtilizationBgColor}
             />
           ))}

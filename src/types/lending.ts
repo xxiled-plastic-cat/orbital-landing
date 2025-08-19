@@ -14,3 +14,19 @@ export interface LendingMarket {
   availableToBorrow: number;
   isActive: boolean;
 }
+
+// User position interface
+export interface UserPosition {
+  supplied: number;
+  borrowed: number;
+  collateralValue: number;
+  healthFactor: number;
+}
+
+// Collateral relationships interface
+export interface CollateralRelationships {
+  [marketId: string]: {
+    acceptsAsCollateral: string[];
+    usableAsCollateralFor: string[];
+  };
+}

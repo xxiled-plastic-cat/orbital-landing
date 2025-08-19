@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 import { LendingMarket } from "../types/lending";
@@ -6,19 +7,17 @@ import { LendingMarket } from "../types/lending";
 interface MarketCardProps {
   market: LendingMarket;
   index: number;
-  onDetailsClick: (marketId: string) => void;
   formatNumber: (num: number, decimals?: number) => string;
-  getUtilizationColor: (rate: number) => string;
   getUtilizationBgColor: (rate: number) => string;
 }
 
 const MarketCard: React.FC<MarketCardProps> = ({
   market,
   index,
-  onDetailsClick,
   formatNumber,
   getUtilizationBgColor,
 }) => {
+  const navigate = useNavigate();
   return (
     <motion.div
       key={market.id}
@@ -187,7 +186,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
         {/* Enhanced Command Interface - Industrial Buttons */}
         <div className="flex gap-4">
           <button
-            onClick={() => onDetailsClick(market.id)}
+            onClick={() => navigate(`/app/markets/${market.id}`)}
             className="flex-1 h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-inset relative z-10"
           >
             <span className="relative z-20">DETAILS</span>
