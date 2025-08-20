@@ -21,7 +21,8 @@ const AppPage = () => {
       console.log("Triggering eligibility check for connected wallet");
       checkEligibility(activeAccount.address);
     }
-  }, [activeAccount, isEligible, isCheckingEligibility, checkEligibility]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccount, isEligible]);
 
   // Show loading state while checking eligibility
   if (activeAccount && activeWallet && isCheckingEligibility) {
