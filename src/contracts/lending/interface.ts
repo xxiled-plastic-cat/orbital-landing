@@ -39,3 +39,5 @@ export interface getLoanRecordReturnType {
   lastAccrualTimestamp: bigint
   boxRef: algosdk.BoxReference
 }
+
+

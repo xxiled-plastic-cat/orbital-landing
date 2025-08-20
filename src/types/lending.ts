@@ -15,10 +15,11 @@ export interface LendingMarket {
   totalBorrowsUSD: number;
   availableToBorrow: number;
   isActive: boolean;
-  baseTokenId?: string; // Base token asset ID
-  lstTokenId?: string; // LST token asset ID
-  oracleAppId?: number; // Oracle application ID
-  baseTokenPrice?: number; // Base token price
+  baseTokenId: string; // Base token asset ID
+  lstTokenId: string; // LST token asset ID
+  oracleAppId: number; // Oracle application ID
+  baseTokenPrice: number; // Base token price
+  circulatingLST: number; // Circulating LST tokens
 }
 
 // User position interface

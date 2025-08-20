@@ -20,6 +20,7 @@ import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
 import { deposit, withdraw } from "../contracts/lending/user";
 import { useWallet } from "@txnlab/use-wallet-react";
+import { calculateAssetDue, calculateLSTDue } from "../contracts/lending/state";
 
 const MarketDetailsPage = () => {
   const { marketId } = useParams<{ marketId: string }>();
@@ -32,9 +33,9 @@ const MarketDetailsPage = () => {
   const [transactionLoading, setTransactionLoading] = useState(false);
 
   const { data: market, isLoading, error, isError } = useMarket(marketId || "");
-  const { 
-    algoBalance, 
-    userAssets, 
+  const {
+    algoBalance,
+    userAssets,
     isLoadingAssets,
     applyOptimisticBalanceUpdate,
     confirmOptimisticUpdate,
@@ -66,19 +67,21 @@ const MarketDetailsPage = () => {
   const handleDeposit = async () => {
     try {
       setTransactionLoading(true);
-      
+
       // Apply optimistic updates immediately
-      const depositAmountMicrounits = (Number(amount) * Math.pow(10, 6)).toString();
-      const baseTokenId = market?.baseTokenId || '0';
+      const depositAmountMicrounits = (
+        Number(amount) * Math.pow(10, 6)
+      ).toString();
+      const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
-      
+
       // Decrease base token balance (what user is spending)
       applyOptimisticBalanceUpdate(baseTokenId, `-${depositAmountMicrounits}`);
       // Increase LST token balance (what user receives)
       if (lstTokenId) {
         applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
       }
-      
+
       openToast({
         type: "loading",
         message: "Depositing...",
@@ -101,7 +104,7 @@ const MarketDetailsPage = () => {
           if (lstTokenId) {
             confirmOptimisticUpdate(lstTokenId);
           }
-          
+
           openToast({
             type: "success",
             message: "Deposit successful",
@@ -116,7 +119,7 @@ const MarketDetailsPage = () => {
           if (lstTokenId) {
             revertOptimisticUpdate(lstTokenId);
           }
-          
+
           console.error(error);
           openToast({
             type: "error",
@@ -135,19 +138,21 @@ const MarketDetailsPage = () => {
   const handleRedeem = async () => {
     try {
       setTransactionLoading(true);
-      
+
       // Apply optimistic updates immediately
-      const redeemAmountMicrounits = (Number(amount) * Math.pow(10, 6)).toString();
-      const baseTokenId = market?.baseTokenId || '0';
+      const redeemAmountMicrounits = (
+        Number(amount) * Math.pow(10, 6)
+      ).toString();
+      const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
-      
+
       // Decrease LST token balance (what user is spending)
       if (lstTokenId) {
         applyOptimisticBalanceUpdate(lstTokenId, `-${redeemAmountMicrounits}`);
       }
       // Increase base token balance (what user receives)
       applyOptimisticBalanceUpdate(baseTokenId, redeemAmountMicrounits);
-      
+
       openToast({
         type: "loading",
         message: "Redeeming...",
@@ -169,7 +174,7 @@ const MarketDetailsPage = () => {
             confirmOptimisticUpdate(lstTokenId);
           }
           confirmOptimisticUpdate(baseTokenId);
-          
+
           openToast({
             type: "success",
             message: "Redeem successful",
@@ -184,7 +189,7 @@ const MarketDetailsPage = () => {
             revertOptimisticUpdate(lstTokenId);
           }
           revertOptimisticUpdate(baseTokenId);
-          
+
           console.error(error);
           openToast({
             type: "error",
@@ -261,10 +266,6 @@ const MarketDetailsPage = () => {
       </AppLayout>
     );
   }
-
-  
-
-
 
   const getUtilizationBgColor = (rate: number) => {
     if (rate >= 90) return "from-red-500 to-red-600";
@@ -364,34 +365,34 @@ const MarketDetailsPage = () => {
 
   return (
     <AppLayout>
-      <div className="container-section py-8">
+      <div className="container-section py-4 md:py-8">
         {/* Navigation Header */}
         <motion.div
-          className="mb-8"
+          className="mb-4 md:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <button
             onClick={() => navigate("/app/markets")}
-            className="flex items-center gap-3 mb-6 text-slate-400 hover:text-white transition-colors duration-150"
+            className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6 text-slate-400 hover:text-white transition-colors duration-150 px-1"
           >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-mono text-sm uppercase tracking-wide">
+            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="font-mono text-xs md:text-sm uppercase tracking-wide">
               Back to Markets
             </span>
           </button>
 
           {/* Market Header */}
-          <div className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <div className="relative w-16 h-16 planet-ring">
+          <div className="text-slate-600 cut-corners-lg p-4 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
+              <div className="flex items-center gap-3 md:gap-6">
+                <div className="relative w-12 h-12 md:w-16 md:h-16 planet-ring">
                   <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center border-2 border-slate-500">
                     <img
                       src={market.image}
                       alt={`${market.name} planet`}
-                      className="w-12 h-12 object-contain"
+                      className="w-8 h-8 md:w-12 md:h-12 object-contain"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
                           "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiM2NmZjZjEiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCAxMkwxMy4wOSAxNS43NEwxMiAyMkwxMC45MSAxNS43NEw0IDEyTDEwLjkxIDguMjZMMTIgMloiIGZpbGw9IiMwMDIwMzMiLz4KPC9zdmc+Cjwvc3ZnPgo=";
@@ -400,27 +401,27 @@ const MarketDetailsPage = () => {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-mono font-bold text-white mb-2">
+                  <h1 className="text-xl md:text-3xl font-mono font-bold text-white mb-1 md:mb-2">
                     {market.symbol}
                   </h1>
-                  <p className="text-slate-400 font-mono">{market.name}</p>
+                  <p className="text-slate-400 font-mono text-sm md:text-base">{market.name}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="text-cyan-500 cut-corners-sm px-4 py-2 border border-cyan-500 shadow-inset">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                <div className="text-cyan-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-cyan-500 shadow-inset">
                   <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
                     LTV {market.ltv}%
                   </span>
                 </div>
-                <div className="text-amber-500 cut-corners-sm px-4 py-2 border border-amber-500 shadow-inset">
+                <div className="text-amber-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-500 shadow-inset">
                   <span className="text-amber-400 text-xs font-mono font-semibold uppercase tracking-wide">
                     LT {market.liquidationThreshold}%
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-cyan-400">
-                  <Radio className="w-5 h-5" />
-                  <span className="text-sm font-mono font-semibold uppercase tracking-wide">
+                <div className="flex items-center gap-1 md:gap-2 text-cyan-400">
+                  <Radio className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
                     ACTIVE
                   </span>
                 </div>
@@ -429,64 +430,62 @@ const MarketDetailsPage = () => {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-8">
           {/* Main Content - Left Side */}
-          <div className="xl:col-span-2 space-y-8">
+          <div className="xl:col-span-2 space-y-4 md:space-y-8">
             {/* Market Overview */}
             <motion.div
-              className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
+              className="text-slate-600 cut-corners-lg p-4 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <div className="flex items-center gap-3 mb-6">
-                <BarChart3 className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
+              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+                <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
+                <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide">
                   Market Overview
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+                <div className="inset-panel cut-corners-sm p-3 md:p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
                     Total Supply
                   </div>
-                  <div className="text-2xl font-mono font-bold text-white tabular-nums">
+                  <div className="text-lg md:text-2xl font-mono font-bold text-white tabular-nums">
                     ${market.totalDepositsUSD.toLocaleString()}
                   </div>
-                  <div className="text-sm text-slate-500 font-mono">
-                    {(market.totalDeposits).toFixed(6)} {market.symbol}
+                  <div className="text-xs md:text-sm text-slate-500 font-mono">
+                    {market.totalDeposits.toFixed(6)} {market.symbol}
                   </div>
                 </div>
 
-                <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+                <div className="inset-panel cut-corners-sm p-3 md:p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
                     Supply APR
                   </div>
-                  <div className="text-2xl font-mono font-bold text-cyan-400 tabular-nums">
+                  <div className="text-lg md:text-2xl font-mono font-bold text-cyan-400 tabular-nums">
                     {market.supplyApr.toFixed(2)}%
                   </div>
                 </div>
 
-                <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+                <div className="inset-panel cut-corners-sm p-3 md:p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
                     Borrow APR
                   </div>
-                  <div className="text-2xl font-mono font-bold text-amber-400 tabular-nums">
+                  <div className="text-lg md:text-2xl font-mono font-bold text-amber-400 tabular-nums">
                     {market.borrowApr.toFixed(2)}%
                   </div>
                 </div>
-
-                
               </div>
 
               {/* Utilization Track */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-slate-400 text-sm font-mono uppercase tracking-wider">
+              <div className="mb-4 md:mb-6">
+                <div className="flex justify-between items-center mb-3 md:mb-4">
+                  <span className="text-slate-400 text-xs md:text-sm font-mono uppercase tracking-wider">
                     Market Utilization
                   </span>
-                  <span className="text-white text-sm font-mono font-semibold tabular-nums">
+                  <span className="text-white text-xs md:text-sm font-mono font-semibold tabular-nums">
                     {market.utilizationRate.toFixed(1)}% of Cap
                   </span>
                 </div>
@@ -714,7 +713,9 @@ const MarketDetailsPage = () => {
                     <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
                       Oracle Price
                     </span>
-                    <span className="font-mono text-white text-sm">${market?.baseTokenPrice}</span>
+                    <span className="font-mono text-white text-sm">
+                      ${market?.baseTokenPrice}
+                    </span>
                   </div>
                 </div>
 
@@ -754,25 +755,25 @@ const MarketDetailsPage = () => {
 
           {/* Action Panel - Right Side */}
           <motion.div
-            className="space-y-8"
+            className="space-y-4 md:space-y-8"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             {/* Action Panel */}
-            <div className="text-slate-600 cut-corners-lg p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
-              <div className="flex items-center gap-3 mb-6">
-                <DollarSign className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-mono font-bold text-white uppercase tracking-wide">
+            <div className="text-slate-600 cut-corners-lg p-4 md:p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
+              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+                <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-cyan-400" />
+                <h3 className="text-base md:text-lg font-mono font-bold text-white uppercase tracking-wide">
                   Market Actions
                 </h3>
               </div>
 
               {/* Tab Selector */}
-              <div className="flex gap-2 mb-6">
+              <div className="flex gap-1 md:gap-2 mb-4 md:mb-6">
                 <button
                   onClick={() => setActiveTab("deposit")}
-                  className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
+                  className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
                     activeTab === "deposit"
                       ? "bg-cyan-600 border-2 border-cyan-500 text-white"
                       : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
@@ -782,7 +783,7 @@ const MarketDetailsPage = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab("redeem")}
-                  className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
+                  className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
                     activeTab === "redeem"
                       ? "bg-green-600 border-2 border-green-500 text-white"
                       : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
@@ -798,7 +799,7 @@ const MarketDetailsPage = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab("borrow")}
-                  className={`flex-1 h-10 px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
+                  className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
                     activeTab === "borrow"
                       ? "bg-blue-600 border-2 border-blue-500 text-white"
                       : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
@@ -810,10 +811,10 @@ const MarketDetailsPage = () => {
               </div>
 
               {/* Amount Input */}
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                    <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
                       Amount
                     </span>
                     <button
@@ -838,7 +839,7 @@ const MarketDetailsPage = () => {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0.00"
-                      className={`w-full h-12 px-4 bg-slate-100 border-2 border-slate-600  text-slate-800 font-mono text-lg focus:outline-none transition-colors ${
+                      className={`w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors ${
                         activeTab === "deposit"
                           ? "focus:border-cyan-400"
                           : activeTab === "redeem"
@@ -846,17 +847,17 @@ const MarketDetailsPage = () => {
                           : "focus:border-blue-400"
                       }`}
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                      <span className="font-mono text-slate-400 text-sm">
+                    <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm">
                         {activeTab === "redeem"
                           ? getLSTTokenSymbol(market?.symbol)
                           : getBaseTokenSymbol(market?.symbol)}
                       </span>
-                      <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
+                      <div className="w-5 h-5 md:w-6 md:h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
                         <img
                           src={market.image}
                           alt={market.symbol}
-                          className="w-4 h-4 object-contain"
+                          className="w-3 h-3 md:w-4 md:h-4 object-contain"
                         />
                       </div>
                     </div>
@@ -864,7 +865,7 @@ const MarketDetailsPage = () => {
                 </div>
 
                 {/* Transaction Details */}
-                <div className="inset-panel cut-corners-sm p-4 space-y-3">
+                <div className="inset-panel cut-corners-sm p-3 md:p-4 space-y-2 md:space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-mono text-slate-400">
                       {activeTab === "deposit" && "Deposit APR"}
@@ -927,13 +928,25 @@ const MarketDetailsPage = () => {
                       {activeTab === "deposit" &&
                         `${
                           amount
-                            ? (parseFloat(amount) * 0.98).toFixed(2)
+                            ? Number(
+                                calculateLSTDue(
+                                  BigInt(Number(amount) * 10 ** 6),
+                                  BigInt(market.circulatingLST * 10 ** 6 || 0),
+                                  BigInt(market.totalDeposits * 10 ** 6 || 0)
+                                )
+                              ).toFixed(2)
                             : "0.00"
                         } ${getLSTTokenSymbol(market?.symbol)}`}
                       {activeTab === "redeem" &&
                         `${
                           amount
-                            ? (parseFloat(amount) * 1.02).toFixed(2)
+                            ? Number(
+                                calculateAssetDue(
+                                  BigInt(Number(amount) * 10 ** 6),
+                                  BigInt(market?.circulatingLST * 10 ** 6 || 0),
+                                  BigInt(market?.totalDeposits * 10 ** 6 || 0)
+                                )
+                              ).toFixed(2)
                             : "0.00"
                         } ${getBaseTokenSymbol(market?.symbol)}`}
                       {activeTab === "borrow" &&
@@ -950,12 +963,13 @@ const MarketDetailsPage = () => {
 
                 {/* Action Button */}
                 <button
-                  className={`w-full h-12 cut-corners-sm font-mono text-sm font-semibold transition-all duration-150 ${
+                  className={`w-full h-10 md:h-12 cut-corners-sm font-mono text-xs md:text-sm font-semibold transition-all duration-150 ${
                     amount &&
                     parseFloat(amount) > 0 &&
                     !(
-                      (activeTab === "borrow" &&
-                        market.availableToBorrow === 0) /* ||
+                      (
+                        activeTab === "borrow" && market.availableToBorrow === 0
+                      ) /* ||
                       (activeTab === "redeem" &&
                         userAssets?.assets.find(
                           (asset) =>

@@ -141,6 +141,7 @@ export async function fetchMarkets(
           lstTokenId: market.lstTokenId,
           oracleAppId: Number(oracleAppId),
           baseTokenPrice: Number(baseTokenPrice),
+          circulatingLST: Number(appGlobalState.circulatingLst) / 10 ** 6,
         };
 
         marketStates.push(marketState);

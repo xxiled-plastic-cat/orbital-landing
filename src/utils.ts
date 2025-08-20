@@ -7,7 +7,7 @@ export function getAlgod() {
   return algorand.client.algod;
 }
 
-const BASIS_POINTS = 10000n;
+export const BASIS_POINTS = 10000n;
 
 export function utilNormBps(totalDeposits: bigint, totalBorrows: bigint, utilCapBps: bigint) {
   if (totalDeposits === 0n) return 0n;

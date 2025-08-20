@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/app/AppLayout';
 import UnauthorizedAccess from '../components/app/UnauthorizedAccess';
+import MissionControlHeader from '../components/app/MissionControlHeader';
 import { WalletContext } from '../context/wallet';
 import { useWallet } from "@txnlab/use-wallet-react";
 
@@ -20,7 +21,7 @@ const AppPage = () => {
       console.log("Triggering eligibility check for connected wallet");
       checkEligibility(activeAccount.address);
     }
-  }, [activeAccount?.address, isEligible]);
+  }, [activeAccount, isEligible, isCheckingEligibility, checkEligibility]);
 
   // Show loading state while checking eligibility
   if (activeAccount && activeWallet && isCheckingEligibility) {
@@ -58,62 +59,11 @@ const AppPage = () => {
 
   return (
     <AppLayout>
-      <div className="container-section py-12">
-        {/* Mission Control Header */}
-        <motion.div 
-          className="mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          {/* Status Strip */}
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm border border-slate-700 rounded-lg"></div>
-            <div className="relative px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-cyan-400" />
-                    <span className="text-sm font-mono text-slate-300">ORBITAL LENDING</span>
-                  </div>
-                  <div className="h-6 w-px bg-slate-600"></div>
-                  <div className="flex items-center gap-1 text-cyan-400">
-                    <Zap className="w-4 h-4" />
-                    <span className="text-sm font-mono">SYSTEM ONLINE</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-3 py-1 rounded-md">
-                    <span className="text-amber-400 text-sm font-mono">TESTNET</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="container-section py-6 md:py-12">
+        <MissionControlHeader />
 
-          <div className="text-center">
-            <h2 className="text-4xl md:text-5xl font-mono font-bold mb-6 text-white">
-              ORBITAL <span className="text-cyan-400">LENDING</span>
-            </h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto mb-8 font-mono">
-              Decentralized lending protocol on Algorand testnet. 
-              Supply assets, borrow funds, trade debt positions.
-            </p>
-            
-            {/* Testnet Notice */}
-            <div className="bg-amber-500 bg-opacity-10 border border-amber-500 border-opacity-30 rounded-lg p-4 max-w-2xl mx-auto">
-              <div className="flex items-center justify-center gap-3">
-                <Zap className="w-5 h-5 text-amber-400" />
-                <p className="text-amber-400 font-mono text-sm">
-                 TESTNET ENVIRONMENT - All transactions use test tokens with no real value
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-                {/* Operations Grid */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        {/* Operations Grid */}
+        <div className="grid md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
           {[
             {
               icon: DollarSign,
@@ -142,22 +92,22 @@ const AppPage = () => {
               transition={{ duration: 0.6, delay: item.delay }}
             >
               {/* Industrial Card */}
-              <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 hover:border-slate-500 hover:bg-slate-750 transition-all duration-150">
-                <div className="bg-slate-700 border border-slate-600 p-4 rounded-lg w-16 h-16 flex items-center justify-center mb-6">
-                  <item.icon className="text-cyan-400 w-8 h-8" />
+              <div className="bg-slate-800 border border-slate-600 rounded-xl p-4 md:p-6 hover:border-slate-500 hover:bg-slate-750 transition-all duration-150">
+                <div className="bg-slate-700 border border-slate-600 p-3 md:p-4 rounded-lg w-12 h-12 md:w-16 md:h-16 flex items-center justify-center mb-4 md:mb-6">
+                  <item.icon className="text-cyan-400 w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                <h3 className="font-mono text-xl font-bold mb-4 text-white">{item.title}</h3>
-                <p className="text-slate-300 mb-6 leading-relaxed text-sm">
+                <h3 className="font-mono text-lg md:text-xl font-bold mb-3 md:mb-4 text-white">{item.title}</h3>
+                <p className="text-slate-300 mb-4 md:mb-6 leading-relaxed text-sm">
                   {item.description}
                 </p>
                 {item.title === "Lending Markets" ? (
                   <Link to="/app/markets" className="block w-full">
-                    <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-6 py-3 rounded-lg font-mono text-sm hover:bg-cyan-500 transition-all duration-150">
+                    <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-lg font-mono text-xs md:text-sm hover:bg-cyan-500 transition-all duration-150">
                       EXPLORE MARKETS
                     </button>
                   </Link>
                 ) : (
-                  <button className="w-full bg-slate-600 border border-slate-500 text-slate-400 px-6 py-3 rounded-lg font-mono text-sm cursor-not-allowed">
+                  <button className="w-full bg-slate-600 border border-slate-500 text-slate-400 px-4 py-2.5 md:px-6 md:py-3 rounded-lg font-mono text-xs md:text-sm cursor-not-allowed">
                     COMING SOON
                   </button>
                 )}
@@ -174,13 +124,13 @@ const AppPage = () => {
           transition={{ duration: 0.8, delay: 1.0 }}
         >          
           {/* Industrial container */}
-          <div className="bg-slate-800 border border-slate-600 rounded-xl p-8">
-            <div className="flex items-center justify-center gap-3 mb-6"> 
-              <Shield className="w-6 h-6 text-cyan-400" />
-              <h3 className="text-2xl font-mono font-bold text-center text-white">SYSTEM STATUS</h3>
+          <div className="bg-slate-800 border border-slate-600 rounded-xl p-4 md:p-8">
+            <div className="flex items-center justify-center gap-2 md:gap-3 mb-4 md:mb-6"> 
+              <Shield className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
+              <h3 className="text-lg md:text-2xl font-mono font-bold text-center text-white">SYSTEM STATUS</h3>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-4 md:gap-6">
               {/* Module 1 */}
               <motion.div 
                 className="relative"
@@ -188,9 +138,9 @@ const AppPage = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 1.2 }}
               >
-                <div className="bg-slate-700 border border-slate-600 rounded-lg p-6">
-                  <h4 className="font-mono font-bold text-cyan-400 mb-4 flex items-center gap-2">
-                    <Droplets className="w-5 h-5" />
+                <div className="bg-slate-700 border border-slate-600 rounded-lg p-4 md:p-6">
+                  <h4 className="font-mono font-bold text-cyan-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
+                    <Droplets className="w-4 h-4 md:w-5 md:h-5" />
                     FOUNDATION
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
@@ -221,9 +171,9 @@ const AppPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.4 }}
               >
-                <div className="bg-slate-700 border border-slate-600 rounded-lg p-6">
-                  <h4 className="font-mono font-bold text-amber-400 mb-4 flex items-center gap-2">
-                    <Zap className="w-5 h-5" />
+                <div className="bg-slate-700 border border-slate-600 rounded-lg p-4 md:p-6">
+                  <h4 className="font-mono font-bold text-amber-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
+                    <Zap className="w-4 h-4 md:w-5 md:h-5" />
                     CORE LENDING
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
@@ -254,9 +204,9 @@ const AppPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.6 }}
               >
-                <div className="bg-slate-700 border border-slate-600 rounded-lg p-6">
-                  <h4 className="font-mono font-bold text-red-400 mb-4 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
+                <div className="bg-slate-700 border border-slate-600 rounded-lg p-4 md:p-6">
+                  <h4 className="font-mono font-bold text-red-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
+                    <BarChart3 className="w-4 h-4 md:w-5 md:h-5" />
                     DEBT MARKETPLACE
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
