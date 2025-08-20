@@ -18,16 +18,8 @@ import AppLayout from "../components/app/AppLayout";
 import { useMarket } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
-import { deposit } from "../contracts/lending/user";
+import { deposit, withdraw } from "../contracts/lending/user";
 import { useWallet } from "@txnlab/use-wallet-react";
-
-// Mock user position data
-interface UserPosition {
-  supplied: number;
-  borrowed: number;
-  collateralValue: number;
-  healthFactor: number;
-}
 
 const MarketDetailsPage = () => {
   const { marketId } = useParams<{ marketId: string }>();
@@ -45,14 +37,6 @@ const MarketDetailsPage = () => {
   const { openToast } = useToast();
   const { activeAddress, transactionSigner } = useWallet();
 
-  // Mock user position - in real app this would come from wallet/API
-  const [userPosition] = useState<UserPosition>({
-    supplied: 0,
-    borrowed: 0,
-    collateralValue: 0,
-    healthFactor: 0,
-  });
-
   useEffect(() => {
     if (!isLoading && !market && marketId) {
       navigate("/markets");
@@ -69,13 +53,19 @@ const MarketDetailsPage = () => {
     }
   };
 
+  useEffect(() => {
+    console.log("market", market);
+  }, [market]);
+
   const handleDeposit = async () => {
     try {
       setTransactionLoading(true);
       openToast({
         type: "loading",
         message: "Depositing...",
-        description: "Please wait while we deposit your tokens",
+        description: `Please sign the transaction to deposit ${amount} ${getBaseTokenSymbol(
+          market?.symbol
+        )} to receive ${amount} ${getLSTTokenSymbol(market?.symbol)}`,
       });
 
       await deposit({
@@ -90,7 +80,9 @@ const MarketDetailsPage = () => {
           openToast({
             type: "success",
             message: "Deposit successful",
-            description: "Your tokens have been deposited",
+            description: `You have deposited ${amount} ${getBaseTokenSymbol(
+              market?.symbol
+            )} and received ${amount} ${getLSTTokenSymbol(market?.symbol)}!`,
           });
         })
         .catch((error) => {
@@ -98,7 +90,9 @@ const MarketDetailsPage = () => {
           openToast({
             type: "error",
             message: "Deposit failed",
-            description: "Please try again",
+            description: `Unable to deposit ${amount} ${getBaseTokenSymbol(
+              market?.symbol
+            )}`,
           });
         });
       setTransactionLoading(false);
@@ -107,8 +101,47 @@ const MarketDetailsPage = () => {
     }
   };
 
-  const handleRedeem = () => {
-    console.log("Redeem");
+  const handleRedeem = async () => {
+    try {
+      setTransactionLoading(true);
+      openToast({
+        type: "loading",
+        message: "Redeeming...",
+        description: `Please sign the transaction to redeem ${amount} ${getLSTTokenSymbol(
+          market?.symbol
+        )} to receive ${amount} ${getBaseTokenSymbol(market?.symbol)}`,
+      });
+
+      await withdraw({
+        address: activeAddress as string,
+        amount: Number(amount),
+        appId: Number(market?.id),
+        signer: transactionSigner,
+        lstTokenId: Number(market?.lstTokenId),
+      })
+        .then(() => {
+          openToast({
+            type: "success",
+            message: "Redeem successful",
+            description: `You have redeemed ${amount} ${getLSTTokenSymbol(
+              market?.symbol
+            )} and received ${amount} ${getBaseTokenSymbol(market?.symbol)}!`,
+          });
+        })
+        .catch((error) => {
+          console.error(error);
+          openToast({
+            type: "error",
+            message: "Redeem failed",
+            description: `Unable to redeem ${amount} ${getLSTTokenSymbol(
+              market?.symbol
+            )}`,
+          });
+        });
+      setTransactionLoading(false);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleBorrow = () => {
@@ -173,14 +206,7 @@ const MarketDetailsPage = () => {
     );
   }
 
-  const formatNumber = (num: number, decimals = 2) => {
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(decimals)}M`;
-    } else if (num >= 1000) {
-      return `${(num / 1000).toFixed(decimals)}K`;
-    }
-    return num.toFixed(decimals);
-  };
+  
 
   const getUtilizationColor = (rate: number) => {
     if (rate >= 90) return "text-red-400";
@@ -374,10 +400,10 @@ const MarketDetailsPage = () => {
                     Total Supply
                   </div>
                   <div className="text-2xl font-mono font-bold text-white tabular-nums">
-                    ${formatNumber(market.totalDeposits * 100)}M
+                    ${market.totalDepositsUSD.toLocaleString()}
                   </div>
                   <div className="text-sm text-slate-500 font-mono">
-                    {formatNumber(market.totalDeposits)}M {market.symbol}
+                    {(market.totalDeposits).toFixed(6)} {market.symbol}
                   </div>
                 </div>
 
@@ -399,21 +425,7 @@ const MarketDetailsPage = () => {
                   </div>
                 </div>
 
-                <div className="inset-panel cut-corners-sm p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
-                    Utilization
-                  </div>
-                  <div
-                    className={`text-2xl font-mono font-bold tabular-nums ${getUtilizationColor(
-                      market.utilizationRate
-                    )}`}
-                  >
-                    {market.utilizationRate.toFixed(1)}%
-                  </div>
-                  <div className="text-sm text-slate-500 font-mono">
-                    At capacity
-                  </div>
-                </div>
+                
               </div>
 
               {/* Utilization Track */}
@@ -650,7 +662,7 @@ const MarketDetailsPage = () => {
                     <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
                       Oracle Price
                     </span>
-                    <span className="font-mono text-white text-sm">${0.0}</span>
+                    <span className="font-mono text-white text-sm">${market?.baseTokenPrice}</span>
                   </div>
                 </div>
 
@@ -723,7 +735,12 @@ const MarketDetailsPage = () => {
                       ? "bg-green-600 border-2 border-green-500 text-white"
                       : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
                   }`}
-                  disabled={userPosition.supplied === 0}
+                  disabled={
+                    userAssets?.assets.find(
+                      (asset) =>
+                        Number(asset.assetId) === Number(market?.lstTokenId)
+                    )?.balance === "0"
+                  }
                 >
                   <span className="relative z-20">REDEEM</span>
                 </button>
@@ -886,8 +903,12 @@ const MarketDetailsPage = () => {
                     parseFloat(amount) > 0 &&
                     !(
                       (activeTab === "borrow" &&
-                        market.availableToBorrow === 0) ||
-                      (activeTab === "redeem" && userPosition.supplied === 0)
+                        market.availableToBorrow === 0) /* ||
+                      (activeTab === "redeem" &&
+                        userAssets?.assets.find(
+                          (asset) =>
+                            Number(asset.assetId) === Number(market?.lstTokenId)
+                        )?.balance !== "0") */
                     )
                       ? activeTab === "deposit"
                         ? "bg-cyan-600 border-2 border-cyan-500 text-white hover:bg-cyan-500 shadow-top-highlight"
@@ -903,7 +924,11 @@ const MarketDetailsPage = () => {
                     parseFloat(amount) <= 0 ||
                     (activeTab === "borrow" &&
                       market.availableToBorrow === 0) ||
-                    (activeTab === "redeem" && userPosition.supplied === 0)
+                    (activeTab === "redeem" &&
+                      userAssets?.assets.find(
+                        (asset) =>
+                          Number(asset.assetId) === Number(market?.lstTokenId)
+                      )?.balance === "0")
                   }
                 >
                   <span className="relative z-20">
@@ -924,12 +949,16 @@ const MarketDetailsPage = () => {
                   </div>
                 )}
 
-                {activeTab === "redeem" && userPosition.supplied === 0 && (
-                  <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>No LST tokens to redeem</span>
-                  </div>
-                )}
+                {activeTab === "redeem" &&
+                  userAssets?.assets.find(
+                    (asset) =>
+                      Number(asset.assetId) === Number(market?.lstTokenId)
+                  )?.balance === "0" && (
+                    <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>No LST tokens to redeem</span>
+                    </div>
+                  )}
 
                 {activeTab === "deposit" && (
                   <div className="text-xs text-slate-500 font-mono">

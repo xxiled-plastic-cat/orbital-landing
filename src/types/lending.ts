@@ -10,7 +10,9 @@ export interface LendingMarket {
   borrowApr: number;
   utilizationRate: number;
   totalDeposits: number;
+  totalDepositsUSD: number;
   totalBorrows: number;
+  totalBorrowsUSD: number;
   availableToBorrow: number;
   isActive: boolean;
   baseTokenId?: string; // Base token asset ID

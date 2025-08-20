@@ -9,12 +9,16 @@ export async function getPricing({
   appId,
 }: OraclePricingParams) {
   try {
-    /* const client = await getExistingClient(signer, address, appId);
-
-    const pricing = await client.send.getTokenPrice({
-      args: [tokenId],
-    }); */
-
+    const appClient = await getExistingClient(signer, address, appId);
+    const boxValues = await appClient.state.box.tokenPrices.getMap();
+    console.log("tokenId", tokenId);
+    console.log("boxValues", boxValues);
+    for (const v of boxValues) {
+      console.log("v", v);
+      if (v[0].assetId === BigInt(tokenId)) {
+        return Number(v[1].price) / 10 ** 6;
+      }
+    }
     return 0;
   } catch (error) {
     console.error(error);

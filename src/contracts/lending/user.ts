@@ -35,6 +35,8 @@ export async function deposit({
       optInRequired = true;
     }
 
+    console.log("optInRequired", optInRequired);
+
     const mbrTxn = appClient.algorand.createTransaction.payment({
       sender: address,
       amount: AlgoAmount.MicroAlgos(1000n),
@@ -52,7 +54,7 @@ export async function deposit({
 
     if (optInRequired) {
       const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
-        assetId: BigInt(744441978),
+        assetId: BigInt(lstAssetId),
         sender: address,
         maxFee: AlgoAmount.MicroAlgos(250_000),
       });
@@ -90,12 +92,13 @@ export async function withdraw({
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
+    const upscaledAmount = amount * 10 ** 6;
 
     const axferTxn = appClient.algorand.createTransaction.assetTransfer({
       sender: address,
       receiver: appClient.appAddress,
       assetId: BigInt(lstTokenId),
-      amount: BigInt(amount),
+      amount: BigInt(upscaledAmount),
       note: "Returning lst to contract",
     });
 
@@ -107,7 +110,7 @@ export async function withdraw({
     });
 
     await appClient.send.withdrawDeposit({
-      args: [axferTxn, BigInt(amount), appClient.appId, mbrTxn],
+      args: [axferTxn, upscaledAmount, appClient.appId, mbrTxn],
       assetReferences: [BigInt(lstTokenId)],
       appReferences: [appClient.appId],
       sender: address,

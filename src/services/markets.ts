@@ -118,6 +118,9 @@ export async function fetchMarkets(
           appId: Number(oracleAppId),
         });
 
+        const totalDepositsUSD = Number(totalDeposits) * (baseTokenPrice || 0);
+        const totalBorrowsUSD = Number(totalBorrows) * (baseTokenPrice || 0);
+
         const marketState: LendingMarket = {
           id: market.appId,
           name: tokenMeta.name,
@@ -128,8 +131,10 @@ export async function fetchMarkets(
           supplyApr: supplyApr,
           borrowApr: borrowApr,
           utilizationRate: utilizationRate,
-          totalDeposits: Number(totalDeposits),
-          totalBorrows: Number(totalBorrows),
+          totalDeposits: Number(totalDeposits) / 10 ** 6,
+          totalDepositsUSD: totalDepositsUSD / 10 ** 6,
+          totalBorrows: Number(totalBorrows) / 10 ** 6,
+          totalBorrowsUSD: totalBorrowsUSD / 10 ** 6,
           availableToBorrow: availableToBorrow,
           isActive: true,
           baseTokenId: market.baseTokenId,
