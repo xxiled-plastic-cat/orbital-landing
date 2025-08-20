@@ -32,8 +32,14 @@ const MarketDetailsPage = () => {
   const [transactionLoading, setTransactionLoading] = useState(false);
 
   const { data: market, isLoading, error, isError } = useMarket(marketId || "");
-  const { algoBalance, userAssets, isLoadingAssets } =
-    useContext(WalletContext);
+  const { 
+    algoBalance, 
+    userAssets, 
+    isLoadingAssets,
+    applyOptimisticBalanceUpdate,
+    confirmOptimisticUpdate,
+    revertOptimisticUpdate,
+  } = useContext(WalletContext);
   const { openToast } = useToast();
   const { activeAddress, transactionSigner } = useWallet();
 
@@ -60,6 +66,19 @@ const MarketDetailsPage = () => {
   const handleDeposit = async () => {
     try {
       setTransactionLoading(true);
+      
+      // Apply optimistic updates immediately
+      const depositAmountMicrounits = (Number(amount) * Math.pow(10, 6)).toString();
+      const baseTokenId = market?.baseTokenId || '0';
+      const lstTokenId = market?.lstTokenId;
+      
+      // Decrease base token balance (what user is spending)
+      applyOptimisticBalanceUpdate(baseTokenId, `-${depositAmountMicrounits}`);
+      // Increase LST token balance (what user receives)
+      if (lstTokenId) {
+        applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
+      }
+      
       openToast({
         type: "loading",
         message: "Depositing...",
@@ -77,6 +96,12 @@ const MarketDetailsPage = () => {
         signer: transactionSigner,
       })
         .then(() => {
+          // Confirm optimistic updates on success
+          confirmOptimisticUpdate(baseTokenId);
+          if (lstTokenId) {
+            confirmOptimisticUpdate(lstTokenId);
+          }
+          
           openToast({
             type: "success",
             message: "Deposit successful",
@@ -86,6 +111,12 @@ const MarketDetailsPage = () => {
           });
         })
         .catch((error) => {
+          // Revert optimistic updates on failure
+          revertOptimisticUpdate(baseTokenId);
+          if (lstTokenId) {
+            revertOptimisticUpdate(lstTokenId);
+          }
+          
           console.error(error);
           openToast({
             type: "error",
@@ -104,6 +135,19 @@ const MarketDetailsPage = () => {
   const handleRedeem = async () => {
     try {
       setTransactionLoading(true);
+      
+      // Apply optimistic updates immediately
+      const redeemAmountMicrounits = (Number(amount) * Math.pow(10, 6)).toString();
+      const baseTokenId = market?.baseTokenId || '0';
+      const lstTokenId = market?.lstTokenId;
+      
+      // Decrease LST token balance (what user is spending)
+      if (lstTokenId) {
+        applyOptimisticBalanceUpdate(lstTokenId, `-${redeemAmountMicrounits}`);
+      }
+      // Increase base token balance (what user receives)
+      applyOptimisticBalanceUpdate(baseTokenId, redeemAmountMicrounits);
+      
       openToast({
         type: "loading",
         message: "Redeeming...",
@@ -120,6 +164,12 @@ const MarketDetailsPage = () => {
         lstTokenId: Number(market?.lstTokenId),
       })
         .then(() => {
+          // Confirm optimistic updates on success
+          if (lstTokenId) {
+            confirmOptimisticUpdate(lstTokenId);
+          }
+          confirmOptimisticUpdate(baseTokenId);
+          
           openToast({
             type: "success",
             message: "Redeem successful",
@@ -129,6 +179,12 @@ const MarketDetailsPage = () => {
           });
         })
         .catch((error) => {
+          // Revert optimistic updates on failure
+          if (lstTokenId) {
+            revertOptimisticUpdate(lstTokenId);
+          }
+          revertOptimisticUpdate(baseTokenId);
+          
           console.error(error);
           openToast({
             type: "error",
@@ -208,11 +264,7 @@ const MarketDetailsPage = () => {
 
   
 
-  const getUtilizationColor = (rate: number) => {
-    if (rate >= 90) return "text-red-400";
-    if (rate >= 70) return "text-amber-400";
-    return "text-cyan-400";
-  };
+
 
   const getUtilizationBgColor = (rate: number) => {
     if (rate >= 90) return "from-red-500 to-red-600";

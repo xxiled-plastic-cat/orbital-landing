@@ -2,10 +2,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { createContext, useState } from "react";
+import { createContext, useState, useMemo, useCallback } from "react";
 import * as algokit from "@algorandfoundation/algokit-utils"
 import { useUserAssetsWithMetadata } from "../hooks/useAssets";
 import { UserAssetSummary } from "../types/lending";
+
+interface OptimisticBalanceOverride {
+  assetId: string;
+  balanceChange: string; // Can be positive or negative
+  timestamp: number;
+}
+
+type OptimisticOverrides = Map<string, OptimisticBalanceOverride>;
 
 interface WalletContextType {
   address: string;
@@ -25,6 +33,11 @@ interface WalletContextType {
   isLoadingAssets: boolean;
   assetsError: Error | null;
   refetchAssets: () => void;
+  // Optimistic updates
+  applyOptimisticBalanceUpdate: (assetId: string, balanceChange: string) => void;
+  confirmOptimisticUpdate: (assetId: string) => void;
+  revertOptimisticUpdate: (assetId: string) => void;
+  clearAllOptimisticUpdates: () => void;
 }
 
 const WalletContext = createContext<WalletContextType>({} as WalletContextType);
@@ -38,6 +51,9 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
   const [isCheckingEligibility, setIsCheckingEligibility] = useState<boolean>(false);
+  
+  // Optimistic updates state
+  const [optimisticOverrides, setOptimisticOverrides] = useState<OptimisticOverrides>(new Map());
   
   // Asset information using the custom hook
   const {
@@ -81,6 +97,79 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Optimistic update methods
+  const applyOptimisticBalanceUpdate = useCallback((assetId: string, balanceChange: string) => {
+    setOptimisticOverrides(prev => {
+      const newOverrides = new Map(prev);
+      newOverrides.set(assetId, {
+        assetId,
+        balanceChange,
+        timestamp: Date.now()
+      });
+      return newOverrides;
+    });
+  }, []);
+
+  const confirmOptimisticUpdate = useCallback((assetId: string) => {
+    setOptimisticOverrides(prev => {
+      const newOverrides = new Map(prev);
+      newOverrides.delete(assetId);
+      return newOverrides;
+    });
+    // Refetch real data to confirm changes
+    refetchAssets();
+  }, [refetchAssets]);
+
+  const revertOptimisticUpdate = useCallback((assetId: string) => {
+    setOptimisticOverrides(prev => {
+      const newOverrides = new Map(prev);
+      newOverrides.delete(assetId);
+      return newOverrides;
+    });
+  }, []);
+
+  const clearAllOptimisticUpdates = useCallback(() => {
+    setOptimisticOverrides(new Map());
+  }, []);
+
+  // Merge real and optimistic data
+  const mergedUserAssets = useMemo(() => {
+    if (!userAssets || optimisticOverrides.size === 0) {
+      return userAssets;
+    }
+
+    const mergedAssets = { ...userAssets };
+    
+    // Apply optimistic updates to assets
+    if (mergedAssets.assets) {
+      mergedAssets.assets = mergedAssets.assets.map(asset => {
+        const override = optimisticOverrides.get(asset.assetId);
+        if (override) {
+          const currentBalance = parseFloat(asset.balance || '0');
+          const changeAmount = parseFloat(override.balanceChange);
+          const newBalance = Math.max(0, currentBalance + changeAmount);
+          
+          return {
+            ...asset,
+            balance: newBalance.toString()
+          };
+        }
+        return asset;
+      });
+    }
+
+    // Apply optimistic updates to ALGO balance
+    const algoOverride = optimisticOverrides.get('0');
+    if (algoOverride) {
+      const currentAlgoBalance = parseFloat(mergedAssets.algoBalance || '0');
+      const changeAmount = parseFloat(algoOverride.balanceChange);
+      const newAlgoBalance = Math.max(0, currentAlgoBalance + changeAmount);
+      mergedAssets.algoBalance = newAlgoBalance.toString();
+    }
+
+    return mergedAssets;
+  }, [userAssets, optimisticOverrides]);
+
   return (
     <WalletContext.Provider
       value={{
@@ -95,12 +184,17 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
         isCheckingEligibility,
         setIsCheckingEligibility,
         checkEligibility,
-        // Asset information
-        algoBalance: userAssets?.algoBalance || '0',
-        userAssets,
+        // Asset information (with optimistic updates applied)
+        algoBalance: mergedUserAssets?.algoBalance || '0',
+        userAssets: mergedUserAssets,
         isLoadingAssets,
         assetsError,
         refetchAssets,
+        // Optimistic updates
+        applyOptimisticBalanceUpdate,
+        confirmOptimisticUpdate,
+        revertOptimisticUpdate,
+        clearAllOptimisticUpdates,
       }}
     >
       {children}
