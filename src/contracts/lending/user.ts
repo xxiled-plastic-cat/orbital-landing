@@ -74,8 +74,8 @@ export async function deposit({
         populateAppCallResources: true,
         suppressLog: true,
       });
-
-    return result.txIds[0];
+      return result.txIds[0];
+    
   } catch (error) {
     console.error(error);
     throw error;
@@ -109,12 +109,14 @@ export async function withdraw({
       note: "Funding withdraw",
     });
 
-    await appClient.send.withdrawDeposit({
+    const result = await appClient.send.withdrawDeposit({
       args: [axferTxn, upscaledAmount, appClient.appId, mbrTxn],
       assetReferences: [BigInt(lstTokenId)],
       appReferences: [appClient.appId],
       sender: address,
     });
+
+    return result.txIds[0];
   } catch (error) {
     console.error(error);
     throw error;

@@ -21,6 +21,7 @@ import { useToast } from "../context/toastContext";
 import { deposit, withdraw } from "../contracts/lending/user";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { calculateAssetDue, calculateLSTDue } from "../contracts/lending/state";
+import { recordUserAction } from "../services/userStats";
 
 const MarketDetailsPage = () => {
   const { marketId } = useParams<{ marketId: string }>();
@@ -39,7 +40,6 @@ const MarketDetailsPage = () => {
     isLoadingAssets,
     applyOptimisticBalanceUpdate,
     confirmOptimisticUpdate,
-    revertOptimisticUpdate,
   } = useContext(WalletContext);
   const { openToast } = useToast();
   const { activeAddress, transactionSigner } = useWallet();
@@ -68,19 +68,11 @@ const MarketDetailsPage = () => {
     try {
       setTransactionLoading(true);
 
-      // Apply optimistic updates immediately
       const depositAmountMicrounits = (
         Number(amount) * Math.pow(10, 6)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
-
-      // Decrease base token balance (what user is spending)
-      applyOptimisticBalanceUpdate(baseTokenId, `-${depositAmountMicrounits}`);
-      // Increase LST token balance (what user receives)
-      if (lstTokenId) {
-        applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
-      }
 
       openToast({
         type: "loading",
@@ -98,12 +90,39 @@ const MarketDetailsPage = () => {
         lstAssetId: Number(market?.lstTokenId),
         signer: transactionSigner,
       })
-        .then(() => {
-          // Confirm optimistic updates on success
+        .then((txId) => {
+          // Apply optimistic updates only after transaction success
+          applyOptimisticBalanceUpdate(
+            baseTokenId,
+            `-${depositAmountMicrounits}`
+          );
+          if (lstTokenId) {
+            applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
+          }
+
+          // Confirm the updates immediately since transaction was successful
           confirmOptimisticUpdate(baseTokenId);
           if (lstTokenId) {
             confirmOptimisticUpdate(lstTokenId);
           }
+          // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+          const lstMinted = calculateLSTDue(
+            BigInt(Number(amount) * 10 ** 6),
+            BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
+            BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+          );
+
+          recordUserAction({
+            address: activeAddress as string,
+            marketId: Number(market?.id),
+            action: "deposit",
+            tokensOut: Number(lstMinted), //LST returned
+            tokensIn: Number(amount), //Base token deposited
+            timestamp: Date.now(),
+            txnId: txId,
+            tokenInId: Number(market?.baseTokenId),
+            tokenOutId: Number(market?.lstTokenId),
+          });
 
           openToast({
             type: "success",
@@ -114,12 +133,6 @@ const MarketDetailsPage = () => {
           });
         })
         .catch((error) => {
-          // Revert optimistic updates on failure
-          revertOptimisticUpdate(baseTokenId);
-          if (lstTokenId) {
-            revertOptimisticUpdate(lstTokenId);
-          }
-
           console.error(error);
           openToast({
             type: "error",
@@ -139,19 +152,11 @@ const MarketDetailsPage = () => {
     try {
       setTransactionLoading(true);
 
-      // Apply optimistic updates immediately
       const redeemAmountMicrounits = (
         Number(amount) * Math.pow(10, 6)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
-
-      // Decrease LST token balance (what user is spending)
-      if (lstTokenId) {
-        applyOptimisticBalanceUpdate(lstTokenId, `-${redeemAmountMicrounits}`);
-      }
-      // Increase base token balance (what user receives)
-      applyOptimisticBalanceUpdate(baseTokenId, redeemAmountMicrounits);
 
       openToast({
         type: "loading",
@@ -168,12 +173,39 @@ const MarketDetailsPage = () => {
         signer: transactionSigner,
         lstTokenId: Number(market?.lstTokenId),
       })
-        .then(() => {
-          // Confirm optimistic updates on success
+        .then((txId) => {
+          // Apply optimistic updates only after transaction success
+          if (lstTokenId) {
+            applyOptimisticBalanceUpdate(
+              lstTokenId,
+              `-${redeemAmountMicrounits}`
+            );
+          }
+          applyOptimisticBalanceUpdate(baseTokenId, redeemAmountMicrounits);
+
+          // Confirm the updates immediately since transaction was successful
           if (lstTokenId) {
             confirmOptimisticUpdate(lstTokenId);
           }
           confirmOptimisticUpdate(baseTokenId);
+
+          const asaDue = calculateAssetDue(
+            BigInt(Number(amount) * 10 ** 6),
+            BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
+            BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+          );
+
+          recordUserAction({
+            address: activeAddress as string,
+            marketId: Number(market?.id),
+            action: "redeem",
+            tokensOut: Number(amount), //LST returned
+            tokensIn: Number(asaDue), //Base token deposited
+            timestamp: Date.now(),
+            txnId: txId,
+            tokenInId: Number(market?.lstTokenId),
+            tokenOutId: Number(market?.baseTokenId),
+          });
 
           openToast({
             type: "success",
@@ -184,12 +216,6 @@ const MarketDetailsPage = () => {
           });
         })
         .catch((error) => {
-          // Revert optimistic updates on failure
-          if (lstTokenId) {
-            revertOptimisticUpdate(lstTokenId);
-          }
-          revertOptimisticUpdate(baseTokenId);
-
           console.error(error);
           openToast({
             type: "error",
@@ -404,7 +430,9 @@ const MarketDetailsPage = () => {
                   <h1 className="text-xl md:text-3xl font-mono font-bold text-white mb-1 md:mb-2">
                     {market.symbol}
                   </h1>
-                  <p className="text-slate-400 font-mono text-sm md:text-base">{market.name}</p>
+                  <p className="text-slate-400 font-mono text-sm md:text-base">
+                    {market.name}
+                  </p>
                 </div>
               </div>
 
