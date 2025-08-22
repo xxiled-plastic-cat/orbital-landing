@@ -13,7 +13,13 @@ export async function getContractState(
   return globalState;
 }
 
+export async function getAcceptedCollateral(address: string, appId: number, signer: TransactionSigner) {
+  const appClient = await getExistingClient(signer, address, appId);
 
+  const collateralBox = await appClient.state.box.acceptedCollaterals.getMap();
+  console.log('collateralBox',collateralBox);
+  return collateralBox;
+}
 
 /**
  * Calculate the amount of LST tokens due when making a deposit

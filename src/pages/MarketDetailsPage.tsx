@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
-  TrendingUp,
   Info,
   ExternalLink,
   Copy,
@@ -15,12 +14,14 @@ import {
   Loader,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
+import InterestRateModel from "../components/InterestRateModel";
+import CollateralRelationships from "../components/CollateralRelationships";
 import { useMarket } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
 import { deposit, withdraw } from "../contracts/lending/user";
 import { useWallet } from "@txnlab/use-wallet-react";
-import { calculateAssetDue, calculateLSTDue } from "../contracts/lending/state";
+import { calculateAssetDue, calculateLSTDue, getAcceptedCollateral } from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
 
 const MarketDetailsPage = () => {
@@ -32,6 +33,8 @@ const MarketDetailsPage = () => {
   const [amount, setAmount] = useState("");
   const [copied, setCopied] = useState(false);
   const [transactionLoading, setTransactionLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [acceptedCollateral, setAcceptedCollateral] = useState<Map<any, any> | undefined>(undefined);
 
   const { data: market, isLoading, error, isError } = useMarket(marketId || "");
   const {
@@ -49,6 +52,28 @@ const MarketDetailsPage = () => {
       navigate("/markets");
     }
   }, [market, navigate, isLoading, marketId]);
+
+  // Fetch accepted collateral data
+  useEffect(() => {
+    const fetchCollateral = async () => {
+      if (market && activeAddress && transactionSigner) {
+        try {
+          const collateral = await getAcceptedCollateral(
+            activeAddress,
+            Number(market.id),
+            transactionSigner
+          );
+          console.log('acceptedCollateral', collateral);
+          setAcceptedCollateral(collateral);
+        } catch (error) {
+          console.error('Failed to fetch accepted collateral:', error);
+          setAcceptedCollateral(undefined);
+        }
+      }
+    };
+
+    fetchCollateral();
+  }, [market, activeAddress, transactionSigner]);
 
   const handleAction = () => {
     if (activeTab === "deposit") {
@@ -378,16 +403,7 @@ const MarketDetailsPage = () => {
     setAmount(formattedMax);
   };
 
-  // Mock interest rate calculation
-  const calculateInterestRate = (utilization: number) => {
-    if (utilization < 50) {
-      return 2 + utilization * 0.1;
-    } else {
-      const baseRate = 2 + 50 * 0.1;
-      const kinkRate = (utilization - 50) * 0.4;
-      return baseRate + kinkRate;
-    }
-  };
+ 
 
   return (
     <AppLayout>
@@ -543,156 +559,11 @@ const MarketDetailsPage = () => {
             </motion.div>
 
             {/* Interest Rate Model */}
-            <motion.div
-              className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <TrendingUp className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
-                  Interest Rate Model
-                </h2>
-                <div className="text-cyan-500 cut-corners-sm px-3 py-1 border border-cyan-500 shadow-inset">
-                  <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
-                    Kink Model
-                  </span>
-                </div>
-              </div>
-
-              {/* Interest Rate Chart */}
-              <div className="relative h-64 mb-6 bg-slate-800/50 rounded-lg border border-slate-700 p-4">
-                <div className="absolute inset-4">
-                  {/* Y-axis labels */}
-                  <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs font-mono text-slate-400">
-                    <span>50%</span>
-                    <span>40%</span>
-                    <span>30%</span>
-                    <span>20%</span>
-                    <span>10%</span>
-                    <span>0%</span>
-                  </div>
-
-                  {/* Chart area */}
-                  <div className="ml-8 mr-4 h-full relative">
-                    {/* Grid lines */}
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className="absolute w-full border-t border-slate-700/50"
-                        style={{ top: `${i * 20}%` }}
-                      />
-                    ))}
-
-                    {/* Current utilization marker */}
-                    <div
-                      className="absolute top-0 bottom-0 border-l-2 border-cyan-400 opacity-80"
-                      style={{ left: `${market.utilizationRate}%` }}
-                    >
-                      <div className="absolute -top-6 -left-8 text-xs font-mono text-cyan-400 font-bold">
-                        Current: {market.utilizationRate.toFixed(1)}%
-                      </div>
-                    </div>
-
-                    {/* Kink point marker */}
-                    <div className="absolute top-0 bottom-0 left-[50%] border-l border-yellow-400 opacity-60">
-                      <div className="absolute -top-6 -left-6 text-xs font-mono text-yellow-400">
-                        Kink: 50%
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* X-axis labels */}
-                  <div className="absolute bottom-0 left-8 right-4 flex justify-between text-xs font-mono text-slate-400">
-                    <span>0%</span>
-                    <span>25%</span>
-                    <span>50%</span>
-                    <span>75%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Rate Model Description */}
-              <div className="inset-panel cut-corners-sm p-4">
-                <h3 className="text-sm font-mono font-bold text-white mb-3 uppercase tracking-wide">
-                  Rate Formula
-                </h3>
-                <div className="space-y-2 text-sm font-mono text-slate-300">
-                  <div>
-                    Base Rate: <span className="text-cyan-400">2%</span>
-                  </div>
-                  <div>
-                    Pre-Kink Multiplier:{" "}
-                    <span className="text-cyan-400">0.1 per % utilization</span>
-                  </div>
-                  <div>
-                    Post-Kink Multiplier:{" "}
-                    <span className="text-amber-400">
-                      0.4 per % utilization
-                    </span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-700">
-                    Current Rate:{" "}
-                    <span className="text-white font-bold">
-                      {calculateInterestRate(market.utilizationRate).toFixed(2)}
-                      %
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <InterestRateModel market={market} />
 
             {/* Collateral Relationships */}
-            {/*  <motion.div
-              className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <Wallet className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">Collateral Network</h2>
-              </div>
+            <CollateralRelationships market={market} acceptedCollateral={acceptedCollateral} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="inset-panel cut-corners-sm p-5">
-                  <h3 className="text-sm font-mono font-bold text-white mb-4 uppercase tracking-wide">Accepts as Collateral</h3>
-                  <div className="space-y-3">
-                    {COLLATERAL_RELATIONSHIPS[market.id]?.acceptsAsCollateral.map((assetId, index) => (
-                      <div key={assetId} className="flex items-center justify-between py-2 border-b border-slate-700 last:border-0">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-mono text-white">{index + 1}</span>
-                          </div>
-                          <span className="font-mono text-slate-300">{assetId === '744427950' ? 'COMPXt' : assetId.charAt(0).toUpperCase() + assetId.slice(1)}</span>
-                        </div>
-                        <div className="text-cyan-400 text-sm font-mono">75% LTV</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="inset-panel cut-corners-sm p-5">
-                  <h3 className="text-sm font-mono font-bold text-white mb-4 uppercase tracking-wide">Usable as Collateral For</h3>
-                  <div className="space-y-3">
-                    {COLLATERAL_RELATIONSHIPS[market.id]?.usableAsCollateralFor.map((assetId, index) => (
-                      <div key={assetId} className="flex items-center justify-between py-2 border-b border-slate-700 last:border-0">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-mono text-white">{index + 1}</span>
-                          </div>
-                          <span className="font-mono text-slate-300">{assetId === '744427950' ? 'COMPXt' : assetId.charAt(0).toUpperCase() + assetId.slice(1)}</span>
-                        </div>
-                        <div className="text-amber-400 text-sm font-mono">Active</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
- */}
             {/* Contract Information */}
             <motion.div
               className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"

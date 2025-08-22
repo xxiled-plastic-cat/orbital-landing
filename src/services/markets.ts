@@ -97,7 +97,7 @@ export async function fetchMarkets(
         // Calculate available to borrow
         const capBorrow = (Number(totalDeposits) * Number(utilCapBps)) / 10000;
         const currentBorrows = Number(totalBorrows);
-        const availableToBorrow = Math.max(0, capBorrow - currentBorrows);
+        
 
         // Get token metadata - try appId and baseTokenId as keys
         const appIdNum = Number(market.appId);
@@ -117,7 +117,8 @@ export async function fetchMarkets(
           signer,
           appId: Number(oracleAppId),
         });
-
+        const availableToBorrowUSD = Math.max(0, capBorrow - currentBorrows) * baseTokenPrice / 10 ** 6;
+        const availableToBorrow = Math.max(0, capBorrow - currentBorrows) / 10 ** 6;
         const totalDepositsUSD = Number(totalDeposits) * (baseTokenPrice || 0);
         const totalBorrowsUSD = Number(totalBorrows) * (baseTokenPrice || 0);
 
@@ -136,12 +137,21 @@ export async function fetchMarkets(
           totalBorrows: Number(totalBorrows) / 10 ** 6,
           totalBorrowsUSD: totalBorrowsUSD / 10 ** 6,
           availableToBorrow: availableToBorrow,
+          availableToBorrowUSD: availableToBorrowUSD,
           isActive: true,
           baseTokenId: market.baseTokenId,
           lstTokenId: market.lstTokenId,
           oracleAppId: Number(oracleAppId),
           baseTokenPrice: Number(baseTokenPrice),
           circulatingLST: Number(appGlobalState.circulatingLst) / 10 ** 6,
+          // Interest Rate Model Parameters
+          baseBps: Number(appGlobalState.baseBps ?? 200n), // Default 2%
+          utilCapBps: Number(utilCapBps),
+          kinkNormBps: Number(appGlobalState.kinkNormBps ?? 5000n), // Default 50%
+          slope1Bps: Number(appGlobalState.slope1Bps ?? 100n), // Default 1%
+          slope2Bps: Number(appGlobalState.slope2Bps ?? 400n), // Default 4%
+          maxAprBps: Number(appGlobalState.maxAprBps ?? 50000n), // Default 500%
+          rateModelType: Number(appGlobalState.rateModelType ?? 0n), // Default kinked model
         };
 
         marketStates.push(marketState);

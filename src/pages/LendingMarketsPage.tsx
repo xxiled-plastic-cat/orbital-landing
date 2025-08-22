@@ -83,12 +83,11 @@ const LendingMarketsPage = () => {
                     <span className="font-mono font-bold text-white tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
                       {isLoading
                         ? "..."
-                        : `${formatNumber(
+                        : `$${
                             (markets || []).reduce(
-                              (acc, market) => acc + market.totalDeposits,
+                              (acc, market) => acc + market.totalDepositsUSD,
                               0
-                            )
-                          )}`}
+                            ).toLocaleString()}`}
                     </span>
                   </div>
                   <div className="flex flex-col sm:block">
@@ -98,12 +97,11 @@ const LendingMarketsPage = () => {
                     <span className="font-mono font-bold text-white tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
                       {isLoading
                         ? "..."
-                        : `${formatNumber(
+                        : `$${
                             (markets || []).reduce(
-                              (acc, market) => acc + market.totalBorrows,
+                              (acc, market) => acc + market.totalBorrowsUSD,
                               0
-                            )
-                          )}`}
+                            ).toLocaleString()}`}
                     </span>
                   </div>
                   <div className="flex flex-col sm:block">
@@ -186,12 +184,12 @@ const LendingMarketsPage = () => {
               label: "TOTAL SUPPLIED",
               value: isLoading
                 ? "..."
-                : `${formatNumber(
+                : `$${
                     (markets || []).reduce(
-                      (acc, market) => acc + market.totalDeposits,
+                      (acc, market) => acc + market.totalDepositsUSD,
                       0
-                    )
-                  )}`,
+                    ).toLocaleString()
+                  }`,
               icon: TrendingUp,
               unit: "",
             },
@@ -199,12 +197,12 @@ const LendingMarketsPage = () => {
               label: "TOTAL BORROWED",
               value: isLoading
                 ? "..."
-                : `${formatNumber(
+                : `$${
                     (markets || []).reduce(
-                      (acc, market) => acc + market.totalBorrows,
+                      (acc, market) => acc + market.totalBorrowsUSD,
                       0
-                    )
-                  )}`,
+                    ).toLocaleString()
+                  }`,
               icon: TrendingDown,
               unit: "",
             },

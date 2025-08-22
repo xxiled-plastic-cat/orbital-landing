@@ -14,6 +14,7 @@ interface MarketCardProps {
 const MarketCard: React.FC<MarketCardProps> = ({
   market,
   index,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   formatNumber,
   getUtilizationBgColor,
 }) => {
@@ -162,7 +163,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
               SUPPLIED
             </div>
             <div className="text-xl font-mono font-bold text-white tabular-nums">
-              {formatNumber(market.totalDeposits)}M
+              ${(market.totalDepositsUSD).toLocaleString()}
             </div>
           </div>
           <div className="text-center">
@@ -170,7 +171,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
               BORROWED
             </div>
             <div className="text-xl font-mono font-bold text-white tabular-nums">
-              {formatNumber(market.totalBorrows)}M
+              ${(market.totalBorrowsUSD).toLocaleString()}
             </div>
           </div>
           <div className="text-center">
@@ -178,7 +179,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
               AVAILABLE
             </div>
             <div className="text-xl font-mono font-bold text-cyan-400 tabular-nums">
-              {formatNumber(market.availableToBorrow)}M
+              ${(market.availableToBorrowUSD).toLocaleString()}
             </div>
           </div>
         </div>

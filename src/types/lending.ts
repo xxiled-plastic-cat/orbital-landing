@@ -14,12 +14,21 @@ export interface LendingMarket {
   totalBorrows: number;
   totalBorrowsUSD: number;
   availableToBorrow: number;
+  availableToBorrowUSD: number;
   isActive: boolean;
   baseTokenId: string; // Base token asset ID
   lstTokenId: string; // LST token asset ID
   oracleAppId: number; // Oracle application ID
   baseTokenPrice: number; // Base token price
   circulatingLST: number; // Circulating LST tokens
+  // Interest Rate Model Parameters
+  baseBps?: number; // Base APR in basis points
+  utilCapBps?: number; // Utilization cap in basis points
+  kinkNormBps?: number; // Kink point in basis points
+  slope1Bps?: number; // Slope before kink in basis points
+  slope2Bps?: number; // Slope after kink in basis points
+  maxAprBps?: number; // Maximum APR cap in basis points
+  rateModelType?: number; // Rate model type (0=kinked, 1=linear, etc.)
 }
 
 // User position interface
