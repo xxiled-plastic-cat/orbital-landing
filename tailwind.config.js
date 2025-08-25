@@ -16,7 +16,8 @@ export default {
         'neon-purple': '#8a2be2',
         'neon-pink': '#f72585',
         'deep-blue': '#1b1e3a',
-        'soft-gray': '#c5c6c7'
+        'soft-gray': '#c5c6c7',
+        'compx-pink': '#FF66C4',
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',

@@ -1,6 +1,7 @@
 import React from 'react';
 import OrbitalBackground from './OrbitalBackground';
 import AppHeader from './AppHeader';
+import AppFooter from './AppFooter';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -24,6 +25,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       <main className="relative z-10">
         {children}
       </main>
+
+      {/* Footer */}
+      <AppFooter />
     </div>
   );
 };
