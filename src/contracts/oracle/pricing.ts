@@ -11,10 +11,7 @@ export async function getPricing({
   try {
     const appClient = await getExistingClient(signer, address, appId);
     const boxValues = await appClient.state.box.tokenPrices.getMap();
-    console.log("tokenId", tokenId);
-    console.log("boxValues", boxValues);
     for (const v of boxValues) {
-      console.log("v", v);
       if (v[0].assetId === BigInt(tokenId)) {
         return Number(v[1].price) / 10 ** 6;
       }

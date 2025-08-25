@@ -2,6 +2,7 @@
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
 import { getExistingClient } from "./getClient";
 import {
+  BorrowParams,
   DepositParams,
   getLoanRecordParams,
   getLoanRecordReturnType,
@@ -9,6 +10,7 @@ import {
 } from "./interface";
 import { microAlgo } from "@algorandfoundation/algokit-utils";
 import algosdk from "algosdk";
+import { getCollateralBoxValue } from "./state";
 
 export async function deposit({
   address,
@@ -30,7 +32,7 @@ export async function deposit({
         .accountAssetInformation(address, lstAssetId)
         .do();
       optInRequired = false;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       optInRequired = true;
     }
@@ -74,8 +76,7 @@ export async function deposit({
         populateAppCallResources: true,
         suppressLog: true,
       });
-      return result.txIds[0];
-    
+    return result.txIds[0];
   } catch (error) {
     console.error(error);
     throw error;
@@ -115,6 +116,74 @@ export async function withdraw({
       appReferences: [appClient.appId],
       sender: address,
     });
+
+    return result.txIds[0];
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function borrow({
+  address,
+  collateralAmount,
+  borrowAmount,
+  collateralAssetId,
+  lstAppId,
+  appId,
+  signer,
+}: BorrowParams) {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+    appClient.algorand.setDefaultSigner(signer);
+    const upscaledCollateralAmount = collateralAmount * 10 ** 6;
+    const upscaledBorrowAmount = borrowAmount * 10 ** 6;
+
+    const collateralAxferTxn =
+      appClient.algorand.createTransaction.assetTransfer({
+        sender: address,
+        receiver: appClient.appAddress,
+        assetId: BigInt(collateralAssetId),
+        amount: BigInt(upscaledCollateralAmount),
+        note: "Depositing collateral: " + collateralAssetId,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
+      });
+
+    const mbrTxn = appClient.algorand.createTransaction.payment({
+      sender: address,
+      receiver: appClient.appAddress,
+      amount: microAlgo(4000n),
+      note: "Funding borrow",
+    });
+    const boxValue = await getCollateralBoxValue(
+      BigInt(collateralAssetId),
+      appClient,
+      BigInt(appId)
+    );
+
+    const result = await appClient
+      .newGroup()
+      .gas()
+      .borrow({
+        args: [
+          collateralAxferTxn,
+          upscaledBorrowAmount,
+          upscaledCollateralAmount,
+          lstAppId,
+          collateralAssetId,
+          mbrTxn,
+        ],
+        assetReferences: [BigInt(collateralAssetId)],
+        appReferences: [BigInt(lstAppId), BigInt(appId)],
+        boxReferences: [
+          {
+            appId: boxValue.boxRef.appIndex as bigint,
+            name: boxValue.boxRef.name,
+          },
+        ],
+        sender: address,
+      })
+      .send();
 
     return result.txIds[0];
   } catch (error) {

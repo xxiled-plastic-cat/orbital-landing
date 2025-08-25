@@ -1,4 +1,5 @@
 import axios from "axios";
+import { GENERAL_BACKEND_URL } from "../constants";
 
 
 
@@ -16,7 +17,7 @@ export interface UserAction {
 
 export async function recordUserAction(action: UserAction) {
   try {
-    const response = await axios.post(`${import.meta.env.VITE_GENERAL_BACKEND_URL}/orbital/records`, action);
+    const response = await axios.post(`${GENERAL_BACKEND_URL}/orbital/records`, action);
     return response.data;
   } catch (error) {
     console.error(error);

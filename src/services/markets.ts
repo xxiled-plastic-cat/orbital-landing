@@ -6,6 +6,7 @@ import { getContractState } from "../contracts/lending/state";
 import { LendingMarket, AssetMetadata, UserAssetInfo, UserAssetSummary } from "../types/lending";
 import { currentAprBps, utilNormBps } from "../utils";
 import { getPricing } from "../contracts/oracle/pricing";
+import { GENERAL_BACKEND_URL } from "../constants";
 
 // Backend response interface
 interface BackendMarket {
@@ -35,7 +36,7 @@ export async function fetchMarkets(
   try {
     // 1. Fetch market list from backend
     const response = await axios.get(
-      `${import.meta.env.VITE_GENERAL_BACKEND_URL}/orbital/markets`
+      `${GENERAL_BACKEND_URL}/orbital/markets`
     );
     const backendMarkets: BackendMarket[] = response.data;
 
@@ -175,7 +176,7 @@ export async function fetchMarkets(
 export async function fetchAssetMetadata(assetIds: string[]): Promise<AssetMetadata[]> {
   try {
     const response = await axios.post(
-      `${import.meta.env.VITE_GENERAL_BACKEND_URL}/assets`,
+      `${GENERAL_BACKEND_URL}/assets`,
       { assetIds }
     );
     
@@ -212,7 +213,7 @@ export async function fetchAssetMetadata(assetIds: string[]): Promise<AssetMetad
 export async function getMarketAssetIds(): Promise<string[]> {
   try {
     const response = await axios.get(
-      `${import.meta.env.VITE_GENERAL_BACKEND_URL}/orbital/markets`
+      `${GENERAL_BACKEND_URL}/orbital/markets`
     );
     const backendMarkets: BackendMarket[] = response.data;
     

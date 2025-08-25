@@ -83,11 +83,12 @@ const LendingMarketsPage = () => {
                     <span className="font-mono font-bold text-white tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
                       {isLoading
                         ? "..."
-                        : `$${
-                            (markets || []).reduce(
+                        : `$${(markets || [])
+                            .reduce(
                               (acc, market) => acc + market.totalDepositsUSD,
                               0
-                            ).toLocaleString()}`}
+                            )
+                            .toLocaleString()}`}
                     </span>
                   </div>
                   <div className="flex flex-col sm:block">
@@ -97,11 +98,12 @@ const LendingMarketsPage = () => {
                     <span className="font-mono font-bold text-white tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
                       {isLoading
                         ? "..."
-                        : `$${
-                            (markets || []).reduce(
+                        : `$${(markets || [])
+                            .reduce(
                               (acc, market) => acc + market.totalBorrowsUSD,
                               0
-                            ).toLocaleString()}`}
+                            )
+                            .toLocaleString()}`}
                     </span>
                   </div>
                   <div className="flex flex-col sm:block">
@@ -150,17 +152,17 @@ const LendingMarketsPage = () => {
               placeholder="SCAN MARKETS..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 md:pl-12 pr-3 md:pr-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 font-mono text-sm md:text-base focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all duration-150"
+              className="w-full pl-10 md:pl-12 pr-3 md:pr-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600  text-white placeholder-slate-400 font-mono text-sm md:text-base focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all duration-150"
             />
           </div>
 
           {/* Filter Controls */}
           <div className="flex gap-2 md:gap-3">
-            <button className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600 rounded-lg hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
+            <button className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600  hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
               <Filter className="w-3 h-3 md:w-4 md:h-4" />
               <span>FILTER</span>
             </button>
-            <button className="px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600 rounded-lg hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
+            <button className="px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600  hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
               SORT: APR
             </button>
           </div>
@@ -184,12 +186,9 @@ const LendingMarketsPage = () => {
               label: "TOTAL SUPPLIED",
               value: isLoading
                 ? "..."
-                : `$${
-                    (markets || []).reduce(
-                      (acc, market) => acc + market.totalDepositsUSD,
-                      0
-                    ).toLocaleString()
-                  }`,
+                : `$${(markets || [])
+                    .reduce((acc, market) => acc + market.totalDepositsUSD, 0)
+                    .toLocaleString()}`,
               icon: TrendingUp,
               unit: "",
             },
@@ -197,18 +196,15 @@ const LendingMarketsPage = () => {
               label: "TOTAL BORROWED",
               value: isLoading
                 ? "..."
-                : `$${
-                    (markets || []).reduce(
-                      (acc, market) => acc + market.totalBorrowsUSD,
-                      0
-                    ).toLocaleString()
-                  }`,
+                : `$${(markets || [])
+                    .reduce((acc, market) => acc + market.totalBorrowsUSD, 0)
+                    .toLocaleString()}`,
               icon: TrendingDown,
               unit: "",
             },
           ].map((stat) => (
             <div key={stat.label} className="relative">
-              <div className="text-slate-600 cut-corners-md p-4 md:p-6 h-20 md:h-24 hover:text-slate-500 transition-all duration-150 bg-noise-dark">
+              <div className="text-slate-600 cut-corners-md p-4 md:p-4 h-20 md:h-24 hover:text-slate-500 transition-all duration-150 bg-noise-dark">
                 <div className="flex items-start justify-between mb-2 md:mb-4">
                   <div className="flex items-center gap-1 md:gap-2">
                     <stat.icon className="w-3 h-3 md:w-4 md:h-4 text-cyan-400" />

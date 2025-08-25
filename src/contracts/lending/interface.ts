@@ -40,4 +40,18 @@ export interface getLoanRecordReturnType {
   boxRef: algosdk.BoxReference
 }
 
-
+export interface BorrowParams {
+  address: string;
+  collateralAmount: number;
+  borrowAmount: number;
+  collateralAssetId: number;
+  lstAppId: number;
+  appId: number;
+  signer: TransactionSigner;
+}
+export interface getBoxValueReturnType {
+  assetId: bigint
+  baseAssetId: bigint
+  totalCollateral: bigint
+  boxRef: algosdk.BoxReference
+}

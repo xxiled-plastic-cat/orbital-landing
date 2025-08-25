@@ -1,4 +1,6 @@
-import { useState, useEffect, useContext } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -16,12 +18,16 @@ import AppLayout from "../components/app/AppLayout";
 import InterestRateModel from "../components/InterestRateModel";
 import CollateralRelationships from "../components/CollateralRelationships";
 import ActionPanel from "../components/app/ActionPanel";
-import { useMarket } from "../hooks/useMarkets";
+import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
-import { deposit, withdraw } from "../contracts/lending/user";
+import { borrow, deposit, withdraw } from "../contracts/lending/user";
 import { useWallet } from "@txnlab/use-wallet-react";
-import { calculateAssetDue, calculateLSTDue, getAcceptedCollateral } from "../contracts/lending/state";
+import {
+  calculateAssetDue,
+  calculateLSTDue,
+  getAcceptedCollateral,
+} from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
 
 const MarketDetailsPage = () => {
@@ -29,10 +35,15 @@ const MarketDetailsPage = () => {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [transactionLoading, setTransactionLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [acceptedCollateral, setAcceptedCollateral] = useState<Map<any, any> | undefined>(undefined);
+  const [acceptedCollateral, setAcceptedCollateral] = useState<
+    Map<any, any> | undefined
+  >(undefined);
+
+  // Ref to track the last fetched collateral combination to prevent unnecessary calls
+  const lastFetchedRef = useRef<string | null>(null);
 
   const { data: market, isLoading, error, isError } = useMarket(marketId || "");
+  const { data: allMarkets } = useMarkets();
   const {
     algoBalance,
     userAssets,
@@ -42,6 +53,7 @@ const MarketDetailsPage = () => {
   } = useContext(WalletContext);
   const { openToast } = useToast();
   const { activeAddress, transactionSigner } = useWallet();
+  const refetchMarkets = useRefetchMarkets();
 
   useEffect(() => {
     if (!isLoading && !market && marketId) {
@@ -49,33 +61,40 @@ const MarketDetailsPage = () => {
     }
   }, [market, navigate, isLoading, marketId]);
 
-  // Fetch accepted collateral data
+  // Fetch accepted collateral data - only when market or address actually changes
   useEffect(() => {
     const fetchCollateral = async () => {
       if (market && activeAddress && transactionSigner) {
-        try {
-          const collateral = await getAcceptedCollateral(
-            activeAddress,
-            Number(market.id),
-            transactionSigner
-          );
-          console.log('acceptedCollateral', collateral);
-          setAcceptedCollateral(collateral);
-        } catch (error) {
-          console.error('Failed to fetch accepted collateral:', error);
-          setAcceptedCollateral(undefined);
+        // Create a unique identifier for this combination
+        const currentIdentifier = `${market.id}-${activeAddress}`;
+
+        // Only fetch if this combination has changed
+        if (lastFetchedRef.current !== currentIdentifier) {
+          console.log("Fetching accepted collateral for market:", market.id);
+
+          try {
+            const collateral = await getAcceptedCollateral(
+              activeAddress,
+              Number(market.id),
+              transactionSigner
+            );
+            setAcceptedCollateral(collateral);
+            lastFetchedRef.current = currentIdentifier;
+          } catch (error) {
+            console.error("Failed to fetch accepted collateral:", error);
+            setAcceptedCollateral(undefined);
+            // Don't update lastFetchedRef on error so it will retry next time
+          }
         }
+      } else {
+        // Clear collateral if dependencies are missing
+        setAcceptedCollateral(undefined);
+        lastFetchedRef.current = null;
       }
     };
 
     fetchCollateral();
-  }, [market, activeAddress, transactionSigner]);
-
-
-
-  useEffect(() => {
-    console.log("market", market);
-  }, [market]);
+  }, [market, activeAddress]);
 
   const handleDeposit = async (amount: string) => {
     try {
@@ -118,6 +137,10 @@ const MarketDetailsPage = () => {
           if (lstTokenId) {
             confirmOptimisticUpdate(lstTokenId);
           }
+
+          // Immediately refetch market data to reflect changes in market overview and interest rates
+          refetchMarkets();
+
           // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
           const lstMinted = calculateLSTDue(
             BigInt(Number(amount) * 10 ** 6),
@@ -202,6 +225,9 @@ const MarketDetailsPage = () => {
           }
           confirmOptimisticUpdate(baseTokenId);
 
+          // Immediately refetch market data to reflect changes in market overview and interest rates
+          refetchMarkets();
+
           const asaDue = calculateAssetDue(
             BigInt(Number(amount) * 10 ** 6),
             BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
@@ -244,14 +270,99 @@ const MarketDetailsPage = () => {
     }
   };
 
-  const handleBorrow = (collateralAssetId: string, collateralAmount: string, borrowAmount: string) => {
-    console.log("Borrow", { collateralAssetId, collateralAmount, borrowAmount });
-    // TODO: Implement borrow functionality
+  const handleBorrow = async (
+    collateralAssetId: string,
+    collateralAmount: string,
+    borrowAmount: string
+  ) => {
+    // Find the market that has the collateral token as its LST token
+    const collateralMarket = allMarkets?.find(
+      (m) => m.lstTokenId === collateralAssetId
+    );
+
+    if (!collateralMarket) {
+      openToast({
+        type: "error",
+        message: "Invalid collateral",
+        description:
+          "Could not find the market for the selected collateral token",
+      });
+      return;
+    }
+
     openToast({
       type: "loading",
-      message: "Borrow functionality",
-      description: `Collateral: ${collateralAmount} (${collateralAssetId}), Borrow: ${borrowAmount} ${getBaseTokenSymbol(market?.symbol)}`,
+      message: "Borrowing...",
+      description: `Please sign the transaction to borrow ${borrowAmount} ${getBaseTokenSymbol(
+        market?.symbol
+      )} using ${collateralAmount} ${getBaseTokenSymbol(
+        collateralAssetId
+      )} as collateral`,
     });
+
+    await borrow({
+      address: activeAddress as string,
+      collateralAmount: Number(collateralAmount),
+      borrowAmount: Number(borrowAmount),
+      collateralAssetId: Number(collateralAssetId),
+      lstAppId: Number(collateralMarket.id), // Use the collateral market's app ID
+      appId: Number(market?.id), // Current market we're borrowing from
+      signer: transactionSigner,
+    })
+      .then((txId) => {
+        // Apply optimistic updates only after transaction success
+        const borrowAmountMicrounits = (Number(borrowAmount) * Math.pow(10, 6)).toString();
+        const collateralAmountMicrounits = (Number(collateralAmount) * Math.pow(10, 6)).toString();
+        const baseTokenId = market?.baseTokenId || "0";
+
+        // Add borrowed tokens to user balance
+        applyOptimisticBalanceUpdate(baseTokenId, borrowAmountMicrounits);
+        
+        // Remove collateral tokens from user balance
+        applyOptimisticBalanceUpdate(collateralAssetId, `-${collateralAmountMicrounits}`);
+
+        // Confirm the updates immediately since transaction was successful
+        confirmOptimisticUpdate(baseTokenId);
+        confirmOptimisticUpdate(collateralAssetId);
+
+        // Immediately refetch market data to reflect changes in market overview and interest rates
+        refetchMarkets();
+
+        openToast({
+          type: "success",
+          message: "Borrow successful",
+          description: `You have borrowed ${borrowAmount} ${getBaseTokenSymbol(
+            market?.symbol
+          )} using ${collateralAmount} ${getBaseTokenSymbol(
+            collateralAssetId
+          )} as collateral`,
+        });
+
+        recordUserAction({
+          address: activeAddress as string,
+          marketId: Number(market?.id),
+          action: "borrow",
+          tokensOut: Number(borrowAmount),
+          tokensIn: Number(collateralAmount),
+          timestamp: Date.now(),
+          txnId: txId,
+          tokenInId: Number(collateralAssetId),
+          tokenOutId: Number(market?.baseTokenId),
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+        openToast({
+          type: "error",
+          message: "Borrow failed",
+          description: `Unable to borrow ${borrowAmount} ${getBaseTokenSymbol(
+            market?.symbol
+          )} using ${collateralAmount} ${getBaseTokenSymbol(
+            collateralAssetId
+          )} as collateral`,
+        });
+      });
+    setTransactionLoading(false);
   };
 
   // Loading state
@@ -335,10 +446,6 @@ const MarketDetailsPage = () => {
     if (!symbol) return "";
     return symbol.startsWith("c") ? symbol : `c${symbol}`;
   };
-
-
-
- 
 
   return (
     <AppLayout>
@@ -497,7 +604,10 @@ const MarketDetailsPage = () => {
             <InterestRateModel market={market} />
 
             {/* Collateral Relationships */}
-            <CollateralRelationships market={market} acceptedCollateral={acceptedCollateral} />
+            <CollateralRelationships
+              market={market}
+              acceptedCollateral={acceptedCollateral}
+            />
 
             {/* Contract Information */}
             <motion.div

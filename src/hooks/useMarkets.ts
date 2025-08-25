@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@txnlab/use-wallet-react'
 import { fetchMarkets } from '../services/markets'
 import { LendingMarket } from '../types/lending'
@@ -46,11 +46,29 @@ export function useMarket(marketId: string) {
 // Hook to invalidate markets data (useful after transactions)
 export function useInvalidateMarkets() {
   const { activeAddress } = useWallet()
+  const queryClient = useQueryClient()
   
   return () => {
     if (activeAddress) {
-      // You can call queryClient.invalidateQueries here if needed
-      // For now, the refetchInterval will handle updates
+      // Invalidate the markets query to trigger immediate refetch
+      queryClient.invalidateQueries({
+        queryKey: [...MARKETS_QUERY_KEY, activeAddress]
+      })
+    }
+  }
+}
+
+// Hook to refetch markets data immediately (alternative to invalidate)
+export function useRefetchMarkets() {
+  const { activeAddress } = useWallet()
+  const queryClient = useQueryClient()
+  
+  return () => {
+    if (activeAddress) {
+      // Force refetch the markets query immediately
+      queryClient.refetchQueries({
+        queryKey: [...MARKETS_QUERY_KEY, activeAddress]
+      })
     }
   }
 }
