@@ -28,6 +28,7 @@ interface ActionPanelProps {
     collateralAssetId: string;
     interestAccrued: string;
   };
+  initialTab?: "lend" | "borrow";
   onDeposit: (amount: string) => void;
   onRedeem: (amount: string) => void;
   onBorrow: (
@@ -47,6 +48,7 @@ const ActionPanel = ({
   transactionLoading,
   acceptedCollateral,
   userDebt,
+  initialTab = "lend",
   onDeposit,
   onRedeem,
   onBorrow,
@@ -54,7 +56,7 @@ const ActionPanel = ({
   onWithdrawCollateral,
 }: ActionPanelProps) => {
   // Main tab state: lend or borrow
-  const [activeMainTab, setActiveMainTab] = useState<"lend" | "borrow">("lend");
+  const [activeMainTab, setActiveMainTab] = useState<"lend" | "borrow">(initialTab);
   // Action state within each main tab
   const [activeAction, setActiveAction] = useState<"deposit" | "redeem" | "open" | "repay" | "withdraw">("deposit");
   const [amount, setAmount] = useState("");
@@ -96,6 +98,17 @@ const ActionPanel = ({
 
   // Use the collateral tokens hook
   const { getCollateralAssets } = useCollateralTokens(acceptedCollateral);
+
+  // Update tab when initialTab changes (for drawer)
+  useEffect(() => {
+    setActiveMainTab(initialTab);
+    // Reset to first action of the new tab
+    if (initialTab === "lend") {
+      setActiveAction("deposit");
+    } else {
+      setActiveAction("open");
+    }
+  }, [initialTab]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -340,12 +353,7 @@ const ActionPanel = ({
   };
 
   return (
-    <motion.div
-      className="space-y-4 md:space-y-8"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, delay: 0.2 }}
-    >
+    <div className="space-y-4 md:space-y-8">
       {/* Action Panel */}
       <div className="text-slate-600 cut-corners-lg p-4 md:p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
         <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
@@ -1303,7 +1311,7 @@ const ActionPanel = ({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };
 

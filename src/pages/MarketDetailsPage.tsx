@@ -16,7 +16,7 @@ import {
 import AppLayout from "../components/app/AppLayout";
 import InterestRateModel from "../components/InterestRateModel";
 import CollateralRelationships from "../components/CollateralRelationships";
-import ActionPanel from "../components/app/ActionPanel";
+import ActionDrawer from "../components/app/ActionDrawer";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
@@ -476,7 +476,7 @@ const MarketDetailsPage = () => {
 
   return (
     <AppLayout>
-      <div className="container-section py-4 md:py-8">
+      <div className="container-section py-4 md:py-8 pb-24 xl:pb-8">
         {/* Navigation Header */}
         <motion.div
           className="mb-4 md:mb-8"
@@ -544,7 +544,7 @@ const MarketDetailsPage = () => {
         </motion.div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-8">
-          {/* Main Content - Left Side */}
+          {/* Main Content - Takes full width on mobile, 2/3 on desktop */}
           <div className="xl:col-span-2 space-y-4 md:space-y-8">
             {/* Market Overview */}
             <motion.div
@@ -722,21 +722,23 @@ const MarketDetailsPage = () => {
             </motion.div>
           </div>
 
-          {/* Action Panel - Right Side */}
-          <ActionPanel
-            market={market}
-            userAssets={userAssets || undefined}
-            algoBalance={algoBalance}
-            isLoadingAssets={isLoadingAssets}
-            transactionLoading={transactionLoading}
-            acceptedCollateral={acceptedCollateral}
-            userDebt={userDebt}
-            onDeposit={handleDeposit}
-            onRedeem={handleRedeem}
-            onBorrow={handleBorrow}
-            onRepay={handleRepay}
-            onWithdrawCollateral={handleWithdrawCollateral}
-          />
+          {/* Action Panel - Right Side on Desktop, Drawer on Mobile */}
+          <div className="xl:block">
+            <ActionDrawer
+              market={market}
+              userAssets={userAssets || undefined}
+              algoBalance={algoBalance}
+              isLoadingAssets={isLoadingAssets}
+              transactionLoading={transactionLoading}
+              acceptedCollateral={acceptedCollateral}
+              userDebt={userDebt}
+              onDeposit={handleDeposit}
+              onRedeem={handleRedeem}
+              onBorrow={handleBorrow}
+              onRepay={handleRepay}
+              onWithdrawCollateral={handleWithdrawCollateral}
+            />
+          </div>
         </div>
       </div>
     </AppLayout>

@@ -17,10 +17,10 @@ const TabSelector = ({ tabs, activeTab, onTabChange, className = "" }: TabSelect
   return (
     <div className={`relative ${className}`}>
       {/* Tab Background Track */}
-      <div className="relative bg-slate-800/50 border border-slate-600 rounded-lg p-1 backdrop-blur-sm">
+      <div className="relative bg-slate-800/50 border border-slate-600  p-1 backdrop-blur-sm">
         {/* Active Tab Indicator */}
         <motion.div
-          className="absolute top-1 bottom-1 bg-gradient-to-r from-slate-700 to-slate-600 border border-slate-500 rounded-md shadow-lg"
+          className="absolute top-1 bottom-1 bg-gradient-to-r from-slate-700 to-slate-600 border border-slate-500  shadow-lg"
           initial={false}
           animate={{
             left: `${(tabs.findIndex(tab => tab.id === activeTab) * 100) / tabs.length}%`,
@@ -42,7 +42,7 @@ const TabSelector = ({ tabs, activeTab, onTabChange, className = "" }: TabSelect
               disabled={tab.disabled}
               className={`
                 flex-1 relative z-10 px-4 py-3 font-mono text-sm font-semibold uppercase tracking-wide
-                transition-all duration-200 rounded-md
+                transition-all duration-200 
                 ${activeTab === tab.id
                   ? "text-white"
                   : tab.disabled
@@ -68,7 +68,7 @@ const TabSelector = ({ tabs, activeTab, onTabChange, className = "" }: TabSelect
       
       {/* Subtle Glow Effect for Active Tab */}
       <motion.div
-        className="absolute inset-0 rounded-lg opacity-20 pointer-events-none"
+        className="absolute inset-0  opacity-20 pointer-events-none"
         initial={false}
         animate={{
           boxShadow: activeTab ? "0 0 20px rgba(6, 182, 212, 0.3)" : "none",
