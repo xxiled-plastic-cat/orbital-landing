@@ -21,6 +21,12 @@ interface ActionPanelProps {
   isLoadingAssets: boolean;
   transactionLoading: boolean;
   acceptedCollateral?: Map<unknown, unknown>;
+  userDebt?: {
+    borrowedAmount: string;
+    collateralAmount: string;
+    collateralAssetId: string;
+    interestAccrued: string;
+  };
   onDeposit: (amount: string) => void;
   onRedeem: (amount: string) => void;
   onBorrow: (
@@ -28,6 +34,7 @@ interface ActionPanelProps {
     collateralAmount: string,
     borrowAmount: string
   ) => void;
+  onRepay: (repayAmount: string) => void;
 }
 
 const ActionPanel = ({
@@ -37,11 +44,13 @@ const ActionPanel = ({
   isLoadingAssets,
   transactionLoading,
   acceptedCollateral,
+  userDebt,
   onDeposit,
   onRedeem,
   onBorrow,
+  onRepay,
 }: ActionPanelProps) => {
-  const [activeTab, setActiveTab] = useState<"deposit" | "redeem" | "borrow">(
+  const [activeTab, setActiveTab] = useState<"deposit" | "redeem" | "borrow" | "repay">(
     "deposit"
   );
   const [amount, setAmount] = useState("");
@@ -51,6 +60,9 @@ const ActionPanel = ({
   const [collateralAmount, setCollateralAmount] = useState("");
   const [borrowAmount, setBorrowAmount] = useState("");
   const [showCollateralDropdown, setShowCollateralDropdown] = useState(false);
+
+  // Repay-specific state
+  const [repayAmount, setRepayAmount] = useState("");
 
   // Ref for dropdown click outside detection
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -82,6 +94,8 @@ const ActionPanel = ({
       onRedeem(amount);
     } else if (activeTab === "borrow") {
       onBorrow(selectedCollateral, collateralAmount, borrowAmount);
+    } else if (activeTab === "repay") {
+      onRepay(repayAmount);
     }
   };
 
@@ -130,6 +144,13 @@ const ActionPanel = ({
         // Convert to microunits for consistency with other balances
         return (market.availableToBorrow * Math.pow(10, 6)).toString();
 
+      case "repay": {
+        // For repay, use the total debt amount (borrowed + interest)
+        if (!userDebt) return "0";
+        const totalDebt = parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued);
+        return (totalDebt * Math.pow(10, 6)).toString();
+      }
+
       default:
         return "0";
     }
@@ -157,6 +178,8 @@ const ActionPanel = ({
     const formattedMax = formatBalance(maxBalance);
     if (activeTab === "borrow") {
       setCollateralAmount(formattedMax);
+    } else if (activeTab === "repay") {
+      setRepayAmount(formattedMax);
     } else {
       setAmount(formattedMax);
     }
@@ -203,6 +226,39 @@ const ActionPanel = ({
   };
 
   const borrowDetails = calculateBorrowDetails();
+
+  // Calculate repayment details
+  const calculateRepaymentDetails = () => {
+    if (!userDebt || !repayAmount || parseFloat(repayAmount) <= 0) {
+      return {
+        totalDebt: 0,
+        repaymentAmount: 0,
+        remainingDebt: 0,
+        collateralReturned: 0,
+        isFullRepayment: false,
+      };
+    }
+
+    const totalDebt = parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued);
+    const repaymentAmount = parseFloat(repayAmount);
+    const remainingDebt = Math.max(0, totalDebt - repaymentAmount);
+    const isFullRepayment = repaymentAmount >= totalDebt;
+
+    // Calculate collateral returned proportionally
+    const collateralAmount = parseFloat(userDebt.collateralAmount);
+    const repaymentRatio = Math.min(1, repaymentAmount / totalDebt);
+    const collateralReturned = collateralAmount * repaymentRatio;
+
+    return {
+      totalDebt,
+      repaymentAmount,
+      remainingDebt,
+      collateralReturned,
+      isFullRepayment,
+    };
+  };
+
+  const repaymentDetails = calculateRepaymentDetails();
 
   // Get selected collateral info
   const selectedCollateralInfo = availableCollateral.find(
@@ -296,6 +352,17 @@ const ActionPanel = ({
             disabled={market.availableToBorrow === 0}
           >
             <span className="relative z-20">BORROW</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("repay")}
+            className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
+              activeTab === "repay"
+                ? "bg-amber-600 border-2 border-amber-500 text-white"
+                : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+            }`}
+            disabled={!userDebt || parseFloat(userDebt.borrowedAmount) === 0}
+          >
+            <span className="relative z-20">REPAY</span>
           </button>
         </div>
 
@@ -446,6 +513,48 @@ const ActionPanel = ({
                 </div>
               )}
             </>
+          ) : activeTab === "repay" ? (
+            // Repay-specific input
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
+                  Repay Amount
+                </span>
+                <button
+                  onClick={handleMaxClick}
+                  disabled={isLoadingAssets || !userDebt}
+                  className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-amber-400 hover:text-amber-300"
+                >
+                  MAX
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={repayAmount}
+                  onChange={(e) => setRepayAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-amber-400"
+                />
+                <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
+                  <span className="font-mono text-slate-400 text-xs md:text-sm">
+                    {getBaseTokenSymbol(market?.symbol)}
+                  </span>
+                  <div className="w-5 h-5 md:w-6 md:h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
+                    <img
+                      src={market.image}
+                      alt={market.symbol}
+                      className="w-3 h-3 md:w-4 md:h-4 object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+              {userDebt && (
+                <div className="text-xs font-mono text-slate-400 mt-1">
+                  Total Debt: {(parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                </div>
+              )}
+            </div>
           ) : (
             // Original amount input for deposit/redeem
             <div>
@@ -577,6 +686,48 @@ const ActionPanel = ({
                   </div>
                 )}
               </>
+            ) : activeTab === "repay" ? (
+              // Repayment transaction details
+              <>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-mono text-slate-400">Total Debt</span>
+                  <span className="font-mono text-white">
+                    {repaymentDetails.totalDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                  </span>
+                </div>
+
+                {repayAmount && (
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">Repay Amount</span>
+                      <span className="font-mono font-bold text-amber-400">
+                        {repaymentDetails.repaymentAmount.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">Remaining Debt</span>
+                      <span className={`font-mono font-bold ${repaymentDetails.isFullRepayment ? "text-green-400" : "text-white"}`}>
+                        {repaymentDetails.remainingDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">Collateral Returned</span>
+                      <span className="font-mono text-white">
+                        {repaymentDetails.collateralReturned.toFixed(6)} 
+                        {userDebt && availableCollateral.find(c => c.assetId === userDebt.collateralAssetId)?.symbol}
+                      </span>
+                    </div>
+
+                    {repaymentDetails.isFullRepayment && (
+                      <div className="text-xs font-mono text-green-400 bg-green-500/10 border border-green-500/20 p-2 rounded">
+                        ✓ Position will be fully closed - all collateral returned
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             ) : (
               // Original transaction details for deposit/redeem
               <>
@@ -672,6 +823,13 @@ const ActionPanel = ({
                   hasSufficientCollateral()
                   ? "bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight"
                   : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
+              } else if (activeTab === "repay") {
+                return repayAmount &&
+                  parseFloat(repayAmount) > 0 &&
+                  userDebt &&
+                  parseFloat(userDebt.borrowedAmount) > 0
+                  ? "bg-amber-600 border-2 border-amber-500 text-white hover:bg-amber-500 shadow-top-highlight"
+                  : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
               } else {
                 return amount &&
                   parseFloat(amount) > 0 &&
@@ -702,7 +860,14 @@ const ActionPanel = ({
                     borrowDetails.ltvRatio > market.ltv ||
                     market.availableToBorrow === 0 ||
                     !hasSufficientCollateral()
-                  ); // Only disable if insufficient balance
+                  );
+                } else if (activeTab === "repay") {
+                  return (
+                    !repayAmount ||
+                    parseFloat(repayAmount) <= 0 ||
+                    !userDebt ||
+                    parseFloat(userDebt.borrowedAmount) <= 0
+                  );
                 } else {
                   return (
                     !amount ||
@@ -724,6 +889,8 @@ const ActionPanel = ({
                 `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
               {activeTab === "borrow" &&
                 `BORROW ${getBaseTokenSymbol(market?.symbol)}`}
+              {activeTab === "repay" &&
+                `REPAY ${getBaseTokenSymbol(market?.symbol)}`}
             </span>
           </button>
 
@@ -804,6 +971,43 @@ const ActionPanel = ({
             </>
           )}
 
+          {/* Repay Status Messages */}
+          {activeTab === "repay" && (
+            <>
+              {!userDebt && (
+                <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>No active debt position found</span>
+                </div>
+              )}
+
+              {userDebt && parseFloat(userDebt.borrowedAmount) === 0 && (
+                <div className="flex items-center gap-2 text-green-400 text-sm font-mono">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>No outstanding debt to repay</span>
+                </div>
+              )}
+
+              {!repayAmount && userDebt && parseFloat(userDebt.borrowedAmount) > 0 && (
+                <div className="text-xs text-slate-500 font-mono">
+                  Enter amount to repay (max: {(parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)})
+                </div>
+              )}
+
+              {repayAmount && repaymentDetails.isFullRepayment && (
+                <div className="text-xs text-green-500 font-mono">
+                  ✓ Full repayment selected - position will be closed and all collateral returned
+                </div>
+              )}
+
+              {repayAmount && !repaymentDetails.isFullRepayment && repaymentDetails.remainingDebt > 0 && (
+                <div className="text-xs text-amber-500 font-mono">
+                  Partial repayment - {repaymentDetails.remainingDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)} debt will remain
+                </div>
+              )}
+            </>
+          )}
+
           {activeTab === "redeem" &&
             userAssets?.assets.find(
               (asset) => Number(asset.assetId) === Number(market?.lstTokenId)
@@ -825,6 +1029,12 @@ const ActionPanel = ({
             <div className="text-xs text-slate-500 font-mono">
               Redeem your {getLSTTokenSymbol(market?.symbol)} tokens back to{" "}
               {getBaseTokenSymbol(market?.symbol)}
+            </div>
+          )}
+
+          {activeTab === "repay" && (
+            <div className="text-xs text-slate-500 font-mono">
+              Repay your borrowed {getBaseTokenSymbol(market?.symbol)} to unlock collateral
             </div>
           )}
         </div>

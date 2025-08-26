@@ -89,7 +89,7 @@ export const Toast = () => {
   return (
     <AnimatePresence>
       {toastVisible && (
-        <div className="absolute w-screen h-screen py-5 top-0 flex items-start justify-center text-white">
+        <div className="fixed w-screen h-screen py-5 top-0 left-0 flex items-start justify-center text-white pointer-events-none z-[10000]">
           <motion.div
             initial={{ y: -400, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -103,7 +103,7 @@ export const Toast = () => {
               toast.type === "multi-step"
                 ? "w-[20rem] sm:w-[28rem]"
                 : "w-80 sm:w-96"
-            } cut-corners-lg pt-3 pb-4 px-4 bg-noise-dark shadow-industrial fixed top-5 z-[10001]`}
+            } cut-corners-lg pt-3 pb-4 px-4 bg-noise-dark shadow-industrial pointer-events-auto`}
           >
             <div className="w-full flex justify-end">
               <button 

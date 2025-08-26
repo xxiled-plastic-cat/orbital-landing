@@ -15,7 +15,7 @@ import FaucetModal from "./FaucetModal";
 
 const WalletButton: React.FC = () => {
   const { activeAccount, activeWallet } = useWallet();
-  const { setDisplayWalletConnectModal } = useContext(WalletContext);
+  const { setDisplayWalletConnectModal, nfdName, nfdAvatar, isLoadingNFD } = useContext(WalletContext);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFaucetModalOpen, setIsFaucetModalOpen] = useState(false);
@@ -72,6 +72,22 @@ const WalletButton: React.FC = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const formatDisplayName = (address: string) => {
+    // Show loading indicator if NFD is being fetched
+    if (isLoadingNFD) {
+      return "Loading...";
+    }
+    
+    // Use NFD name if available
+    if (nfdName) {
+      // Truncate long NFD names (keep first 12 chars + ...)
+      return nfdName.length > 15 ? `${nfdName.slice(0, 12)}...` : nfdName;
+    }
+    
+    // Fall back to truncated address
+    return formatAddress(address);
+  };
+
   const handleFaucet = () => {
     setIsFaucetModalOpen(true);
     setIsDropdownOpen(false);
@@ -109,15 +125,23 @@ const WalletButton: React.FC = () => {
         onClick={toggleDropdown}
         className="h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-inset flex items-center gap-3 relative z-10"
       >
-        {/* Wallet icon */}
-        <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border border-slate-500">
-          <Wallet className="w-3 h-3 text-cyan-400" />
+        {/* Wallet/NFD icon */}
+        <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border border-slate-500 overflow-hidden">
+          {nfdAvatar ? (
+            <img
+              src={nfdAvatar}
+              alt="NFD Avatar"
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <Wallet className="w-3 h-3 text-cyan-400" />
+          )}
         </div>
 
         {/* Address and wallet name */}
         <div className="hidden md:flex flex-col items-start">
           <span className="text-white font-mono text-xs font-bold uppercase tracking-wider">
-            {formatAddress(activeAccount.address)}
+            {formatDisplayName(activeAccount.address)}
           </span>
           <span className="text-slate-400 text-xs font-mono">
             {activeWallet.metadata.name}
@@ -155,12 +179,20 @@ const WalletButton: React.FC = () => {
                 
                 {/* Wallet info header */}
                 <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-700">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border-2 border-slate-500">
-                    <img
-                      src={activeWallet.metadata.icon}
-                      alt={`${activeWallet.metadata.name} logo`}
-                      className="w-7 h-7 object-contain rounded-full"
-                    />
+                  <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border-2 border-slate-500 overflow-hidden">
+                    {nfdAvatar ? (
+                      <img
+                        src={nfdAvatar}
+                        alt="NFD Avatar"
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <img
+                        src={activeWallet.metadata.icon}
+                        alt={`${activeWallet.metadata.name} logo`}
+                        className="w-7 h-7 object-contain rounded-full"
+                      />
+                    )}
                   </div>
                   <div className="flex-1">
                     <h4 className="font-mono font-bold text-white text-lg uppercase tracking-wide">
@@ -175,11 +207,18 @@ const WalletButton: React.FC = () => {
 
                 {/* Address section */}
                 <div className="mb-6">
-                  <p className="text-xs text-slate-400 mb-3 font-mono uppercase tracking-wider">Wallet Address</p>
+
                   <div className="inset-panel cut-corners-sm p-4 flex items-center gap-3">
-                    <span className="font-mono text-white font-bold text-sm flex-1 uppercase tracking-wide">
-                      {formatAddress(activeAccount.address)}
-                    </span>
+                    <div className="flex-1">
+                      <span className="font-mono text-white font-bold text-sm uppercase tracking-wide">
+                        {formatDisplayName(activeAccount.address)}
+                      </span>
+                      {nfdName && (
+                        <div className="text-xs text-slate-400 font-mono mt-1">
+                          {formatAddress(activeAccount.address)}
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={copyAddress}
                       className="p-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 cut-corners-sm transition-all duration-150"

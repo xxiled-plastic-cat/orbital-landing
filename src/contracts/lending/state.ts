@@ -40,7 +40,7 @@ export function calculateLSTDue(
 ): bigint {
   // If no deposits exist yet, return the deposit amount as initial LST supply (1:1 ratio)
   if (totalDeposits === 0n) {
-    return amountIn;
+    return amountIn / 10n ** 6n;
   }
 
   // Calculate LST due using the formula: (amountIn * circulatingLST) / totalDeposits
