@@ -94,7 +94,14 @@ const ActionDrawer = (props: ActionDrawerProps) => {
     <>
       {/* Mobile Bottom Trigger Bar */}
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-40 bg-noise-dark border-t-2 border-slate-600 p-3 backdrop-blur-md"
+        className="fixed bottom-0 left-0 right-0 bg-noise-dark border-t-2 border-slate-600 p-3 backdrop-blur-md"
+        style={{ 
+          zIndex: 10001, 
+          position: 'fixed',
+          isolation: 'isolate',
+          willChange: 'transform',
+          transform: 'translateZ(0)'
+        }}
         initial={{ y: 100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
@@ -148,7 +155,7 @@ const ActionDrawer = (props: ActionDrawerProps) => {
           <>
             {/* Backdrop */}
             <motion.div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10002]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -157,8 +164,8 @@ const ActionDrawer = (props: ActionDrawerProps) => {
 
             {/* Drawer */}
             <motion.div
-              className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t-2 border-slate-600 shadow-2xl z-50 overflow-hidden"
-              style={{ height: "80vh" }}
+              className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t-2 border-slate-600 shadow-2xl z-[10003] flex flex-col"
+              style={{ height: "85vh", maxHeight: "85vh" }}
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -169,12 +176,12 @@ const ActionDrawer = (props: ActionDrawerProps) => {
               }}
             >
               {/* Drawer Handle */}
-              <div className="flex justify-center pt-2 pb-1">
+              <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
                 <div className="w-12 h-1 bg-slate-600 rounded-full" />
               </div>
 
               {/* Drawer Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-600 bg-slate-900/80 backdrop-blur-sm">
+              <div className="flex items-center justify-between p-4 border-b border-slate-600 bg-slate-900/80 backdrop-blur-sm flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg flex items-center justify-center">
                     <TrendingUp className="w-4 h-4 text-white" />
@@ -185,16 +192,16 @@ const ActionDrawer = (props: ActionDrawerProps) => {
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-colors  hover:bg-slate-700"
+                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-colors hover:bg-slate-700 rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto">
+              {/* Drawer Content - Scrollable Area */}
+              <div className="flex-1 overflow-y-auto overscroll-contain" style={{ minHeight: 0 }}>
                 <motion.div
-                  className="p-4"
+                  className="p-4 pb-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.1 }}

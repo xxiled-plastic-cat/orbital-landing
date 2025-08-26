@@ -77,7 +77,7 @@ const AppFooter = () => {
 
   return (
     <motion.footer
-      className="relative z-10 mt-12 md:mt-20"
+      className="relative mt-12 md:mt-20 mb-4"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
