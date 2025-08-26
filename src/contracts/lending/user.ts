@@ -6,6 +6,8 @@ import {
   DepositParams,
   getLoanRecordParams,
   getLoanRecordReturnType,
+  RepayDebtAsaParams,
+  WithdrawCollateralParams,
   WithdrawParams,
 } from "./interface";
 import { microAlgo } from "@algorandfoundation/algokit-utils";
@@ -147,7 +149,7 @@ export async function borrow({
         assetId: BigInt(collateralAssetId),
         amount: BigInt(upscaledCollateralAmount),
         note: "Depositing collateral: " + collateralAssetId,
-        maxFee: AlgoAmount.MicroAlgos(250_000)
+        maxFee: AlgoAmount.MicroAlgos(250_000),
       });
 
     const mbrTxn = appClient.algorand.createTransaction.payment({
@@ -155,7 +157,7 @@ export async function borrow({
       receiver: appClient.appAddress,
       amount: microAlgo(4000n),
       note: "Funding borrow",
-      maxFee: AlgoAmount.MicroAlgos(250_000)
+      maxFee: AlgoAmount.MicroAlgos(250_000),
     });
     const boxValue = await getCollateralBoxValue(
       BigInt(collateralAssetId),
@@ -167,7 +169,7 @@ export async function borrow({
 
     const result = await appClient
       .newGroup()
-      .gas({args: [], maxFee: AlgoAmount.MicroAlgos(250_000)})
+      .gas({ args: [], maxFee: AlgoAmount.MicroAlgos(250_000) })
       .borrow({
         args: [
           collateralAxferTxn,
@@ -194,6 +196,77 @@ export async function borrow({
       });
 
     return result.txIds[0];
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function repayDebtAsa({
+  address,
+  amount,
+  appId,
+  lstTokenId,
+  repayTokenId,
+  signer,
+}: RepayDebtAsaParams) {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+    appClient.algorand.setDefaultSigner(signer);
+    const upscaledAmount = amount * 10 ** 6;
+
+    const repayTxn = appClient.algorand.createTransaction.assetTransfer({
+      sender: address,
+      receiver: appClient.appAddress,
+      assetId: BigInt(repayTokenId),
+      amount: BigInt(upscaledAmount),
+      note: "Repaying debt",
+    });
+
+    await appClient
+      .newGroup()
+      .repayLoanAsa({
+        args: [repayTxn, upscaledAmount],
+        assetReferences: [BigInt(lstTokenId), BigInt(repayTokenId)],
+        appReferences: [appClient.appId],
+        sender: address,
+      })
+      .send({
+        suppressLog: false,
+        populateAppCallResources: true,
+      });
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function withdrawCollateral({
+  address,
+  amount,
+  appId,
+  collateralAssetId,
+  lstAppId,
+  signer,
+}: WithdrawCollateralParams) {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+    appClient.algorand.setDefaultSigner(signer);
+    const upscaledAmount = amount * 10 ** 6;
+
+    await appClient
+      .newGroup()
+      .gas()
+      .withdrawCollateral({
+        args: [upscaledAmount, collateralAssetId, lstAppId],
+        assetReferences: [BigInt(collateralAssetId)],
+        appReferences: [BigInt(lstAppId)],
+        sender: address,
+      })
+      .send({
+        suppressLog: false,
+        populateAppCallResources: true,
+      });
   } catch (error) {
     console.error(error);
     throw error;

@@ -57,3 +57,21 @@ export interface getBoxValueReturnType {
   totalCollateral: bigint
   boxRef: algosdk.BoxReference
 }
+
+export interface RepayDebtAsaParams {
+  address: string;
+  amount: number;
+  appId: number;
+  lstTokenId: number;
+  repayTokenId: number;
+  signer: TransactionSigner;
+}
+
+export interface WithdrawCollateralParams {
+  address: string;
+  amount: number;
+  appId: number;
+  collateralAssetId: number;
+  lstAppId: number;
+  signer: TransactionSigner;
+}
