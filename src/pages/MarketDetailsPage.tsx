@@ -39,6 +39,7 @@ import {
 } from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
 import { ExplorerLinks } from "../components/app/explorerlinks";
+import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 
 const MarketDetailsPage = () => {
   const [searchParams] = useSearchParams();
@@ -862,7 +863,7 @@ const MarketDetailsPage = () => {
                     Borrow APR
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-amber-400 tabular-nums">
-                    {market.borrowApr.toFixed(2)}%
+                    {calculateRealTimeBorrowAPR(market).toFixed(2)}%
                   </div>
                 </div>
               </div>

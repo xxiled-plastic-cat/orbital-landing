@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 import { LendingMarket } from "../types/lending";
+import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 
 interface MarketCardProps {
   market: LendingMarket;
@@ -98,7 +99,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
               </span>
             </div>
             <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums tracking-tight">
-              {market.borrowApr.toFixed(2)}%
+              {calculateRealTimeBorrowAPR(market).toFixed(2)}%
             </div>
             <div className="text-xs text-slate-500 mt-2 font-mono">
               Kink at 50% of cap; rates rise faster beyond.

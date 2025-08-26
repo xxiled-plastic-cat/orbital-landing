@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { TrendingUp } from "lucide-react";
 import { LendingMarket } from "../types/lending";
+import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 
 interface InterestRateModelProps {
   market: LendingMarket;
@@ -135,7 +136,7 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
               style={{ left: `${(market.utilizationRate / maxUtilization) * 100}%` }}
             >
               <div className="absolute -top-6 -left-8 text-xs font-mono text-cyan-400 font-bold whitespace-nowrap">
-                Current: {market.utilizationRate.toFixed(1)}%
+                Current: {calculateRealTimeBorrowAPR(market).toFixed(1)}%
               </div>
             </div>
 
@@ -204,7 +205,7 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
           <div className="pt-2 border-t border-slate-700">
             Current Rate:{" "}
             <span className="text-white font-bold">
-              {calculateInterestRate(market.utilizationRate).toFixed(2)}%
+              {calculateRealTimeBorrowAPR(market).toFixed(2)}%
             </span>
           </div>
         </div>

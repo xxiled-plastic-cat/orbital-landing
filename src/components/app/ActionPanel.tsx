@@ -5,6 +5,7 @@ import {
   calculateAssetDue,
   calculateLSTDue,
 } from "../../contracts/lending/state";
+import { calculateRealTimeBorrowAPR } from "../../utils/interestRateCalculations";
 import { LendingMarket } from "../../types/lending";
 import { getLoanRecordReturnType } from "../../contracts/lending/interface";
 import { useCollateralTokens } from "../../hooks/useCollateralTokens";
@@ -280,7 +281,8 @@ const ActionPanel = ({
     const ltvRatio = totalCollateralValue > 0 ? (totalDebtValue / totalCollateralValue) * 100 : 0;
 
     // Calculate daily interest on the additional borrow amount
-    const dailyInterest = (additionalBorrowValue * market.borrowApr) / 100 / 365;
+    const realTimeBorrowAPR = calculateRealTimeBorrowAPR(market);
+    const dailyInterest = (additionalBorrowValue * realTimeBorrowAPR) / 100 / 365;
 
     // Estimate origination fee (typically 0.1-0.5% of additional borrow amount)
     const originationFee = additionalBorrowValue * 0.001; // 0.1% as example
@@ -824,7 +826,7 @@ const ActionPanel = ({
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-mono text-slate-400">Borrow APR</span>
                   <span className="font-mono font-bold text-blue-400">
-                    {market.borrowApr.toFixed(2)}%
+                    {calculateRealTimeBorrowAPR(market).toFixed(2)}%
                   </span>
                 </div>
 
