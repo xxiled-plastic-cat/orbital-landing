@@ -6,6 +6,7 @@ import {
   calculateLSTDue,
 } from "../../contracts/lending/state";
 import { LendingMarket } from "../../types/lending";
+import { getLoanRecordReturnType } from "../../contracts/lending/interface";
 import { useCollateralTokens } from "../../hooks/useCollateralTokens";
 import TabSelector from "./TabSelector";
 
@@ -22,12 +23,7 @@ interface ActionPanelProps {
   isLoadingAssets: boolean;
   transactionLoading: boolean;
   acceptedCollateral?: Map<unknown, unknown>;
-  userDebt?: {
-    borrowedAmount: string;
-    collateralAmount: string;
-    collateralAssetId: string;
-    interestAccrued: string;
-  };
+  userDebt?: getLoanRecordReturnType;
   initialTab?: "lend" | "borrow";
   onDeposit: (amount: string) => void;
   onRedeem: (amount: string) => void;
@@ -110,6 +106,20 @@ const ActionPanel = ({
     }
   }, [initialTab]);
 
+  // Auto-select existing collateral when user has debt and switches to open or withdraw action
+  useEffect(() => {
+    if ((activeAction === "open" || activeAction === "withdraw") && userDebt && Number(userDebt.principal) > 0) {
+      const existingCollateralId = userDebt.collateralTokenId.toString();
+      if (existingCollateralId) {
+        if (activeAction === "open" && existingCollateralId !== selectedCollateral) {
+          setSelectedCollateral(existingCollateralId);
+        } else if (activeAction === "withdraw" && existingCollateralId !== withdrawCollateralAssetId) {
+          setWithdrawCollateralAssetId(existingCollateralId);
+        }
+      }
+    }
+  }, [activeAction, userDebt, selectedCollateral, withdrawCollateralAssetId]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -187,10 +197,9 @@ const ActionPanel = ({
         return (market.availableToBorrow * Math.pow(10, 6)).toString();
 
       case "repay": {
-        // For repay, use the total debt amount (borrowed + interest)
-        if (!userDebt) return "0";
-        const totalDebt = parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued);
-        return (totalDebt * Math.pow(10, 6)).toString();
+        // For repay, use the total debt amount
+        if (!userDebt || !userDebt.principal) return "0";
+        return userDebt.principal.toString(); // Already in microunits
       }
 
       case "withdraw": {
@@ -243,7 +252,7 @@ const ActionPanel = ({
 
   // Calculate borrow details
   const calculateBorrowDetails = () => {
-    if (!selectedCollateral || !collateralAmount || !borrowAmount) {
+    if (!borrowAmount) {
       return {
         ltvRatio: 0,
         dailyInterest: 0,
@@ -253,28 +262,49 @@ const ActionPanel = ({
       };
     }
 
-    const collateralValue = parseFloat(collateralAmount);
-    const borrowValue = parseFloat(borrowAmount);
+    // Get existing collateral amount
+    const existingCollateralValue = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, 6) : 0;
+    // Get additional collateral amount (if any)
+    const additionalCollateralValue = collateralAmount ? parseFloat(collateralAmount) : 0;
+    // Total collateral = existing + additional
+    const totalCollateralValue = existingCollateralValue + additionalCollateralValue;
 
-    // Calculate LTV ratio
-    const ltvRatio =
-      collateralValue > 0 ? (borrowValue / collateralValue) * 100 : 0;
+    // Get existing debt
+    const existingDebtValue = userDebt ? Number(userDebt.principal) / Math.pow(10, 6) : 0;
+    // Get additional borrow amount
+    const additionalBorrowValue = parseFloat(borrowAmount);
+    // Total debt = existing + additional
+    const totalDebtValue = existingDebtValue + additionalBorrowValue;
 
-    // Calculate daily interest (APR / 365)
-    const dailyInterest = (borrowValue * market.borrowApr) / 100 / 365;
+    // Calculate LTV ratio based on total debt vs total collateral
+    const ltvRatio = totalCollateralValue > 0 ? (totalDebtValue / totalCollateralValue) * 100 : 0;
 
-    // Estimate origination fee (typically 0.1-0.5% of borrow amount)
-    const originationFee = borrowValue * 0.001; // 0.1% as example
+    // Calculate daily interest on the additional borrow amount
+    const dailyInterest = (additionalBorrowValue * market.borrowApr) / 100 / 365;
 
-    // Calculate max borrow amount based on LTV
-    const maxBorrowAmount = (collateralValue * market.ltv) / 100;
+    // Estimate origination fee (typically 0.1-0.5% of additional borrow amount)
+    const originationFee = additionalBorrowValue * 0.001; // 0.1% as example
+
+    // Calculate max additional borrow amount based on existing collateral + any new collateral
+    const maxTotalDebt = (totalCollateralValue * market.ltv) / 100;
+    const maxAdditionalBorrowByCollateral = Math.max(0, maxTotalDebt - existingDebtValue);
+    
+    // Also consider market supply availability
+    const marketAvailableSupply = market.availableToBorrow;
+    
+    // The actual max is the minimum of collateral-based limit and market supply
+    const maxAdditionalBorrow = Math.min(maxAdditionalBorrowByCollateral, marketAvailableSupply);
 
     return {
       ltvRatio,
       dailyInterest,
       originationFee,
       totalFees: originationFee,
-      maxBorrowAmount,
+      maxBorrowAmount: maxAdditionalBorrow,
+      totalCollateralValue,
+      totalDebtValue,
+      existingCollateralValue,
+      existingDebtValue,
     };
   };
 
@@ -292,13 +322,13 @@ const ActionPanel = ({
       };
     }
 
-    const totalDebt = parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued);
+    const totalDebt = Number(userDebt.principal) / Math.pow(10, 6); // Convert from microunits
     const repaymentAmount = parseFloat(repayAmount);
     const remainingDebt = Math.max(0, totalDebt - repaymentAmount);
     const isFullRepayment = repaymentAmount >= totalDebt;
 
     // Calculate collateral returned proportionally
-    const collateralAmount = parseFloat(userDebt.collateralAmount);
+    const collateralAmount = Number(userDebt.collateralAmount) / Math.pow(10, 6); // Convert from microunits
     const repaymentRatio = Math.min(1, repaymentAmount / totalDebt);
     const collateralReturned = collateralAmount * repaymentRatio;
 
@@ -346,10 +376,8 @@ const ActionPanel = ({
 
   // Handle max borrow click
   const handleMaxBorrowClick = () => {
-    if (collateralAmount) {
-      const maxBorrow = (parseFloat(collateralAmount) * market.ltv) / 100;
-      setBorrowAmount(maxBorrow.toFixed(6));
-    }
+    // Use the calculated max additional borrow amount
+    setBorrowAmount(borrowDetails.maxBorrowAmount.toFixed(6));
   };
 
   return (
@@ -435,8 +463,8 @@ const ActionPanel = ({
                   activeAction === "repay"
                     ? "bg-gradient-to-br from-amber-600 to-amber-700 border-amber-400 text-white shadow-amber-500/25 transform scale-[1.02]"
                     : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
-                } ${!userDebt || parseFloat(userDebt.borrowedAmount) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={!userDebt || parseFloat(userDebt.borrowedAmount) === 0}
+                } ${!userDebt || Number(userDebt.principal) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={!userDebt || Number(userDebt.principal) === 0}
               >
                 <span className="relative z-20 drop-shadow-sm">REPAY</span>
               </button>
@@ -446,8 +474,8 @@ const ActionPanel = ({
                   activeAction === "withdraw"
                     ? "bg-gradient-to-br from-purple-600 to-purple-700 border-purple-400 text-white shadow-purple-500/25 transform scale-[1.02]"
                     : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
-                } ${!userDebt || parseFloat(userDebt.collateralAmount) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={!userDebt || parseFloat(userDebt.collateralAmount) === 0}
+                } ${!userDebt || Number(userDebt.collateralAmount) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={!userDebt || Number(userDebt.collateralAmount) === 0}
               >
                 <span className="relative z-20 drop-shadow-sm">WITHDRAW</span>
               </button>
@@ -466,11 +494,34 @@ const ActionPanel = ({
           {activeAction === "open" ? (
             // Borrow-specific inputs
             <>
+              {/* Current Position Display */}
+              {userDebt && Number(userDebt.principal) > 0 && (
+                <div className="bg-slate-800/50 border border-slate-600 rounded-lg p-3 mb-4">
+                  <div className="text-xs font-mono text-slate-400 uppercase tracking-wide mb-2">
+                    Current Position
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-slate-400 font-mono">Collateral</div>
+                      <div className="text-white font-mono">
+                        {(Number(userDebt.collateralAmount) / Math.pow(10, 6)).toFixed(6)} {availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 font-mono">Debt</div>
+                      <div className="text-white font-mono">
+                        {(Number(userDebt.principal) / Math.pow(10, 6)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Collateral Selection */}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
-                    Collateral Asset
+                      {userDebt && Number(userDebt.principal) > 0 ? "Add More Collateral" : "Collateral Asset"}
                   </span>
                 </div>
                 <div className="relative" ref={dropdownRef}>
@@ -478,7 +529,10 @@ const ActionPanel = ({
                     onClick={() =>
                       setShowCollateralDropdown(!showCollateralDropdown)
                     }
-                    className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-blue-400 flex items-center justify-between"
+                    disabled={userDebt && Number(userDebt.principal) > 0}
+                    className={`w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-blue-400 flex items-center justify-between ${
+                      userDebt && Number(userDebt.principal) > 0 ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       {selectedCollateralInfo?.image && (
@@ -490,7 +544,7 @@ const ActionPanel = ({
                       )}
                       <span>
                         {selectedCollateralInfo
-                          ? selectedCollateralInfo.symbol
+                          ? `${selectedCollateralInfo.symbol}${userDebt && Number(userDebt.principal) > 0 ? " (Existing)" : ""}`
                           : "Select Collateral"}
                       </span>
                     </div>
@@ -571,19 +625,18 @@ const ActionPanel = ({
               )}
 
               {/* Borrow Amount Input */}
-              {selectedCollateral && collateralAmount && (
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
-                      Borrow Amount
-                    </span>
-                    <button
-                      onClick={handleMaxBorrowClick}
-                      className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-blue-400 hover:text-blue-300"
-                    >
-                      MAX
-                    </button>
-                  </div>
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
+                    {userDebt && Number(userDebt.principal) > 0 ? "Additional Borrow Amount" : "Borrow Amount"}
+                  </span>
+                  <button
+                    onClick={handleMaxBorrowClick}
+                    className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-blue-400 hover:text-blue-300"
+                  >
+                    MAX
+                  </button>
+                </div>
                   <div className="relative">
                     <input
                       type="number"
@@ -606,7 +659,6 @@ const ActionPanel = ({
                     </div>
                   </div>
                 </div>
-              )}
             </>
           ) : activeAction === "repay" ? (
             // Repay-specific input
@@ -646,7 +698,7 @@ const ActionPanel = ({
               </div>
               {userDebt && (
                 <div className="text-xs font-mono text-slate-400 mt-1">
-                  Total Debt: {(parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                    Total Debt: {(Number(userDebt.principal) / Math.pow(10, 6)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
                 </div>
               )}
             </div>
@@ -658,60 +710,17 @@ const ActionPanel = ({
                   Collateral Asset
                 </span>
               </div>
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setShowCollateralDropdown(!showCollateralDropdown)}
-                  className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-purple-400 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.image && (
-                      <img
-                        src={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.image}
-                        alt={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
-                        className="w-4 h-4 object-contain"
-                      />
-                    )}
-                    <span>
-                      {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol || "Select Collateral"}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-
-                {showCollateralDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-100 border-2 border-slate-600 cut-corners-sm z-50 max-h-40 overflow-y-auto">
-                    {availableCollateral.length > 0 ? (
-                      availableCollateral.map((asset) => (
-                        <button
-                          key={asset.assetId}
-                          onClick={() => {
-                            setWithdrawCollateralAssetId(asset.assetId);
-                            setShowCollateralDropdown(false);
-                            setWithdrawAmount("");
-                          }}
-                          className="w-full px-3 py-2 text-left hover:bg-slate-200 font-mono text-slate-800 text-sm flex justify-between items-center transition-colors duration-150"
-                        >
-                          <div className="flex items-center gap-2">
-                            {asset.image && (
-                              <img
-                                src={asset.image}
-                                alt={asset.symbol}
-                                className="w-4 h-4 object-contain"
-                              />
-                            )}
-                            <span className="font-medium text-slate-200">
-                              {asset.symbol}
-                            </span>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-slate-600 font-mono text-sm">
-                        No collateral available
-                      </div>
-                    )}
-                  </div>
+              <div className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-800/50 border-2 border-slate-600 text-white font-mono text-base md:text-lg flex items-center gap-2">
+                {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.image && (
+                  <img
+                    src={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.image}
+                    alt={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                    className="w-4 h-4 object-contain"
+                  />
                 )}
+                <span>
+                  {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol || "No collateral available"}
+                </span>
               </div>
 
               {withdrawCollateralAssetId && (
@@ -819,11 +828,18 @@ const ActionPanel = ({
                   </span>
                 </div>
 
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-mono text-slate-400">Available Supply</span>
+                  <span className="font-mono text-white">
+                    {market.availableToBorrow.toFixed(2)} {getBaseTokenSymbol(market?.symbol)}
+                  </span>
+                </div>
+
                 {borrowAmount && (
                   <>
                     <div className="flex justify-between items-center text-sm">
                       <span className="font-mono text-slate-400">
-                        LTV Ratio
+                        Total LTV Ratio
                       </span>
                       <span
                         className={`font-mono font-bold ${
@@ -833,6 +849,24 @@ const ActionPanel = ({
                         }`}
                       >
                         {borrowDetails.ltvRatio.toFixed(1)}% / {market.ltv}%
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">
+                        Total Collateral
+                      </span>
+                      <span className="font-mono text-white">
+                        {borrowDetails.totalCollateralValue?.toFixed(6)} {userDebt ? availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol : ""}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">
+                        Total Debt
+                      </span>
+                      <span className="font-mono text-white">
+                        {borrowDetails.totalDebtValue?.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
                       </span>
                     </div>
 
@@ -909,18 +943,20 @@ const ActionPanel = ({
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">Collateral Returned</span>
-                      <span className="font-mono text-white">
-                        {repaymentDetails.collateralReturned.toFixed(6)} 
-                        {userDebt && availableCollateral.find(c => c.assetId === userDebt.collateralAssetId)?.symbol}
-                      </span>
-                    </div>
-
                     {repaymentDetails.isFullRepayment && (
-                      <div className="text-xs font-mono text-green-400 bg-green-500/10 border border-green-500/20 p-2 rounded">
-                        ✓ Position will be fully closed - all collateral returned
-                      </div>
+                      <>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-mono text-slate-400">Collateral Returned</span>
+                          <span className="font-mono text-white">
+                            {repaymentDetails.collateralReturned.toFixed(6)} 
+                            {userDebt && availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
+                          </span>
+                        </div>
+
+                        <div className="text-xs font-mono text-green-400 bg-green-500/10 border border-green-500/20 p-2 rounded">
+                          ✓ Position will be fully closed - all collateral returned
+                        </div>
+                      </>
                     )}
                   </>
                 )}
@@ -1042,21 +1078,28 @@ const ActionPanel = ({
         <button
           className={`w-full h-10 md:h-12 cut-corners-sm font-mono text-xs md:text-sm font-semibold transition-all duration-150 ${(() => {
               if (activeAction === "open") {
-                return selectedCollateral &&
-                  collateralAmount &&
-                  parseFloat(collateralAmount) > 0 &&
-                  borrowAmount &&
+                // For existing debt, allow borrowing without new collateral
+                // For new debt, require collateral selection
+                const hasExistingDebt = userDebt && Number(userDebt.principal) > 0;
+                const needsCollateral = !hasExistingDebt;
+                
+                const collateralValid = needsCollateral 
+                  ? (selectedCollateral && collateralAmount && parseFloat(collateralAmount) > 0 && hasSufficientCollateral())
+                  : (!collateralAmount || parseFloat(collateralAmount || "0") === 0 || hasSufficientCollateral());
+                
+                return borrowAmount &&
                   parseFloat(borrowAmount) > 0 &&
+                  parseFloat(borrowAmount) <= market.availableToBorrow &&
                   borrowDetails.ltvRatio <= market.ltv &&
                   market.availableToBorrow > 0 &&
-                  hasSufficientCollateral()
+                  collateralValid
                   ? "bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight"
                   : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
               } else if (activeAction === "repay") {
                 return repayAmount &&
                   parseFloat(repayAmount) > 0 &&
                   userDebt &&
-                  parseFloat(userDebt.borrowedAmount) > 0
+                  Number(userDebt.principal) > 0
                   ? "bg-amber-600 border-2 border-amber-500 text-white hover:bg-amber-500 shadow-top-highlight"
                   : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
               } else if (activeAction === "withdraw") {
@@ -1083,36 +1126,41 @@ const ActionPanel = ({
             })()}`}
             onClick={handleAction}
             disabled={
-              transactionLoading ||
+              Boolean(transactionLoading) ||
               (() => {
                 if (activeAction === "open") {
+                  const hasExistingDebt = userDebt && Number(userDebt.principal) > 0;
+                  const needsCollateral = !hasExistingDebt;
+                  
+                  const collateralInvalid = needsCollateral 
+                    ? (!selectedCollateral || !collateralAmount || parseFloat(collateralAmount || "0") <= 0 || !hasSufficientCollateral())
+                    : (Boolean(collateralAmount) && parseFloat(collateralAmount || "0") > 0 && !hasSufficientCollateral());
+                  
                   return (
-                    !selectedCollateral ||
-                    !collateralAmount ||
-                    parseFloat(collateralAmount) <= 0 ||
                     !borrowAmount ||
-                    parseFloat(borrowAmount) <= 0 ||
+                    parseFloat(borrowAmount || "0") <= 0 ||
+                    parseFloat(borrowAmount || "0") > market.availableToBorrow ||
                     borrowDetails.ltvRatio > market.ltv ||
                     market.availableToBorrow === 0 ||
-                    !hasSufficientCollateral()
+                    collateralInvalid
                   );
                 } else if (activeAction === "repay") {
                   return (
                     !repayAmount ||
-                    parseFloat(repayAmount) <= 0 ||
+                    parseFloat(repayAmount || "0") <= 0 ||
                     !userDebt ||
-                    parseFloat(userDebt.borrowedAmount) <= 0
+                    Number(userDebt.principal) <= 0
                   );
                 } else if (activeAction === "withdraw") {
                   return (
                     !withdrawCollateralAssetId ||
                     !withdrawAmount ||
-                    parseFloat(withdrawAmount) <= 0
+                    parseFloat(withdrawAmount || "0") <= 0
                   );
                 } else {
                   return (
                     !amount ||
-                    parseFloat(amount) <= 0 ||
+                    parseFloat(amount || "0") <= 0 ||
                     (activeAction === "redeem" &&
                       userAssets?.assets.find(
                         (asset) =>
@@ -1129,7 +1177,7 @@ const ActionPanel = ({
               {activeAction === "redeem" &&
                 `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
               {activeAction === "open" &&
-                `BORROW ${getBaseTokenSymbol(market?.symbol)}`}
+                `${userDebt && Number(userDebt.principal) > 0 ? "ADD TO POSITION" : "BORROW"} ${getBaseTokenSymbol(market?.symbol)}`}
               {activeAction === "repay" &&
                 `REPAY ${getBaseTokenSymbol(market?.symbol)}`}
               {activeAction === "withdraw" &&
@@ -1161,6 +1209,13 @@ const ActionPanel = ({
                 </div>
               )}
 
+              {borrowAmount && parseFloat(borrowAmount) > market.availableToBorrow && (
+                <div className="flex items-center gap-2 text-red-400 text-sm font-mono">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Borrow amount exceeds available market supply ({market.availableToBorrow.toFixed(2)} {getBaseTokenSymbol(market?.symbol)})</span>
+                </div>
+              )}
+
               {selectedCollateral &&
                 collateralAmount &&
                 borrowAmount &&
@@ -1176,13 +1231,21 @@ const ActionPanel = ({
                   </div>
                 )}
 
-              {!selectedCollateral && availableCollateral.length > 0 && (
+              {!borrowAmount && userDebt && Number(userDebt.principal) > 0 && (
+                <div className="text-xs text-slate-500 font-mono">
+                  Enter additional amount to borrow (max{" "}
+                  {borrowDetails.maxBorrowAmount.toFixed(2)}{" "}
+                  {getBaseTokenSymbol(market?.symbol)} - limited by {borrowDetails.maxBorrowAmount < market.availableToBorrow ? "collateral" : "market supply"})
+                </div>
+              )}
+
+              {!borrowAmount && (!userDebt || Number(userDebt.principal) === 0) && (
                 <div className="text-xs text-slate-500 font-mono">
                   Select collateral to deposit and specify borrow amount
                 </div>
               )}
 
-              {selectedCollateral && !collateralAmount && (
+              {selectedCollateral && !collateralAmount && (!userDebt || Number(userDebt.principal) === 0) && (
                 <div className="text-xs text-slate-500 font-mono">
                   Enter collateral amount to deposit (balance:{" "}
                   {formatBalance(selectedCollateralInfo?.balance || "0")}{" "}
@@ -1190,11 +1253,9 @@ const ActionPanel = ({
                 </div>
               )}
 
-              {selectedCollateral && collateralAmount && !borrowAmount && (
+              {borrowAmount && !selectedCollateral && (!userDebt || Number(userDebt.principal) === 0) && (
                 <div className="text-xs text-slate-500 font-mono">
-                  Enter amount to borrow (max{" "}
-                  {borrowDetails.maxBorrowAmount.toFixed(2)}{" "}
-                  {getBaseTokenSymbol(market?.symbol)})
+                  Select collateral asset for new position
                 </div>
               )}
 
@@ -1202,9 +1263,33 @@ const ActionPanel = ({
                 collateralAmount &&
                 borrowAmount &&
                 hasSufficientCollateral() &&
-                borrowDetails.ltvRatio <= market.ltv && (
+                borrowDetails.ltvRatio <= market.ltv &&
+                parseFloat(borrowAmount) <= market.availableToBorrow && (
                   <div className="text-xs text-green-500 font-mono">
                     Ready to borrow! You'll receive{" "}
+                    {(
+                      parseFloat(borrowAmount) - borrowDetails.originationFee
+                    ).toFixed(6)}{" "}
+                    {getBaseTokenSymbol(market?.symbol)} after fees
+                  </div>
+                )}
+
+              {borrowAmount &&
+                (!userDebt || Number(userDebt.principal) === 0) &&
+                (!selectedCollateral || !collateralAmount) &&
+                parseFloat(borrowAmount) <= market.availableToBorrow &&
+                borrowDetails.ltvRatio <= market.ltv && (
+                  <div className="text-xs text-green-500 font-mono">
+                    Borrow amount valid! Add collateral to proceed.
+                  </div>
+                )}
+
+              {borrowAmount &&
+                userDebt && Number(userDebt.principal) > 0 &&
+                parseFloat(borrowAmount) <= market.availableToBorrow &&
+                borrowDetails.ltvRatio <= market.ltv && (
+                  <div className="text-xs text-green-500 font-mono">
+                    Ready to add to position! You'll receive{" "}
                     {(
                       parseFloat(borrowAmount) - borrowDetails.originationFee
                     ).toFixed(6)}{" "}
@@ -1224,16 +1309,16 @@ const ActionPanel = ({
                 </div>
               )}
 
-              {userDebt && parseFloat(userDebt.borrowedAmount) === 0 && (
+              {userDebt && Number(userDebt.principal) === 0 && (
                 <div className="flex items-center gap-2 text-green-400 text-sm font-mono">
                   <AlertCircle className="w-4 h-4" />
                   <span>No outstanding debt to repay</span>
                 </div>
               )}
 
-              {!repayAmount && userDebt && parseFloat(userDebt.borrowedAmount) > 0 && (
+              {!repayAmount && userDebt && Number(userDebt.principal) > 0 && (
                 <div className="text-xs text-slate-500 font-mono">
-                  Enter amount to repay (max: {(parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)})
+                  Enter amount to repay (max: {(Number(userDebt.principal) / Math.pow(10, 6)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)})
                 </div>
               )}
 

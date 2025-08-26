@@ -71,7 +71,7 @@ const CollateralRelationships = ({ market, acceptedCollateral }: CollateralRelat
                     {market.ltv}% LTV
                   </div>
                   <div className="text-xs text-slate-500 font-mono">
-                    Total: {(asset.totalCollateral / 10**6).toFixed(2)}
+                    Total: {(Number(asset.totalCollateral) / 10**6).toFixed(2)}
                   </div>
                 </div>
               </div>

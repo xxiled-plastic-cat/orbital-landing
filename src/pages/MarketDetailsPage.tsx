@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useContext, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -24,11 +24,13 @@ import { useToast } from "../context/toastContext";
 import {
   borrow,
   deposit,
+  getLoanRecordBoxValue,
   repayDebtAlgo,
   repayDebtAsa,
   withdraw,
   withdrawCollateral,
 } from "../contracts/lending/user";
+import { getLoanRecordReturnType } from "../contracts/lending/interface";
 import { useWallet } from "@txnlab/use-wallet-react";
 import {
   calculateAssetDue,
@@ -39,7 +41,8 @@ import { recordUserAction } from "../services/userStats";
 import { ExplorerLinks } from "../components/app/explorerlinks";
 
 const MarketDetailsPage = () => {
-  const { marketId } = useParams<{ marketId: string }>();
+  const [searchParams] = useSearchParams();
+  const marketId = searchParams.get("id");
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [transactionLoading, setTransactionLoading] = useState(false);
@@ -47,8 +50,8 @@ const MarketDetailsPage = () => {
     Map<any, any> | undefined
   >(undefined);
 
-  // TODO: Implement userDebt state management
-  const userDebt = undefined;
+  // User debt state management
+  const [userDebt, setUserDebt] = useState<getLoanRecordReturnType | undefined>(undefined);
 
   // Ref to track the last fetched collateral combination to prevent unnecessary calls
   const lastFetchedRef = useRef<string | null>(null);
@@ -65,6 +68,23 @@ const MarketDetailsPage = () => {
   const { openToast } = useToast();
   const { activeAddress, transactionSigner } = useWallet();
   const refetchMarkets = useRefetchMarkets();
+
+  // Function to refetch user debt
+  const refetchUserDebt = async () => {
+    if (market && activeAddress && transactionSigner) {
+      try {
+        const debtRecord = await getLoanRecordBoxValue({
+          address: activeAddress,
+          appId: Number(market.id),
+          signer: transactionSigner,
+        });
+        setUserDebt(debtRecord);
+      } catch (error) {
+        console.log("No debt record found for user:", error);
+        setUserDebt(undefined);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!isLoading && !market && marketId) {
@@ -105,6 +125,30 @@ const MarketDetailsPage = () => {
     };
 
     fetchCollateral();
+  }, [market, activeAddress]);
+
+  // Fetch user debt information
+  useEffect(() => {
+    const fetchUserDebt = async () => {
+      if (market && activeAddress && transactionSigner) {
+        try {
+          const debtRecord = await getLoanRecordBoxValue({
+            address: activeAddress,
+            appId: Number(market.id),
+            signer: transactionSigner,
+          });
+          console.log("Debt record:", debtRecord);
+          setUserDebt(debtRecord);
+        } catch (error) {
+          console.log("No debt record found for user:", error);
+          setUserDebt(undefined);
+        }
+      } else {
+        setUserDebt(undefined);
+      }
+    };
+
+    fetchUserDebt();
   }, [market, activeAddress]);
 
   const handleDeposit = async (amount: string) => {
@@ -151,6 +195,9 @@ const MarketDetailsPage = () => {
 
           // Immediately refetch market data to reflect changes in market overview and interest rates
           refetchMarkets();
+          
+          // Refetch user debt data
+          refetchUserDebt();
 
           // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
           const lstMinted = calculateLSTDue(
@@ -238,6 +285,9 @@ const MarketDetailsPage = () => {
 
           // Immediately refetch market data to reflect changes in market overview and interest rates
           refetchMarkets();
+          
+          // Refetch user debt data
+          refetchUserDebt();
 
           const asaDue = calculateAssetDue(
             BigInt(Number(amount) * 10 ** 6),
@@ -300,6 +350,21 @@ const MarketDetailsPage = () => {
         signer: transactionSigner,
       })
         .then((txId) => {
+          // Apply optimistic updates only after transaction success
+          const repayAmountMicrounits = (
+            Number(repayAmount) * Math.pow(10, 6)
+          ).toString();
+          const baseTokenId = market?.baseTokenId || "0";
+
+          // Remove repaid tokens from user balance
+          applyOptimisticBalanceUpdate(baseTokenId, `-${repayAmountMicrounits}`);
+
+          // Confirm the updates immediately since transaction was successful
+          confirmOptimisticUpdate(baseTokenId);
+
+          // Immediately refetch market data to reflect changes
+          refetchMarkets();
+
           openToast({
             type: "success",
             message: "Repay successful",
@@ -340,6 +405,21 @@ const MarketDetailsPage = () => {
         signer: transactionSigner,
       })
         .then((txId) => {
+          // Apply optimistic updates only after transaction success
+          const repayAmountMicrounits = (
+            Number(repayAmount) * Math.pow(10, 6)
+          ).toString();
+          const baseTokenId = market?.baseTokenId || "0";
+
+          // Remove repaid tokens from user balance
+          applyOptimisticBalanceUpdate(baseTokenId, `-${repayAmountMicrounits}`);
+
+          // Confirm the updates immediately since transaction was successful
+          confirmOptimisticUpdate(baseTokenId);
+
+          // Immediately refetch market data to reflect changes
+          refetchMarkets();
+
           openToast({
             type: "success",
             message: "Repay successful",
@@ -394,6 +474,20 @@ const MarketDetailsPage = () => {
       signer: transactionSigner,
     })
       .then((txId) => {
+        // Apply optimistic updates only after transaction success
+        const withdrawAmountMicrounits = (
+          Number(withdrawAmount) * Math.pow(10, 6)
+        ).toString();
+
+        // Add withdrawn collateral tokens back to user balance
+        applyOptimisticBalanceUpdate(collateralAssetId, withdrawAmountMicrounits);
+
+        // Confirm the updates immediately since transaction was successful
+        confirmOptimisticUpdate(collateralAssetId);
+
+        // Immediately refetch market data to reflect changes
+        refetchMarkets();
+
         openToast({
           type: "success",
           message: "Withdraw successful",
@@ -431,9 +525,22 @@ const MarketDetailsPage = () => {
     collateralAmount: string,
     borrowAmount: string
   ) => {
+    // Check if user has existing debt and is borrowing against existing collateral
+    const hasExistingDebt = userDebt && Number(userDebt.principal) > 0;
+    const isAddingCollateral = collateralAmount && parseFloat(collateralAmount) > 0;
+    
+    // If user has existing debt and isn't adding collateral, use existing collateral
+    let effectiveCollateralAssetId = collateralAssetId;
+    let effectiveCollateralAmount = collateralAmount;
+    
+    if (hasExistingDebt && !isAddingCollateral) {
+      effectiveCollateralAssetId = userDebt.collateralTokenId.toString();
+      effectiveCollateralAmount = "0"; // No new collateral being added
+    }
+
     // Find the market that has the collateral token as its LST token
     const collateralMarket = allMarkets?.find(
-      (m) => m.lstTokenId === collateralAssetId
+      (m) => m.lstTokenId === effectiveCollateralAssetId
     );
 
     if (!collateralMarket) {
@@ -446,21 +553,27 @@ const MarketDetailsPage = () => {
       return;
     }
 
+    const toastDescription = isAddingCollateral 
+      ? `Please sign the transaction to borrow ${borrowAmount} ${getBaseTokenSymbol(
+          market?.symbol
+        )} using ${effectiveCollateralAmount} ${getBaseTokenSymbol(
+          effectiveCollateralAssetId
+        )} as additional collateral`
+      : `Please sign the transaction to borrow ${borrowAmount} ${getBaseTokenSymbol(
+          market?.symbol
+        )} against your existing collateral`;
+
     openToast({
       type: "loading",
       message: "Borrowing...",
-      description: `Please sign the transaction to borrow ${borrowAmount} ${getBaseTokenSymbol(
-        market?.symbol
-      )} using ${collateralAmount} ${getBaseTokenSymbol(
-        collateralAssetId
-      )} as collateral`,
+      description: toastDescription,
     });
 
     await borrow({
       address: activeAddress as string,
-      collateralAmount: Number(collateralAmount),
+      collateralAmount: Number(effectiveCollateralAmount),
       borrowAmount: Number(borrowAmount),
-      collateralAssetId: Number(collateralAssetId),
+      collateralAssetId: Number(effectiveCollateralAssetId),
       lstAppId: Number(collateralMarket.id), // Use the collateral market's app ID
       appId: Number(market?.id), // Current market we're borrowing from
       oracleAppId: Number(market?.oracleAppId),
@@ -471,35 +584,47 @@ const MarketDetailsPage = () => {
         const borrowAmountMicrounits = (
           Number(borrowAmount) * Math.pow(10, 6)
         ).toString();
-        const collateralAmountMicrounits = (
-          Number(collateralAmount) * Math.pow(10, 6)
-        ).toString();
         const baseTokenId = market?.baseTokenId || "0";
 
         // Add borrowed tokens to user balance
         applyOptimisticBalanceUpdate(baseTokenId, borrowAmountMicrounits);
 
-        // Remove collateral tokens from user balance
-        applyOptimisticBalanceUpdate(
-          collateralAssetId,
-          `-${collateralAmountMicrounits}`
-        );
+        // Only update collateral balance if new collateral is being added
+        if (isAddingCollateral) {
+          const collateralAmountMicrounits = (
+            Number(effectiveCollateralAmount) * Math.pow(10, 6)
+          ).toString();
+          
+          // Remove collateral tokens from user balance
+          applyOptimisticBalanceUpdate(
+            effectiveCollateralAssetId,
+            `-${collateralAmountMicrounits}`
+          );
+          
+          // Confirm collateral update
+          confirmOptimisticUpdate(effectiveCollateralAssetId);
+        }
 
-        // Confirm the updates immediately since transaction was successful
+        // Confirm the borrowed token update
         confirmOptimisticUpdate(baseTokenId);
-        confirmOptimisticUpdate(collateralAssetId);
 
         // Immediately refetch market data to reflect changes in market overview and interest rates
         refetchMarkets();
 
+        const successDescription = isAddingCollateral 
+          ? `You have borrowed ${borrowAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )} using ${effectiveCollateralAmount} ${getBaseTokenSymbol(
+              effectiveCollateralAssetId
+            )} as additional collateral`
+          : `You have borrowed ${borrowAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )} against your existing collateral`;
+
         openToast({
           type: "success",
           message: "Borrow successful",
-          description: `You have borrowed ${borrowAmount} ${getBaseTokenSymbol(
-            market?.symbol
-          )} using ${collateralAmount} ${getBaseTokenSymbol(
-            collateralAssetId
-          )} as collateral`,
+          description: successDescription,
         });
 
         recordUserAction({
@@ -507,23 +632,29 @@ const MarketDetailsPage = () => {
           marketId: Number(market?.id),
           action: "borrow",
           tokensOut: Number(borrowAmount),
-          tokensIn: Number(collateralAmount),
+          tokensIn: Number(effectiveCollateralAmount),
           timestamp: Date.now(),
           txnId: txId,
-          tokenInId: Number(collateralAssetId),
+          tokenInId: Number(effectiveCollateralAssetId),
           tokenOutId: Number(market?.baseTokenId),
         });
       })
       .catch((error) => {
         console.error(error);
+        const errorDescription = isAddingCollateral 
+          ? `Unable to borrow ${borrowAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )} using ${effectiveCollateralAmount} ${getBaseTokenSymbol(
+              effectiveCollateralAssetId
+            )} as additional collateral`
+          : `Unable to borrow ${borrowAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )} against your existing collateral`;
+
         openToast({
           type: "error",
           message: "Borrow failed",
-          description: `Unable to borrow ${borrowAmount} ${getBaseTokenSymbol(
-            market?.symbol
-          )} using ${collateralAmount} ${getBaseTokenSymbol(
-            collateralAssetId
-          )} as collateral`,
+          description: errorDescription,
         });
       });
     setTransactionLoading(false);
@@ -719,7 +850,7 @@ const MarketDetailsPage = () => {
 
                 <div className="inset-panel cut-corners-sm p-3 md:p-4">
                   <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
-                    Supply APR
+                    Deposit APR
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-cyan-400 tabular-nums">
                     {market.supplyApr.toFixed(2)}%

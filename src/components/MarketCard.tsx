@@ -187,7 +187,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
         {/* Enhanced Command Interface - Industrial Buttons */}
         <div className="flex gap-4">
           <button
-            onClick={() => navigate(`/app/markets/${market.id}`)}
+            onClick={() => navigate(`/app/markets/details?id=${market.id}`)}
             className="flex-1 h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-inset relative z-10"
           >
             <span className="relative z-20">DETAILS</span>

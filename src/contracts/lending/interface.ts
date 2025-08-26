@@ -34,11 +34,13 @@ export interface getLoanRecordReturnType {
   collateralTokenId: bigint
   collateralAmount: bigint
   lastDebtChange: number[]
-  totalDebt: bigint
   borrowedTokenId: bigint
-  lastAccrualTimestamp: bigint
+  principal: bigint
+  userIndexWad: bigint
   boxRef: algosdk.BoxReference
 }
+
+
 
 export interface BorrowParams {
   address: string;

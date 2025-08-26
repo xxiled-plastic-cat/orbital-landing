@@ -332,9 +332,9 @@ export async function getLoanRecordBoxValue({
       new algosdk.ABIUintType(8), // changeType
       new algosdk.ABIUintType(64), // timestamp
     ]),
-    new algosdk.ABIUintType(64), // totalDebt
     new algosdk.ABIUintType(64), // borrowedTokenId
-    new algosdk.ABIUintType(64), // lastAccrualTimestamp
+    new algosdk.ABIUintType(64), // principal
+    new algosdk.ABIUintType(64), // userIndexWad
   ]);
 
   const prefix = new TextEncoder().encode("loan_record");
@@ -352,9 +352,9 @@ export async function getLoanRecordBoxValue({
     collateralTokenId,
     collateralAmount,
     lastDebtChange,
-    totalDebt,
     borrowedTokenId,
-    lastAccrualTimestamp,
+    principal,
+    userIndexWad,
   ] = value as any[];
 
   return {
@@ -362,9 +362,9 @@ export async function getLoanRecordBoxValue({
     collateralTokenId,
     collateralAmount,
     lastDebtChange,
-    totalDebt,
+    principal,
     borrowedTokenId,
-    lastAccrualTimestamp,
+    userIndexWad,
     boxRef: {
       appIndex: appId,
       name: boxName,

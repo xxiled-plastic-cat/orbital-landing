@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, ArrowDownUp } from "lucide-react";
 import ActionPanel from "./ActionPanel";
 import { LendingMarket } from "../../types/lending";
+import { getLoanRecordReturnType } from "../../contracts/lending/interface";
 
 interface ActionDrawerProps {
   market: LendingMarket;
@@ -17,12 +18,7 @@ interface ActionDrawerProps {
   isLoadingAssets: boolean;
   transactionLoading: boolean;
   acceptedCollateral?: Map<unknown, unknown>;
-  userDebt?: {
-    borrowedAmount: string;
-    collateralAmount: string;
-    collateralAssetId: string;
-    interestAccrued: string;
-  };
+  userDebt?: getLoanRecordReturnType;
   onDeposit: (amount: string) => void;
   onRedeem: (amount: string) => void;
   onBorrow: (

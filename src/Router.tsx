@@ -12,7 +12,7 @@ const Router = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/app" element={<AppPage />} />
         <Route path="/app/markets" element={<LendingMarketsPage />} />
-        <Route path="/app/markets/:marketId" element={<MarketDetailsPage />} />
+        <Route path="/app/markets/details" element={<MarketDetailsPage />} />
         {/* Future routes for app sub-pages */}
         {/* <Route path="/app/dashboard" element={<DashboardPage />} /> */}
         {/* <Route path="/app/borrow" element={<BorrowPage />} /> */}
