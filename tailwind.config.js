@@ -6,7 +6,7 @@ export default {
       fontFamily: {
         'inter': ['Inter', 'sans-serif'],
         'sora': ['Sora', 'sans-serif'],
-        'mono': ['Geist Mono', 'ui-monospace', 'SFMono-Regular', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+        'mono': ['Space Mono', 'ui-monospace', 'SFMono-Regular', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
       },
       colors: {
         'space-dark': '#0b0c10',
