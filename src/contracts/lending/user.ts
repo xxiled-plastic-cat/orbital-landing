@@ -131,6 +131,7 @@ export async function borrow({
   collateralAssetId,
   lstAppId,
   appId,
+  oracleAppId,
   signer,
 }: BorrowParams) {
   try {
@@ -146,7 +147,7 @@ export async function borrow({
         assetId: BigInt(collateralAssetId),
         amount: BigInt(upscaledCollateralAmount),
         note: "Depositing collateral: " + collateralAssetId,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: AlgoAmount.MicroAlgos(250_000)
       });
 
     const mbrTxn = appClient.algorand.createTransaction.payment({
@@ -154,16 +155,19 @@ export async function borrow({
       receiver: appClient.appAddress,
       amount: microAlgo(4000n),
       note: "Funding borrow",
+      maxFee: AlgoAmount.MicroAlgos(250_000)
     });
     const boxValue = await getCollateralBoxValue(
       BigInt(collateralAssetId),
       appClient,
       BigInt(appId)
     );
+    console.log("box value appId", boxValue.boxRef.appIndex);
+    console.log("box value name", boxValue.boxRef.name);
 
     const result = await appClient
       .newGroup()
-      .gas()
+      .gas({args: [], maxFee: AlgoAmount.MicroAlgos(250_000)})
       .borrow({
         args: [
           collateralAxferTxn,
@@ -174,7 +178,7 @@ export async function borrow({
           mbrTxn,
         ],
         assetReferences: [BigInt(collateralAssetId)],
-        appReferences: [BigInt(lstAppId), BigInt(appId)],
+        appReferences: [BigInt(lstAppId), BigInt(oracleAppId)],
         boxReferences: [
           {
             appId: boxValue.boxRef.appIndex as bigint,
@@ -182,8 +186,12 @@ export async function borrow({
           },
         ],
         sender: address,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
       })
-      .send();
+      .send({
+        suppressLog: false,
+        coverAppCallInnerTransactionFees: true,
+      });
 
     return result.txIds[0];
   } catch (error) {

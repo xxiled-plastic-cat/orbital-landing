@@ -47,11 +47,13 @@ export interface BorrowParams {
   collateralAssetId: number;
   lstAppId: number;
   appId: number;
+  oracleAppId: number;
   signer: TransactionSigner;
 }
 export interface getBoxValueReturnType {
   assetId: bigint
   baseAssetId: bigint
+  marketBaseAssetId: bigint
   totalCollateral: bigint
   boxRef: algosdk.BoxReference
 }

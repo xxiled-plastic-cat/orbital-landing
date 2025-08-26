@@ -82,9 +82,12 @@ export async function getCollateralBoxValue(
   const acceptedCollateralType = new algosdk.ABITupleType([
     new algosdk.ABIUintType(64), // assetId
     new algosdk.ABIUintType(64), // baseAssetId
+    new algosdk.ABIUintType(64), // marketBaseAssetId
     new algosdk.ABIUintType(64), // totalCollateral
   ]);
 
+  const boxNames = await appClient.state.box.acceptedCollaterals.getMap();
+  console.log("boxNames", boxNames);
 
   const keyBytes = new Uint8Array(8);
   const view = new DataView(keyBytes.buffer);
@@ -97,10 +100,11 @@ export async function getCollateralBoxValue(
     boxName,
     acceptedCollateralType
   );
-  const [assetId, baseAssetId, totalCollateral] = collateral as bigint[];
+  const [assetId, baseAssetId, marketBaseAssetId, totalCollateral] = collateral as bigint[];
   return {
     assetId,
     baseAssetId,
+    marketBaseAssetId,
     totalCollateral,
     boxRef: {
       appIndex: appId,

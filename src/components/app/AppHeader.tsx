@@ -7,7 +7,6 @@ interface AppHeaderProps {
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
-  showBackButton = true,
   title = "Orbital Lending Testnet",
 }) => {
   return (

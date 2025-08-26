@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GENERAL_BACKEND_URL } from "../constants";
+import { GENERAL_BACKEND_URL } from "../constants/constants";
 
 
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { IS_TESTNET } from "../constants";
+import { IS_TESTNET } from "../constants/constants";
 
 // Testnet hardcoded collateral token data
 const TESTNET_COLLATERAL_TOKENS: Record<

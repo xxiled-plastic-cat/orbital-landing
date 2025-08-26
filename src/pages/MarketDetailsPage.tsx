@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Info,
-  ExternalLink,
   Copy,
   CheckCircle,
   AlertCircle,
@@ -29,6 +28,7 @@ import {
   getAcceptedCollateral,
 } from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
+import { ExplorerLinks } from "../components/app/explorerlinks";
 
 const MarketDetailsPage = () => {
   const { marketId } = useParams<{ marketId: string }>();
@@ -307,6 +307,7 @@ const MarketDetailsPage = () => {
       collateralAssetId: Number(collateralAssetId),
       lstAppId: Number(collateralMarket.id), // Use the collateral market's app ID
       appId: Number(market?.id), // Current market we're borrowing from
+      oracleAppId: Number(market?.oracleAppId),
       signer: transactionSigner,
     })
       .then((txId) => {
@@ -684,12 +685,10 @@ const MarketDetailsPage = () => {
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
                     <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
-                      Explorer
+                      View on Explorer
                     </span>
                     <div className="flex items-center gap-2">
-                      <button className="text-cyan-400 hover:text-cyan-300 transition-colors">
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
+                      <ExplorerLinks appId={Number(market.id)} />
                     </div>
                   </div>
                 </div>

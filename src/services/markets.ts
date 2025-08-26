@@ -1,12 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
 import { TransactionSigner } from "algosdk";
-import * as algokit from "@algorandfoundation/algokit-utils";
 import { getContractState } from "../contracts/lending/state";
-import { LendingMarket, AssetMetadata, UserAssetInfo, UserAssetSummary } from "../types/lending";
-import { currentAprBps, utilNormBps } from "../utils";
+import {
+  LendingMarket,
+  AssetMetadata,
+  UserAssetInfo,
+  UserAssetSummary,
+} from "../types/lending";
+import { currentAprBps, getAlgod, utilNormBps } from "../utils";
 import { getPricing } from "../contracts/oracle/pricing";
-import { GENERAL_BACKEND_URL } from "../constants";
+import { GENERAL_BACKEND_URL } from "../constants/constants";
 
 // Backend response interface
 interface BackendMarket {
@@ -35,9 +39,7 @@ export async function fetchMarkets(
 ): Promise<LendingMarket[]> {
   try {
     // 1. Fetch market list from backend
-    const response = await axios.get(
-      `${GENERAL_BACKEND_URL}/orbital/markets`
-    );
+    const response = await axios.get(`${GENERAL_BACKEND_URL}/orbital/markets`);
     const backendMarkets: BackendMarket[] = response.data;
 
     const marketStates: LendingMarket[] = [];
@@ -98,19 +100,18 @@ export async function fetchMarkets(
         // Calculate available to borrow
         const capBorrow = (Number(totalDeposits) * Number(utilCapBps)) / 10000;
         const currentBorrows = Number(totalBorrows);
-        
 
         // Get token metadata - try appId and baseTokenId as keys
         const appIdNum = Number(market.appId);
         const baseTokenIdNum = Number(market.baseTokenId);
-        const tokenMeta = TOKEN_METADATA[appIdNum] || 
-                         TOKEN_METADATA[baseTokenIdNum] || 
-                         TOKEN_METADATA[market.appId as any] || 
-                         TOKEN_METADATA[market.baseTokenId as any] || {
-          name: `Token ${market.baseTokenId}`,
-          symbol: `TKN${market.baseTokenId.slice(-4)}`,
-          image: "/default-token.svg",
-        };
+        const tokenMeta = TOKEN_METADATA[appIdNum] ||
+          TOKEN_METADATA[baseTokenIdNum] ||
+          TOKEN_METADATA[market.appId as any] ||
+          TOKEN_METADATA[market.baseTokenId as any] || {
+            name: `Token ${market.baseTokenId}`,
+            symbol: `TKN${market.baseTokenId.slice(-4)}`,
+            image: "/default-token.svg",
+          };
 
         const baseTokenPrice = await getPricing({
           tokenId: Number(market.baseTokenId),
@@ -118,8 +119,10 @@ export async function fetchMarkets(
           signer,
           appId: Number(oracleAppId),
         });
-        const availableToBorrowUSD = Math.max(0, capBorrow - currentBorrows) * baseTokenPrice / 10 ** 6;
-        const availableToBorrow = Math.max(0, capBorrow - currentBorrows) / 10 ** 6;
+        const availableToBorrowUSD =
+          (Math.max(0, capBorrow - currentBorrows) * baseTokenPrice) / 10 ** 6;
+        const availableToBorrow =
+          Math.max(0, capBorrow - currentBorrows) / 10 ** 6;
         const totalDepositsUSD = Number(totalDeposits) * (baseTokenPrice || 0);
         const totalBorrowsUSD = Number(totalBorrows) * (baseTokenPrice || 0);
 
@@ -173,16 +176,17 @@ export async function fetchMarkets(
 }
 
 // Fetch asset metadata from backend
-export async function fetchAssetMetadata(assetIds: string[]): Promise<AssetMetadata[]> {
+export async function fetchAssetMetadata(
+  assetIds: string[]
+): Promise<AssetMetadata[]> {
   try {
-    const response = await axios.post(
-      `${GENERAL_BACKEND_URL}/assets`,
-      { assetIds }
-    );
-    
+    const response = await axios.post(`${GENERAL_BACKEND_URL}/assets`, {
+      assetIds,
+    });
+
     // Backend returns an object with asset IDs as keys, convert to array
     const responseData = response.data;
-    if (typeof responseData === 'object' && !Array.isArray(responseData)) {
+    if (typeof responseData === "object" && !Array.isArray(responseData)) {
       // Convert object to array of AssetMetadata
       const metadataArray: AssetMetadata[] = [];
       for (const [assetId, assetInfo] of Object.entries(responseData)) {
@@ -195,12 +199,12 @@ export async function fetchAssetMetadata(assetIds: string[]): Promise<AssetMetad
           image: assetData.image,
           verified: assetData.verified,
           total: assetData.total,
-          frozen: assetData.frozen || assetData['is-frozen'],
+          frozen: assetData.frozen || assetData["is-frozen"],
         });
       }
       return metadataArray;
     }
-    
+
     // If it's already an array, return as-is
     return responseData;
   } catch (error) {
@@ -212,22 +216,20 @@ export async function fetchAssetMetadata(assetIds: string[]): Promise<AssetMetad
 // Get all unique asset IDs from markets (base tokens and LST tokens)
 export async function getMarketAssetIds(): Promise<string[]> {
   try {
-    const response = await axios.get(
-      `${GENERAL_BACKEND_URL}/orbital/markets`
-    );
+    const response = await axios.get(`${GENERAL_BACKEND_URL}/orbital/markets`);
     const backendMarkets: BackendMarket[] = response.data;
-    
+
     const assetIds = new Set<string>();
-    
-    backendMarkets.forEach(market => {
-      if (market.baseTokenId && market.baseTokenId !== '0') {
+
+    backendMarkets.forEach((market) => {
+      if (market.baseTokenId && market.baseTokenId !== "0") {
         assetIds.add(market.baseTokenId);
       }
-      if (market.lstTokenId && market.lstTokenId !== '0') {
+      if (market.lstTokenId && market.lstTokenId !== "0") {
         assetIds.add(market.lstTokenId);
       }
     });
-    
+
     return Array.from(assetIds);
   } catch (error) {
     console.error("Failed to fetch market asset IDs:", error);
@@ -241,28 +243,25 @@ export async function fetchUserAssetInfo(
   assetIds: string[]
 ): Promise<UserAssetSummary> {
   try {
-    // Use testnet for now, but you might want to make this configurable
-    const algorand = algokit.AlgorandClient.testNet();
-    
     // Fetch ALGO balance
-    const accountInfo = await algorand.client.algod.accountInformation(walletAddress).do();
+    const accountInfo = await getAlgod().accountInformation(walletAddress).do();
     const algoBalance = accountInfo.amount.toString();
-    
+
     // Fetch asset information
     const assets: UserAssetInfo[] = [];
-    
+
     for (const assetId of assetIds) {
-      if (assetId === '0' || assetId === '') continue; // Skip ALGO and empty asset IDs
-      
+      if (assetId === "0" || assetId === "") continue; // Skip ALGO and empty asset IDs
+
       try {
         // Check if user is opted into the asset
-        const assetHolding = await algorand.client.algod
+        const assetHolding = await getAlgod()
           .accountAssetInformation(walletAddress, parseInt(assetId))
           .do();
-        
+
         assets.push({
           assetId,
-          balance: assetHolding?.assetHolding?.amount.toString() ?? '0',
+          balance: assetHolding?.assetHolding?.amount.toString() ?? "0",
           isOptedIn: true,
         });
       } catch (error) {
@@ -270,12 +269,12 @@ export async function fetchUserAssetInfo(
         console.log(`User not opted into asset ${assetId}:`, error);
         assets.push({
           assetId,
-          balance: '0',
+          balance: "0",
           isOptedIn: false,
         });
       }
     }
-    
+
     return {
       algoBalance,
       assets,
