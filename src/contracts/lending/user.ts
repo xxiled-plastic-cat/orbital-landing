@@ -6,6 +6,7 @@ import {
   DepositParams,
   getLoanRecordParams,
   getLoanRecordReturnType,
+  RepayDebtAlgoParams,
   RepayDebtAsaParams,
   WithdrawCollateralParams,
   WithdrawParams,
@@ -223,7 +224,7 @@ export async function repayDebtAsa({
       note: "Repaying debt",
     });
 
-    await appClient
+    const result = await appClient
       .newGroup()
       .repayLoanAsa({
         args: [repayTxn, upscaledAmount],
@@ -235,6 +236,45 @@ export async function repayDebtAsa({
         suppressLog: false,
         populateAppCallResources: true,
       });
+    return result.txIds[0];
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function repayDebtAlgo({
+  address,
+  amount,
+  appId,
+  lstTokenId,
+  signer,
+}: RepayDebtAlgoParams) {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+    appClient.algorand.setDefaultSigner(signer);
+    const upscaledAmount = amount * 10 ** 6;
+
+    const repayTxn = appClient.algorand.createTransaction.payment({
+      sender: address,
+      receiver: appClient.appAddress,
+      amount: AlgoAmount.MicroAlgos(upscaledAmount),
+      note: "Repaying debt",
+    });
+
+    const result = await appClient
+      .newGroup()
+      .repayLoanAlgo({
+        args: [repayTxn, upscaledAmount],
+        assetReferences: [BigInt(lstTokenId)],
+        appReferences: [appClient.appId],
+        sender: address,
+      })
+      .send({
+        suppressLog: false,
+        populateAppCallResources: true,
+      });
+    return result.txIds[0];
   } catch (error) {
     console.error(error);
     throw error;
@@ -254,7 +294,7 @@ export async function withdrawCollateral({
     appClient.algorand.setDefaultSigner(signer);
     const upscaledAmount = amount * 10 ** 6;
 
-    await appClient
+    const result = await appClient
       .newGroup()
       .gas()
       .withdrawCollateral({
@@ -267,6 +307,7 @@ export async function withdrawCollateral({
         suppressLog: false,
         populateAppCallResources: true,
       });
+    return result.txIds[0];
   } catch (error) {
     console.error(error);
     throw error;

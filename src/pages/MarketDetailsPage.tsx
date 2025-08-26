@@ -21,7 +21,14 @@ import PositionHeader from "../components/app/PositionHeader";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
-import { borrow, deposit, withdraw } from "../contracts/lending/user";
+import {
+  borrow,
+  deposit,
+  repayDebtAlgo,
+  repayDebtAsa,
+  withdraw,
+  withdrawCollateral,
+} from "../contracts/lending/user";
 import { useWallet } from "@txnlab/use-wallet-react";
 import {
   calculateAssetDue,
@@ -275,26 +282,148 @@ const MarketDetailsPage = () => {
   };
 
   const handleRepay = async (repayAmount: string) => {
-    // TODO: Implement repay functionality
     console.log("Repay:", { repayAmount });
     openToast({
-      type: "success",
-      message: "Repay Loan",
-      description: "This feature is coming soon!",
+      type: "loading",
+      message: "Repaying...",
+      description: `Please sign the transaction to repay ${repayAmount} ${getBaseTokenSymbol(
+        market?.symbol
+      )}`,
     });
+
+    if (market?.baseTokenId == "0") {
+      await repayDebtAlgo({
+        address: activeAddress as string,
+        amount: Number(repayAmount),
+        appId: Number(market?.id),
+        lstTokenId: Number(market?.lstTokenId),
+        signer: transactionSigner,
+      })
+        .then((txId) => {
+          openToast({
+            type: "success",
+            message: "Repay successful",
+            description: `You have repaid ${repayAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )}`,
+          });
+          recordUserAction({
+            address: activeAddress as string,
+            marketId: Number(market?.id),
+            action: "repay",
+            tokensOut: Number(repayAmount),
+            timestamp: Date.now(),
+            txnId: txId,
+            tokenInId: Number(market?.baseTokenId),
+            tokenOutId: Number(market?.lstTokenId),
+            tokensIn: 0,
+          });
+        })
+        .catch((error) => {
+          console.error(error);
+          openToast({
+            type: "error",
+            message: "Repay failed",
+            description: `Unable to repay ${repayAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )}`,
+          });
+        });
+      setTransactionLoading(false);
+    } else {
+      await repayDebtAsa({
+        address: activeAddress as string,
+        amount: Number(repayAmount),
+        appId: Number(market?.id),
+        lstTokenId: Number(market?.lstTokenId),
+        repayTokenId: Number(market?.baseTokenId),
+        signer: transactionSigner,
+      })
+        .then((txId) => {
+          openToast({
+            type: "success",
+            message: "Repay successful",
+            description: `You have repaid ${repayAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )}`,
+          });
+          recordUserAction({
+            address: activeAddress as string,
+            marketId: Number(market?.id),
+            action: "repay",
+            tokensOut: Number(repayAmount),
+            timestamp: Date.now(),
+            txnId: txId,
+            tokenInId: Number(market?.baseTokenId),
+            tokenOutId: Number(market?.lstTokenId),
+            tokensIn: 0,
+          });
+        })
+        .catch((error) => {
+          console.error(error);
+          openToast({
+            type: "error",
+            message: "Repay failed",
+            description: `Unable to repay ${repayAmount} ${getBaseTokenSymbol(
+              market?.symbol
+            )}`,
+          });
+        });
+      setTransactionLoading(false);
+    }
   };
 
   const handleWithdrawCollateral = async (
     collateralAssetId: string,
     withdrawAmount: string
   ) => {
-    // TODO: Implement withdraw collateral functionality
     console.log("Withdraw collateral:", { collateralAssetId, withdrawAmount });
     openToast({
-      type: "success",
-      message: "Withdraw Collateral",
-      description: "This feature is coming soon!",
+      type: "loading",
+      message: "Withdrawing collateral...",
+      description: `Please sign the transaction to withdraw ${withdrawAmount} ${getBaseTokenSymbol(
+        market?.symbol
+      )}`,
     });
+    await withdrawCollateral({
+      address: activeAddress as string,
+      amount: Number(withdrawAmount),
+      appId: Number(market?.id),
+      collateralAssetId: Number(collateralAssetId),
+      lstAppId: Number(market?.id),
+      signer: transactionSigner,
+    })
+      .then((txId) => {
+        openToast({
+          type: "success",
+          message: "Withdraw successful",
+          description: `You have withdrawn ${withdrawAmount} ${getBaseTokenSymbol(
+            market?.symbol
+          )}`,
+        });
+        recordUserAction({
+          address: activeAddress as string,
+          marketId: Number(market?.id),
+          action: "withdrawCollateral",
+          tokensOut: Number(withdrawAmount),
+          timestamp: Date.now(),
+          txnId: txId,
+          tokenInId: Number(collateralAssetId),
+          tokenOutId: Number(market?.baseTokenId),
+          tokensIn: 0,
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+        openToast({
+          type: "error",
+          message: "Withdraw failed",
+          description: `Unable to withdraw ${withdrawAmount} ${getBaseTokenSymbol(
+            market?.symbol
+          )}`,
+        });
+      });
+    setTransactionLoading(false);
   };
 
   const handleBorrow = async (
@@ -339,15 +468,22 @@ const MarketDetailsPage = () => {
     })
       .then((txId) => {
         // Apply optimistic updates only after transaction success
-        const borrowAmountMicrounits = (Number(borrowAmount) * Math.pow(10, 6)).toString();
-        const collateralAmountMicrounits = (Number(collateralAmount) * Math.pow(10, 6)).toString();
+        const borrowAmountMicrounits = (
+          Number(borrowAmount) * Math.pow(10, 6)
+        ).toString();
+        const collateralAmountMicrounits = (
+          Number(collateralAmount) * Math.pow(10, 6)
+        ).toString();
         const baseTokenId = market?.baseTokenId || "0";
 
         // Add borrowed tokens to user balance
         applyOptimisticBalanceUpdate(baseTokenId, borrowAmountMicrounits);
-        
+
         // Remove collateral tokens from user balance
-        applyOptimisticBalanceUpdate(collateralAssetId, `-${collateralAmountMicrounits}`);
+        applyOptimisticBalanceUpdate(
+          collateralAssetId,
+          `-${collateralAmountMicrounits}`
+        );
 
         // Confirm the updates immediately since transaction was successful
         confirmOptimisticUpdate(baseTokenId);

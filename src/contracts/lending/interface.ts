@@ -75,3 +75,11 @@ export interface WithdrawCollateralParams {
   lstAppId: number;
   signer: TransactionSigner;
 }
+
+export interface RepayDebtAlgoParams {
+  address: string;
+  amount: number;
+  appId: number;
+  lstTokenId: number;
+  signer: TransactionSigner;
+}
