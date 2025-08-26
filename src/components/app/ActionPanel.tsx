@@ -7,6 +7,7 @@ import {
 } from "../../contracts/lending/state";
 import { LendingMarket } from "../../types/lending";
 import { useCollateralTokens } from "../../hooks/useCollateralTokens";
+import TabSelector from "./TabSelector";
 
 interface ActionPanelProps {
   market: LendingMarket;
@@ -35,6 +36,7 @@ interface ActionPanelProps {
     borrowAmount: string
   ) => void;
   onRepay: (repayAmount: string) => void;
+  onWithdrawCollateral?: (collateralAssetId: string, withdrawAmount: string) => void;
 }
 
 const ActionPanel = ({
@@ -49,10 +51,12 @@ const ActionPanel = ({
   onRedeem,
   onBorrow,
   onRepay,
+  onWithdrawCollateral,
 }: ActionPanelProps) => {
-  const [activeTab, setActiveTab] = useState<"deposit" | "redeem" | "borrow" | "repay">(
-    "deposit"
-  );
+  // Main tab state: lend or borrow
+  const [activeMainTab, setActiveMainTab] = useState<"lend" | "borrow">("lend");
+  // Action state within each main tab
+  const [activeAction, setActiveAction] = useState<"deposit" | "redeem" | "open" | "repay" | "withdraw">("deposit");
   const [amount, setAmount] = useState("");
 
   // Borrow-specific state
@@ -64,8 +68,31 @@ const ActionPanel = ({
   // Repay-specific state
   const [repayAmount, setRepayAmount] = useState("");
 
+  // Withdraw collateral-specific state
+  const [withdrawCollateralAssetId, setWithdrawCollateralAssetId] = useState<string>("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+
   // Ref for dropdown click outside detection
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle main tab changes and reset action state
+  const handleMainTabChange = (newTab: "lend" | "borrow") => {
+    setActiveMainTab(newTab);
+    // Reset to first action of the new tab
+    if (newTab === "lend") {
+      setActiveAction("deposit");
+    } else {
+      setActiveAction("open");
+    }
+    // Clear all form state
+    setAmount("");
+    setSelectedCollateral("");
+    setCollateralAmount("");
+    setBorrowAmount("");
+    setRepayAmount("");
+    setWithdrawCollateralAssetId("");
+    setWithdrawAmount("");
+  };
 
   // Use the collateral tokens hook
   const { getCollateralAssets } = useCollateralTokens(acceptedCollateral);
@@ -88,14 +115,16 @@ const ActionPanel = ({
   }, []);
 
   const handleAction = () => {
-    if (activeTab === "deposit") {
+    if (activeAction === "deposit") {
       onDeposit(amount);
-    } else if (activeTab === "redeem") {
+    } else if (activeAction === "redeem") {
       onRedeem(amount);
-    } else if (activeTab === "borrow") {
+    } else if (activeAction === "open") {
       onBorrow(selectedCollateral, collateralAmount, borrowAmount);
-    } else if (activeTab === "repay") {
+    } else if (activeAction === "repay") {
       onRepay(repayAmount);
+    } else if (activeAction === "withdraw" && onWithdrawCollateral) {
+      onWithdrawCollateral(withdrawCollateralAssetId, withdrawAmount);
     }
   };
 
@@ -111,11 +140,11 @@ const ActionPanel = ({
     return symbol.startsWith("c") ? symbol : `c${symbol}`;
   };
 
-  // Get the maximum available balance based on the active tab
+  // Get the maximum available balance based on the active action
   const getMaxBalance = (): string => {
     if (!market || isLoadingAssets) return "0";
 
-    switch (activeTab) {
+    switch (activeAction) {
       case "deposit": {
         // For deposit, use the base token balance (the token being deposited)
         if (market.baseTokenId === "0" || !market.baseTokenId) {
@@ -139,8 +168,8 @@ const ActionPanel = ({
         return lstAsset?.balance || "0";
       }
 
-      case "borrow":
-        // For borrow, use the available borrow amount (already calculated in market)
+      case "open":
+        // For borrow open, use the available borrow amount (already calculated in market)
         // Convert to microunits for consistency with other balances
         return (market.availableToBorrow * Math.pow(10, 6)).toString();
 
@@ -149,6 +178,15 @@ const ActionPanel = ({
         if (!userDebt) return "0";
         const totalDebt = parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued);
         return (totalDebt * Math.pow(10, 6)).toString();
+      }
+
+      case "withdraw": {
+        // For withdraw collateral, use the collateral balance
+        if (!withdrawCollateralAssetId) return "0";
+        const collateralAsset = userAssets?.assets.find(
+          (asset) => asset.assetId === withdrawCollateralAssetId && asset.isOptedIn
+        );
+        return collateralAsset?.balance || "0";
       }
 
       default:
@@ -176,10 +214,12 @@ const ActionPanel = ({
   const handleMaxClick = () => {
     const maxBalance = getMaxBalance();
     const formattedMax = formatBalance(maxBalance);
-    if (activeTab === "borrow") {
+    if (activeAction === "open") {
       setCollateralAmount(formattedMax);
-    } else if (activeTab === "repay") {
+    } else if (activeAction === "repay") {
       setRepayAmount(formattedMax);
+    } else if (activeAction === "withdraw") {
+      setWithdrawAmount(formattedMax);
     } else {
       setAmount(formattedMax);
     }
@@ -315,60 +355,107 @@ const ActionPanel = ({
           </h3>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex gap-1 md:gap-2 mb-4 md:mb-6">
-          <button
-            onClick={() => setActiveTab("deposit")}
-            className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-              activeTab === "deposit"
-                ? "bg-cyan-600 border-2 border-cyan-500 text-white"
-                : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
-            }`}
-          >
-            <span className="relative z-20">DEPOSIT</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("redeem")}
-            className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-              activeTab === "redeem"
-                ? "bg-green-600 border-2 border-green-500 text-white"
-                : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
-            }`}
-            disabled={
-              userAssets?.assets.find(
-                (asset) => Number(asset.assetId) === Number(market?.lstTokenId)
-              )?.balance === "0"
-            }
-          >
-            <span className="relative z-20">REDEEM</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("borrow")}
-            className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-              activeTab === "borrow"
-                ? "bg-blue-600 border-2 border-blue-500 text-white"
-                : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
-            }`}
-            disabled={market.availableToBorrow === 0}
-          >
-            <span className="relative z-20">BORROW</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("repay")}
-            className={`flex-1 h-8 md:h-10 px-2 md:px-3 cut-corners-sm font-mono text-xs font-semibold transition-all duration-150 ${
-              activeTab === "repay"
-                ? "bg-amber-600 border-2 border-amber-500 text-white"
-                : "bg-slate-700 border-2 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
-            }`}
-            disabled={!userDebt || parseFloat(userDebt.borrowedAmount) === 0}
-          >
-            <span className="relative z-20">REPAY</span>
-          </button>
-        </div>
+        {/* Main Tab Selector */}
+        <TabSelector
+          tabs={[
+            { id: "lend", label: "LEND" },
+            { id: "borrow", label: "BORROW" },
+          ]}
+          activeTab={activeMainTab}
+          onTabChange={(tabId) => handleMainTabChange(tabId as "lend" | "borrow")}
+          className="mb-4 md:mb-6"
+        />
+
+        {/* Action Buttons */}
+        <motion.div 
+          className="flex gap-2 md:gap-3 mb-4 md:mb-6"
+          key={activeMainTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          {activeMainTab === "lend" ? (
+            <>
+              <button
+                onClick={() => setActiveAction("deposit")}
+                className={`flex-1 h-10 md:h-12 px-3 md:px-4 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                  activeAction === "deposit"
+                    ? "bg-gradient-to-br from-cyan-600 to-cyan-700 border-cyan-400 text-white shadow-cyan-500/25 transform scale-[1.02]"
+                    : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
+                }`}
+              >
+                <span className="relative z-20 drop-shadow-sm">DEPOSIT</span>
+              </button>
+              <button
+                onClick={() => setActiveAction("redeem")}
+                className={`flex-1 h-10 md:h-12 px-3 md:px-4 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                  activeAction === "redeem"
+                    ? "bg-gradient-to-br from-green-600 to-green-700 border-green-400 text-white shadow-green-500/25 transform scale-[1.02]"
+                    : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
+                } ${
+                  userAssets?.assets.find(
+                    (asset) => Number(asset.assetId) === Number(market?.lstTokenId)
+                  )?.balance === "0"
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+                disabled={
+                  userAssets?.assets.find(
+                    (asset) => Number(asset.assetId) === Number(market?.lstTokenId)
+                  )?.balance === "0"
+                }
+              >
+                <span className="relative z-20 drop-shadow-sm">REDEEM</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setActiveAction("open")}
+                className={`flex-1 h-10 md:h-12 px-2 md:px-3 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                  activeAction === "open"
+                    ? "bg-gradient-to-br from-blue-600 to-blue-700 border-blue-400 text-white shadow-blue-500/25 transform scale-[1.02]"
+                    : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
+                } ${market.availableToBorrow === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={market.availableToBorrow === 0}
+              >
+                <span className="relative z-20 drop-shadow-sm">OPEN</span>
+              </button>
+              <button
+                onClick={() => setActiveAction("repay")}
+                className={`flex-1 h-10 md:h-12 px-2 md:px-3 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                  activeAction === "repay"
+                    ? "bg-gradient-to-br from-amber-600 to-amber-700 border-amber-400 text-white shadow-amber-500/25 transform scale-[1.02]"
+                    : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
+                } ${!userDebt || parseFloat(userDebt.borrowedAmount) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={!userDebt || parseFloat(userDebt.borrowedAmount) === 0}
+              >
+                <span className="relative z-20 drop-shadow-sm">REPAY</span>
+              </button>
+              <button
+                onClick={() => setActiveAction("withdraw")}
+                className={`flex-1 h-10 md:h-12 px-2 md:px-3 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                  activeAction === "withdraw"
+                    ? "bg-gradient-to-br from-purple-600 to-purple-700 border-purple-400 text-white shadow-purple-500/25 transform scale-[1.02]"
+                    : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
+                } ${!userDebt || parseFloat(userDebt.collateralAmount) === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={!userDebt || parseFloat(userDebt.collateralAmount) === 0}
+              >
+                <span className="relative z-20 drop-shadow-sm">WITHDRAW</span>
+              </button>
+            </>
+          )}
+        </motion.div>
 
         {/* Amount Input */}
-        <div className="space-y-3 md:space-y-4">
-          {activeTab === "borrow" ? (
+        <motion.div 
+          className="space-y-3 md:space-y-4"
+          key={activeAction}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          {activeAction === "open" ? (
             // Borrow-specific inputs
             <>
               {/* Collateral Selection */}
@@ -513,7 +600,7 @@ const ActionPanel = ({
                 </div>
               )}
             </>
-          ) : activeTab === "repay" ? (
+          ) : activeAction === "repay" ? (
             // Repay-specific input
             <div>
               <div className="flex justify-between items-center mb-2">
@@ -555,6 +642,107 @@ const ActionPanel = ({
                 </div>
               )}
             </div>
+          ) : activeAction === "withdraw" ? (
+            // Withdraw collateral-specific input
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
+                  Collateral Asset
+                </span>
+              </div>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowCollateralDropdown(!showCollateralDropdown)}
+                  className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-purple-400 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.image && (
+                      <img
+                        src={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.image}
+                        alt={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                        className="w-4 h-4 object-contain"
+                      />
+                    )}
+                    <span>
+                      {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol || "Select Collateral"}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                {showCollateralDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-100 border-2 border-slate-600 cut-corners-sm z-50 max-h-40 overflow-y-auto">
+                    {availableCollateral.length > 0 ? (
+                      availableCollateral.map((asset) => (
+                        <button
+                          key={asset.assetId}
+                          onClick={() => {
+                            setWithdrawCollateralAssetId(asset.assetId);
+                            setShowCollateralDropdown(false);
+                            setWithdrawAmount("");
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-slate-200 font-mono text-slate-800 text-sm flex justify-between items-center transition-colors duration-150"
+                        >
+                          <div className="flex items-center gap-2">
+                            {asset.image && (
+                              <img
+                                src={asset.image}
+                                alt={asset.symbol}
+                                className="w-4 h-4 object-contain"
+                              />
+                            )}
+                            <span className="font-medium text-slate-200">
+                              {asset.symbol}
+                            </span>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-slate-600 font-mono text-sm">
+                        No collateral available
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {withdrawCollateralAssetId && (
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
+                      Withdraw Amount
+                    </span>
+                    <button
+                      onClick={handleMaxClick}
+                      disabled={isLoadingAssets}
+                      className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-purple-400 hover:text-purple-300"
+                    >
+                      MAX
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-purple-400"
+                    />
+                    <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm">
+                        {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                      </span>
+                    </div>
+                  </div>
+                  {withdrawCollateralAssetId && (
+                    <div className="text-xs font-mono text-slate-400 mt-1">
+                      Available: {formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0")}{" "}
+                      {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             // Original amount input for deposit/redeem
             <div>
@@ -568,9 +756,9 @@ const ActionPanel = ({
                   className={`text-xs font-mono font-semibold uppercase tracking-wide transition-colors ${
                     isLoadingAssets
                       ? "text-slate-500 cursor-not-allowed"
-                      : activeTab === "deposit"
+                      : activeAction === "deposit"
                       ? "text-cyan-400 hover:text-cyan-300"
-                      : activeTab === "redeem"
+                      : activeAction === "redeem"
                       ? "text-green-400 hover:text-green-300"
                       : "text-blue-400 hover:text-blue-300"
                   }`}
@@ -585,16 +773,16 @@ const ActionPanel = ({
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
                   className={`w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors ${
-                    activeTab === "deposit"
+                    activeAction === "deposit"
                       ? "focus:border-cyan-400"
-                      : activeTab === "redeem"
+                      : activeAction === "redeem"
                       ? "focus:border-green-400"
                       : "focus:border-blue-400"
                   }`}
                 />
                 <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
                   <span className="font-mono text-slate-400 text-xs md:text-sm">
-                    {activeTab === "redeem"
+                    {activeAction === "redeem"
                       ? getLSTTokenSymbol(market?.symbol)
                       : getBaseTokenSymbol(market?.symbol)}
                   </span>
@@ -609,10 +797,11 @@ const ActionPanel = ({
               </div>
             </div>
           )}
+        </motion.div>
 
-          {/* Transaction Details */}
-          <div className="inset-panel cut-corners-sm p-3 md:p-4 space-y-2 md:space-y-3">
-            {activeTab === "borrow" ? (
+        {/* Transaction Details */}
+        <div className="inset-panel cut-corners-sm p-3 md:p-4 space-y-2 md:space-y-3">
+          {activeAction === "open" ? (
               // Enhanced borrow details
               <>
                 <div className="flex justify-between items-center text-sm">
@@ -686,7 +875,7 @@ const ActionPanel = ({
                   </div>
                 )}
               </>
-            ) : activeTab === "repay" ? (
+            ) : activeAction === "repay" ? (
               // Repayment transaction details
               <>
                 <div className="flex justify-between items-center text-sm">
@@ -728,43 +917,75 @@ const ActionPanel = ({
                   </>
                 )}
               </>
+            ) : activeAction === "withdraw" ? (
+              // Withdraw collateral transaction details
+              <>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-mono text-slate-400">Selected Collateral</span>
+                  <span className="font-mono text-white">
+                    {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol || "None"}
+                  </span>
+                </div>
+
+                {withdrawAmount && withdrawCollateralAssetId && (
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">Withdraw Amount</span>
+                      <span className="font-mono font-bold text-purple-400">
+                        {parseFloat(withdrawAmount).toFixed(6)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-mono text-slate-400">Remaining Collateral</span>
+                      <span className="font-mono text-white">
+                        {(parseFloat(formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0")) - parseFloat(withdrawAmount)).toFixed(6)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2 rounded">
+                      ⚠ Ensure sufficient collateral remains to maintain health factor
+                    </div>
+                  </>
+                )}
+              </>
             ) : (
               // Original transaction details for deposit/redeem
               <>
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-mono text-slate-400">
-                    {activeTab === "deposit" && "Deposit APR"}
-                    {activeTab === "redeem" && "Current Supply APR"}
+                    {activeAction === "deposit" && "Deposit APR"}
+                    {activeAction === "redeem" && "Current Supply APR"}
                   </span>
                   <span
                     className={`font-mono font-bold ${
-                      activeTab === "deposit"
+                      activeAction === "deposit"
                         ? "text-cyan-400"
                         : "text-green-400"
                     }`}
                   >
-                    {activeTab === "deposit" &&
+                    {activeAction === "deposit" &&
                       `+${market.supplyApr.toFixed(2)}%`}
-                    {activeTab === "redeem" &&
+                    {activeAction === "redeem" &&
                       `+${market.supplyApr.toFixed(2)}%`}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-mono text-slate-400">
-                    {activeTab === "deposit" && "Wallet Balance"}
-                    {activeTab === "redeem" && "Your LST Balance"}
+                    {activeAction === "deposit" && "Wallet Balance"}
+                    {activeAction === "redeem" && "Your LST Balance"}
                   </span>
                   <span className="font-mono text-white">
                     {isLoadingAssets ? (
                       <span className="text-slate-500">Loading...</span>
                     ) : (
                       <>
-                        {activeTab === "deposit" &&
+                        {activeAction === "deposit" &&
                           `${formatBalance(getMaxBalance())} ${
                             getBaseTokenSymbol(market?.symbol) || "tokens"
                           }`}
-                        {activeTab === "redeem" &&
+                        {activeAction === "redeem" &&
                           `${formatBalance(getMaxBalance())} ${
                             getLSTTokenSymbol(market?.symbol) || "LST"
                           }`}
@@ -775,11 +996,11 @@ const ActionPanel = ({
 
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-mono text-slate-400">
-                    {activeTab === "deposit" && "You Will Receive"}
-                    {activeTab === "redeem" && "You Will Receive"}
+                    {activeAction === "deposit" && "You Will Receive"}
+                    {activeAction === "redeem" && "You Will Receive"}
                   </span>
                   <span className="font-mono text-white">
-                    {activeTab === "deposit" &&
+                    {activeAction === "deposit" &&
                       `${
                         amount
                           ? Number(
@@ -791,7 +1012,7 @@ const ActionPanel = ({
                             ).toFixed(2)
                           : "0.00"
                       } ${getLSTTokenSymbol(market?.symbol)}`}
-                    {activeTab === "redeem" &&
+                    {activeAction === "redeem" &&
                       `${
                         amount
                           ? Number(
@@ -809,10 +1030,10 @@ const ActionPanel = ({
             )}
           </div>
 
-          {/* Action Button */}
-          <button
-            className={`w-full h-10 md:h-12 cut-corners-sm font-mono text-xs md:text-sm font-semibold transition-all duration-150 ${(() => {
-              if (activeTab === "borrow") {
+        {/* Action Button */}
+        <button
+          className={`w-full h-10 md:h-12 cut-corners-sm font-mono text-xs md:text-sm font-semibold transition-all duration-150 ${(() => {
+              if (activeAction === "open") {
                 return selectedCollateral &&
                   collateralAmount &&
                   parseFloat(collateralAmount) > 0 &&
@@ -823,24 +1044,30 @@ const ActionPanel = ({
                   hasSufficientCollateral()
                   ? "bg-blue-600 border-2 border-blue-500 text-white hover:bg-blue-500 shadow-top-highlight"
                   : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
-              } else if (activeTab === "repay") {
+              } else if (activeAction === "repay") {
                 return repayAmount &&
                   parseFloat(repayAmount) > 0 &&
                   userDebt &&
                   parseFloat(userDebt.borrowedAmount) > 0
                   ? "bg-amber-600 border-2 border-amber-500 text-white hover:bg-amber-500 shadow-top-highlight"
                   : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
+              } else if (activeAction === "withdraw") {
+                return withdrawCollateralAssetId &&
+                  withdrawAmount &&
+                  parseFloat(withdrawAmount) > 0
+                  ? "bg-purple-600 border-2 border-purple-500 text-white hover:bg-purple-500 shadow-top-highlight"
+                  : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
               } else {
                 return amount &&
                   parseFloat(amount) > 0 &&
                   !(
-                    activeTab === "redeem" &&
+                    activeAction === "redeem" &&
                     userAssets?.assets.find(
                       (asset) =>
                         Number(asset.assetId) === Number(market?.lstTokenId)
                     )?.balance === "0"
                   )
-                  ? activeTab === "deposit"
+                  ? activeAction === "deposit"
                     ? "bg-cyan-600 border-2 border-cyan-500 text-white hover:bg-cyan-500 shadow-top-highlight"
                     : "bg-green-600 border-2 border-green-500 text-white hover:bg-green-500 shadow-top-highlight"
                   : "bg-slate-700 border-2 border-slate-600 text-slate-400 cursor-not-allowed";
@@ -850,7 +1077,7 @@ const ActionPanel = ({
             disabled={
               transactionLoading ||
               (() => {
-                if (activeTab === "borrow") {
+                if (activeAction === "open") {
                   return (
                     !selectedCollateral ||
                     !collateralAmount ||
@@ -861,18 +1088,24 @@ const ActionPanel = ({
                     market.availableToBorrow === 0 ||
                     !hasSufficientCollateral()
                   );
-                } else if (activeTab === "repay") {
+                } else if (activeAction === "repay") {
                   return (
                     !repayAmount ||
                     parseFloat(repayAmount) <= 0 ||
                     !userDebt ||
                     parseFloat(userDebt.borrowedAmount) <= 0
                   );
+                } else if (activeAction === "withdraw") {
+                  return (
+                    !withdrawCollateralAssetId ||
+                    !withdrawAmount ||
+                    parseFloat(withdrawAmount) <= 0
+                  );
                 } else {
                   return (
                     !amount ||
                     parseFloat(amount) <= 0 ||
-                    (activeTab === "redeem" &&
+                    (activeAction === "redeem" &&
                       userAssets?.assets.find(
                         (asset) =>
                           Number(asset.assetId) === Number(market?.lstTokenId)
@@ -883,20 +1116,22 @@ const ActionPanel = ({
             }
           >
             <span className="relative z-20">
-              {activeTab === "deposit" &&
+              {activeAction === "deposit" &&
                 `DEPOSIT ${getBaseTokenSymbol(market?.symbol)}`}
-              {activeTab === "redeem" &&
+              {activeAction === "redeem" &&
                 `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
-              {activeTab === "borrow" &&
+              {activeAction === "open" &&
                 `BORROW ${getBaseTokenSymbol(market?.symbol)}`}
-              {activeTab === "repay" &&
+              {activeAction === "repay" &&
                 `REPAY ${getBaseTokenSymbol(market?.symbol)}`}
+              {activeAction === "withdraw" &&
+                `WITHDRAW COLLATERAL`}
             </span>
-          </button>
+        </button>
 
-          {/* Status Messages */}
-          {activeTab === "borrow" && (
-            <>
+        {/* Status Messages */}
+        {activeAction === "open" && (
+          <>
               {market.availableToBorrow === 0 && (
                 <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
                   <AlertCircle className="w-4 h-4" />
@@ -968,12 +1203,12 @@ const ActionPanel = ({
                     {getBaseTokenSymbol(market?.symbol)} after fees
                   </div>
                 )}
-            </>
-          )}
+          </>
+        )}
 
-          {/* Repay Status Messages */}
-          {activeTab === "repay" && (
-            <>
+        {/* Repay Status Messages */}
+        {activeAction === "repay" && (
+          <>
               {!userDebt && (
                 <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
                   <AlertCircle className="w-4 h-4" />
@@ -1005,39 +1240,68 @@ const ActionPanel = ({
                   Partial repayment - {repaymentDetails.remainingDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)} debt will remain
                 </div>
               )}
-            </>
-          )}
+          </>
+        )}
 
-          {activeTab === "redeem" &&
-            userAssets?.assets.find(
-              (asset) => Number(asset.assetId) === Number(market?.lstTokenId)
-            )?.balance === "0" && (
-              <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
-                <AlertCircle className="w-4 h-4" />
-                <span>No LST tokens to redeem</span>
-              </div>
-            )}
+        {/* Withdraw Status Messages */}
+        {activeAction === "withdraw" && (
+          <>
+              {!userDebt && (
+                <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>No active debt position found</span>
+                </div>
+              )}
 
-          {activeTab === "deposit" && (
-            <div className="text-xs text-slate-500 font-mono">
-              Deposit {getBaseTokenSymbol(market?.symbol)} to receive
-              yield-bearing {getLSTTokenSymbol(market?.symbol)} tokens
+              {!withdrawCollateralAssetId && availableCollateral.length > 0 && (
+                <div className="text-xs text-slate-500 font-mono">
+                  Select collateral asset to withdraw
+                </div>
+              )}
+
+              {withdrawCollateralAssetId && !withdrawAmount && (
+                <div className="text-xs text-slate-500 font-mono">
+                  Enter amount to withdraw (available: {formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0")} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol})
+                </div>
+              )}
+
+              {withdrawCollateralAssetId && withdrawAmount && (
+                <div className="text-xs text-green-500 font-mono">
+                  Ready to withdraw {parseFloat(withdrawAmount).toFixed(6)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                </div>
+              )}
+          </>
+        )}
+
+        {activeAction === "redeem" &&
+          userAssets?.assets.find(
+            (asset) => Number(asset.assetId) === Number(market?.lstTokenId)
+          )?.balance === "0" && (
+            <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
+              <AlertCircle className="w-4 h-4" />
+              <span>No LST tokens to redeem</span>
             </div>
           )}
 
-          {activeTab === "redeem" && (
-            <div className="text-xs text-slate-500 font-mono">
-              Redeem your {getLSTTokenSymbol(market?.symbol)} tokens back to{" "}
-              {getBaseTokenSymbol(market?.symbol)}
-            </div>
-          )}
+        {activeAction === "deposit" && (
+          <div className="text-xs text-slate-500 font-mono">
+            Deposit {getBaseTokenSymbol(market?.symbol)} to receive
+            yield-bearing {getLSTTokenSymbol(market?.symbol)} tokens
+          </div>
+        )}
 
-          {activeTab === "repay" && (
-            <div className="text-xs text-slate-500 font-mono">
-              Repay your borrowed {getBaseTokenSymbol(market?.symbol)} to unlock collateral
-            </div>
-          )}
-        </div>
+        {activeAction === "redeem" && (
+          <div className="text-xs text-slate-500 font-mono">
+            Redeem your {getLSTTokenSymbol(market?.symbol)} tokens back to{" "}
+            {getBaseTokenSymbol(market?.symbol)}
+          </div>
+        )}
+
+        {activeAction === "repay" && (
+          <div className="text-xs text-slate-500 font-mono">
+            Repay your borrowed {getBaseTokenSymbol(market?.symbol)} to unlock collateral
+          </div>
+        )}
       </div>
     </motion.div>
   );

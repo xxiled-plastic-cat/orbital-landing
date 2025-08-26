@@ -39,6 +39,9 @@ const MarketDetailsPage = () => {
     Map<any, any> | undefined
   >(undefined);
 
+  // TODO: Implement userDebt state management
+  const userDebt = undefined;
+
   // Ref to track the last fetched collateral combination to prevent unnecessary calls
   const lastFetchedRef = useRef<string | null>(null);
 
@@ -268,6 +271,29 @@ const MarketDetailsPage = () => {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleRepay = async (repayAmount: string) => {
+    // TODO: Implement repay functionality
+    console.log("Repay:", { repayAmount });
+    openToast({
+      type: "success",
+      message: "Repay Loan",
+      description: "This feature is coming soon!",
+    });
+  };
+
+  const handleWithdrawCollateral = async (
+    collateralAssetId: string,
+    withdrawAmount: string
+  ) => {
+    // TODO: Implement withdraw collateral functionality
+    console.log("Withdraw collateral:", { collateralAssetId, withdrawAmount });
+    openToast({
+      type: "success",
+      message: "Withdraw Collateral",
+      description: "This feature is coming soon!",
+    });
   };
 
   const handleBorrow = async (
@@ -704,9 +730,12 @@ const MarketDetailsPage = () => {
             isLoadingAssets={isLoadingAssets}
             transactionLoading={transactionLoading}
             acceptedCollateral={acceptedCollateral}
+            userDebt={userDebt}
             onDeposit={handleDeposit}
             onRedeem={handleRedeem}
             onBorrow={handleBorrow}
+            onRepay={handleRepay}
+            onWithdrawCollateral={handleWithdrawCollateral}
           />
         </div>
       </div>
