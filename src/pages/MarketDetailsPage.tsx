@@ -17,6 +17,7 @@ import AppLayout from "../components/app/AppLayout";
 import InterestRateModel from "../components/InterestRateModel";
 import CollateralRelationships from "../components/CollateralRelationships";
 import ActionDrawer from "../components/app/ActionDrawer";
+import PositionHeader from "../components/app/PositionHeader";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
@@ -542,6 +543,13 @@ const MarketDetailsPage = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* Position Header */}
+        <PositionHeader
+          market={market}
+          userAssets={userAssets || undefined}
+          userDebt={userDebt}
+        />
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-8">
           {/* Main Content - Takes full width on mobile, 2/3 on desktop */}

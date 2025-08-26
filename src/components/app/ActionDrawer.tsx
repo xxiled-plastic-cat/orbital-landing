@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronUp, TrendingUp, ArrowDownUp } from "lucide-react";
+import { X, TrendingUp, ArrowDownUp } from "lucide-react";
 import ActionPanel from "./ActionPanel";
 import { LendingMarket } from "../../types/lending";
 

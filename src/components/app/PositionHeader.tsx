@@ -1,0 +1,138 @@
+import { Shield, Wallet, Target } from "lucide-react";
+import { motion } from "framer-motion";
+import { LendingMarket } from "../../types/lending";
+
+interface PositionHeaderProps {
+  market: LendingMarket;
+  userAssets?: {
+    assets: Array<{
+      assetId: string;
+      balance: string;
+      isOptedIn: boolean;
+    }>;
+  };
+  userDebt?: {
+    borrowedAmount: string;
+    collateralAmount: string;
+    collateralAssetId: string;
+    interestAccrued: string;
+  };
+}
+
+const PositionHeader = ({ market, userAssets, userDebt }: PositionHeaderProps) => {
+  // Helper function to calculate user's LST balance for this market
+  const getUserLSTBalance = () => {
+    if (!userAssets?.assets || !market.lstTokenId) return 0;
+    const lstAsset = userAssets.assets.find(
+      (asset) => asset.assetId === market.lstTokenId && asset.isOptedIn
+    );
+    return lstAsset ? parseFloat(lstAsset.balance) / Math.pow(10, 6) : 0;
+  };
+
+  // Helper function to calculate total debt (borrowed + interest)
+  const getTotalDebt = () => {
+    if (!userDebt) return 0;
+    return parseFloat(userDebt.borrowedAmount) + parseFloat(userDebt.interestAccrued);
+  };
+
+  // Helper function to calculate health factor (simplified)
+  const getHealthFactor = () => {
+    if (!userDebt || getTotalDebt() === 0) return null;
+    const collateralValue = parseFloat(userDebt.collateralAmount);
+    const debtValue = getTotalDebt();
+    const liquidationThreshold = market.liquidationThreshold / 100;
+    return (collateralValue * liquidationThreshold) / debtValue;
+  };
+
+  // Helper function to get health factor color
+  const getHealthFactorColor = (hf: number | null) => {
+    if (hf === null) return "text-slate-400";
+    if (hf >= 2) return "text-green-400";
+    if (hf >= 1.5) return "text-yellow-400";
+    if (hf >= 1.2) return "text-orange-400";
+    return "text-red-400";
+  };
+
+  // Helper function to get base token symbol (removes 'c' prefix if LST)
+  const getBaseTokenSymbol = (symbol?: string): string => {
+    if (!symbol) return "";
+    return symbol.startsWith("c") ? symbol.substring(1) : symbol;
+  };
+
+  // Helper function to get LST token symbol (adds 'c' prefix if not already there)
+  const getLSTTokenSymbol = (symbol?: string): string => {
+    if (!symbol) return "";
+    return symbol.startsWith("c") ? symbol : `c${symbol}`;
+  };
+
+  const lstBalance = getUserLSTBalance();
+  const totalDebt = getTotalDebt();
+  const healthFactor = getHealthFactor();
+
+  // Don't render if no position
+  if (lstBalance === 0 && totalDebt === 0) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      className="text-slate-600 cut-corners-lg p-4 md:p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial mb-4 md:mb-6"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.1 }}
+    >
+      <div className="flex items-center justify-between">
+        {/* Left: Supplied Position */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg flex items-center justify-center">
+            <Wallet className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
+              Supplied
+            </div>
+            <div className="font-mono text-lg font-bold text-white">
+              {lstBalance.toFixed(2)} {getLSTTokenSymbol(market.symbol)}
+            </div>
+          </div>
+        </div>
+
+        {/* Center: Health Factor (if borrowing) */}
+        {healthFactor !== null && (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center">
+              <Shield className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
+                Health Factor
+              </div>
+              <div className={`font-mono text-lg font-bold ${getHealthFactorColor(healthFactor)}`}>
+                {healthFactor.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Right: Borrowed Position */}
+        {totalDebt > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+              <Target className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
+                Borrowed
+              </div>
+              <div className="font-mono text-lg font-bold text-white">
+                {totalDebt.toFixed(2)} {getBaseTokenSymbol(market.symbol)}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+export default PositionHeader;
