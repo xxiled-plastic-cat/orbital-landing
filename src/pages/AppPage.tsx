@@ -179,20 +179,20 @@ const AppPage = () => {
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
-                      <span>Smart Contract Integration</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Smart Contract Integration ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
-                      <span>Oracle Deployment</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Oracle Deployment ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
-                      <span>Interest Accruals</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Interest Accruals ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
-                      <span>Supply/Borrow Interface</span>
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <span>Supply/Borrow Interface ✓</span>
                     </li>
                   </ul>
                 </div>
