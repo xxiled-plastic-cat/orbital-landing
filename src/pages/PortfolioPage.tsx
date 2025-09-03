@@ -190,7 +190,7 @@ const PortfolioPage: React.FC = () => {
                     <div className="flex items-center gap-2 md:gap-3">
                       <History className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
                       <span className="text-base md:text-lg font-mono font-semibold text-slate-300 uppercase tracking-wide">
-                        FLIGHT LOG
+                        LOG BOOK
                       </span>
                     </div>
                     <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset">
@@ -229,7 +229,7 @@ const PortfolioPage: React.FC = () => {
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-mono font-bold mb-4 md:mb-6 text-white tracking-tight">
-            ORBITAL <span className="text-cyan-400">FLIGHT LOGS</span>
+            ORBITAL <span className="text-cyan-400">LOG BOOK</span>
           </h1>
           <p className="text-sm sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed mb-6 md:mb-8">
             Track your complete transaction history across all Orbital lending markets. 
@@ -259,7 +259,7 @@ const PortfolioPage: React.FC = () => {
             <div className="text-slate-600 cut-corners-lg p-8">
               <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
               <div className="text-slate-400 font-mono mb-4">
-                SCANNING FLIGHT RECORDS...
+                SCANNING LOG ENTRIES...
               </div>
               <div className="text-slate-500 text-sm font-mono">
                 Retrieving transaction history from orbital database
@@ -493,7 +493,7 @@ const PortfolioPage: React.FC = () => {
             <div className="text-slate-600 cut-corners-lg p-8">
               <History className="w-12 h-12 text-slate-500 mx-auto mb-4" />
               <div className="text-slate-400 font-mono mb-4">
-                NO FLIGHT RECORDS FOUND
+                NO LOG ENTRIES FOUND
               </div>
               <div className="text-slate-500 text-sm font-mono">
                 Start your orbital journey by making your first transaction

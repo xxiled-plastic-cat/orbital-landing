@@ -74,7 +74,7 @@ const AppPage = () => {
             },
             {
               icon: TrendingUp,
-              title: "Debt Marketplace",
+              title: "Mercury Trading Post",
               description: "Discover and trade debt positions with automated pricing and instant liquidity.",
               delay: 0.6
             },
@@ -105,6 +105,12 @@ const AppPage = () => {
                   <Link to="/app/markets" className="block w-full">
                     <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-lg font-mono text-xs md:text-sm hover:bg-cyan-500 transition-all duration-150">
                       EXPLORE MARKETS
+                    </button>
+                  </Link>
+                ) : item.title === "Mercury Trading Post" ? (
+                  <Link to="/app/marketplace" className="block w-full">
+                    <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-lg font-mono text-xs md:text-sm hover:bg-cyan-500 transition-all duration-150">
+                      ENTER MERCURY TRADING POST
                     </button>
                   </Link>
                 ) : item.title === "Logbook" ? (
@@ -214,7 +220,7 @@ const AppPage = () => {
                 <div className="bg-slate-700 border border-slate-600 rounded-lg p-4 md:p-6">
                   <h4 className="font-mono font-bold text-red-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
                     <BarChart3 className="w-4 h-4 md:w-5 md:h-5" />
-                    DEBT MARKETPLACE
+                    MERCURY TRADING POST
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
