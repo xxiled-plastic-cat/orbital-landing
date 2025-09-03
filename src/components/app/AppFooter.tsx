@@ -132,6 +132,12 @@ const AppFooter = () => {
                 Markets
               </a>
               <a
+                href="/app/portfolio"
+                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
+              >
+                Logbook
+              </a>
+              <a
                 href="/app"
                 className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
               >

@@ -1,5 +1,5 @@
 import { useContext, useEffect } from 'react';
-import { TrendingUp, DollarSign, BarChart3, Droplets, Zap, Shield } from 'lucide-react';
+import { TrendingUp, DollarSign, ClipboardList, Droplets, Zap, Shield, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import AppLayout from '../components/app/AppLayout';
@@ -79,8 +79,8 @@ const AppPage = () => {
               delay: 0.6
             },
             {
-              icon: BarChart3,
-              title: "Portfolio",
+              icon: ClipboardList,
+              title: "Logbook",
               description: "Monitor your positions, track performance, and manage your lending portfolio.",
               delay: 0.8
             }
@@ -105,6 +105,12 @@ const AppPage = () => {
                   <Link to="/app/markets" className="block w-full">
                     <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-lg font-mono text-xs md:text-sm hover:bg-cyan-500 transition-all duration-150">
                       EXPLORE MARKETS
+                    </button>
+                  </Link>
+                ) : item.title === "Logbook" ? (
+                  <Link to="/app/portfolio" className="block w-full">
+                    <button className="w-full bg-cyan-600 border border-cyan-500 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-lg font-mono text-xs md:text-sm hover:bg-cyan-500 transition-all duration-150">
+                      VIEW LOGBOOK
                     </button>
                   </Link>
                 ) : (
