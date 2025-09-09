@@ -10,7 +10,7 @@ import {
 } from "../types/lending";
 import { currentAprBps, getAlgod, utilNormBps } from "../utils";
 import { getPricing } from "../contracts/oracle/pricing";
-import { GENERAL_BACKEND_URL } from "../constants/constants";
+import { GENERAL_BACKEND_URL, IS_TESTNET } from "../constants/constants";
 
 // Backend response interface
 interface BackendMarket {
@@ -19,7 +19,57 @@ interface BackendMarket {
   lstTokenId: string;
 }
 
-// Token metadata mapping - you can expand this or fetch from another endpoint
+// Testnet asset metadata
+const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
+  "744427912": {
+    id: "744427912",
+    name: "xUSD Testnet",
+    symbol: "xUSDt",
+    decimals: 6,
+    image: "/xUSDt.svg",
+    verified: true,
+    frozen: false,
+  },
+  "744427950": {
+    id: "744427950",
+    name: "CompX Token Testnet",
+    symbol: "COMPXt",
+    decimals: 6,
+    image: "/COMPXt.svg",
+    verified: true,
+    frozen: false,
+  },
+  // Add USDCt and goBTCt when asset IDs are available
+  "123456789": {
+    id: "123456789",
+    name: "USDC Testnet",
+    symbol: "USDCt",
+    decimals: 6,
+    image: "/USDCt.svg", // You'll need to add this image
+    verified: true,
+    frozen: false,
+  },
+  "987654321": {
+    id: "987654321",
+    name: "goBTC Testnet",
+    symbol: "goBTCt",
+    decimals: 8,
+    image: "/goBTCt.svg", // You'll need to add this image
+    verified: true,
+    frozen: false,
+  },
+};
+
+// Testnet market asset IDs (base and LST tokens)
+const TESTNET_MARKET_ASSET_IDS = [
+  "744427912", // xUSDt
+  "744427950", // COMPXt
+  "123456789", // USDCt (placeholder ID)
+  "987654321", // goBTCt (placeholder ID)
+  // Add LST token IDs here as well when available
+];
+
+// Token metadata mapping for markets - you can expand this or fetch from another endpoint
 const TOKEN_METADATA: Record<
   number,
   { name: string; symbol: string; image: string }
@@ -175,11 +225,33 @@ export async function fetchMarkets(
   }
 }
 
-// Fetch asset metadata from backend
+// Fetch asset metadata from backend or use testnet mock data
 export async function fetchAssetMetadata(
   assetIds: string[]
 ): Promise<AssetMetadata[]> {
   try {
+    if (IS_TESTNET) {
+      // Use hardcoded testnet data
+      const metadataArray: AssetMetadata[] = [];
+      assetIds.forEach((assetId) => {
+        if (TESTNET_ASSET_METADATA[assetId]) {
+          metadataArray.push(TESTNET_ASSET_METADATA[assetId]);
+        } else {
+          // Fallback for unknown testnet assets
+          metadataArray.push({
+            id: assetId,
+            name: `Asset ${assetId}`,
+            symbol: `TKN${assetId.slice(-4)}`,
+            decimals: 6,
+            verified: false,
+            frozen: false,
+          });
+        }
+      });
+      return metadataArray;
+    }
+
+    // Fetch from backend for mainnet
     const response = await axios.post(`${GENERAL_BACKEND_URL}/assets`, {
       assetIds,
     });
@@ -209,6 +281,23 @@ export async function fetchAssetMetadata(
     return responseData;
   } catch (error) {
     console.error("Failed to fetch asset metadata:", error);
+    
+    if (IS_TESTNET) {
+      // For testnet, return fallback data instead of throwing
+      const fallbackArray: AssetMetadata[] = [];
+      assetIds.forEach((assetId) => {
+        fallbackArray.push({
+          id: assetId,
+          name: `Asset ${assetId}`,
+          symbol: `TKN${assetId.slice(-4)}`,
+          decimals: 6,
+          verified: false,
+          frozen: false,
+        });
+      });
+      return fallbackArray;
+    }
+    
     throw new Error("Failed to fetch asset metadata");
   }
 }
@@ -216,6 +305,12 @@ export async function fetchAssetMetadata(
 // Get all unique asset IDs from markets (base tokens and LST tokens)
 export async function getMarketAssetIds(): Promise<string[]> {
   try {
+    if (IS_TESTNET) {
+      // Return hardcoded testnet asset IDs
+      return [...TESTNET_MARKET_ASSET_IDS];
+    }
+
+    // Fetch from backend for mainnet
     const response = await axios.get(`${GENERAL_BACKEND_URL}/orbital/markets`);
     const backendMarkets: BackendMarket[] = response.data;
 
@@ -233,6 +328,12 @@ export async function getMarketAssetIds(): Promise<string[]> {
     return Array.from(assetIds);
   } catch (error) {
     console.error("Failed to fetch market asset IDs:", error);
+    
+    if (IS_TESTNET) {
+      // For testnet, return fallback data instead of throwing
+      return [...TESTNET_MARKET_ASSET_IDS];
+    }
+    
     throw new Error("Failed to fetch market asset IDs");
   }
 }

@@ -6,7 +6,8 @@ import {
   ShoppingCart,
   DollarSign,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Search
 } from 'lucide-react';
 import AppLayout from '../components/app/AppLayout';
 import DebtPositionCard from '../components/DebtPositionCard';
@@ -33,79 +34,79 @@ interface DebtPosition {
   liquidationBonus: number; // Percentage discount for liquidators (e.g., 8.5 = 8.5%)
 }
 
-// Mock data for debt positions
+// Mock data for debt positions using available testnet tokens
 const mockDebtPositions: DebtPosition[] = [
   {
     id: '1',
-    debtToken: { symbol: 'USDC', name: 'USD Coin', id: '31566704' },
-    collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
-    userAddress: 'WXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD',
+    debtToken: { symbol: 'USDCt', name: 'USDC Testnet', id: '123456789' },
+    collateralToken: { symbol: 'cxUSDt', name: 'Collateralized xUSD Testnet', id: '744855936' },
+    userAddress: 'RS7TLLQRXKBAQDAVTSZC2ZLMVMLNSCL3FOUOESJJZ5XSKFFL56UI6X33CI',
     totalDebt: 850.50,
     totalCollateral: 5000.00,
     healthRatio: 1.65,
     liquidationThreshold: 1.20,
     buyoutCost: 892.03,
-    liquidationBonus: 7.5 // USDC market liquidation bonus
+    liquidationBonus: 7.5 // USDCt market liquidation bonus
   },
   {
     id: '2',
-    debtToken: { symbol: 'USDT', name: 'Tether USD', id: '312769' },
-    collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
-    userAddress: 'ABCD5678901234567890EFGHIJKLMNOPQRSTUVWXYZ1234567890EF',
+    debtToken: { symbol: 'COMPXt', name: 'CompX Token Testnet', id: '744427950' },
+    collateralToken: { symbol: 'cCOMPXt', name: 'Collateralized COMPX Testnet', id: '744856057' },
+    userAddress: 'HPD6ZADEDED6EIZ6HDGDJG4QQWVSEPUOKOPJD7BFTKUC7YFHHGFVYTW5QQ',
     totalDebt: 1200.00,
     totalCollateral: 4200.00,
     healthRatio: 1.35,
     liquidationThreshold: 1.20,
     buyoutCost: 1260.00,
-    liquidationBonus: 6.0 // USDT market liquidation bonus
+    liquidationBonus: 6.0 // COMPXt market liquidation bonus
   },
   {
     id: '3',
-    debtToken: { symbol: 'USDC', name: 'USD Coin', id: '31566704' },
-    collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
-    userAddress: 'PQRS9012345678901234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ12',
+    debtToken: { symbol: 'xUSDt', name: 'xUSD Testnet', id: '744427912' },
+    collateralToken: { symbol: 'cxUSDt', name: 'Collateralized xUSD Testnet', id: '744855936' },
+    userAddress: 'TVGYOO5UKLE4MGTC7E5XLFE3QNSJXCJKBRHPQE7DBSDOJCH3MOHBHQOATY',
     totalDebt: 2500.75,
     totalCollateral: 3800.00,
     healthRatio: 1.15,
     liquidationThreshold: 1.20,
     buyoutCost: 2375.71,
-    liquidationBonus: 7.5 // USDC market liquidation bonus
+    liquidationBonus: 7.5 // xUSDt market liquidation bonus
   },
   {
     id: '4',
-    debtToken: { symbol: 'USDT', name: 'Tether USD', id: '312769' },
-    collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
-    userAddress: 'MNOP3456789012345678901234567890ABCDEFGHIJKLMNOPQRST',
-    totalDebt: 750.00,
+    debtToken: { symbol: 'goBTCt', name: 'goBTC Testnet', id: '987654321' },
+    collateralToken: { symbol: 'cCOMPXt', name: 'Collateralized COMPX Testnet', id: '744856057' },
+    userAddress: 'HPD6ZADEDED6EIZ6HDGDJG4QQWVSEPUOKOPJD7BFTKUC7YFHHGFVYTW5QQ',
+    totalDebt: 0.032,
     totalCollateral: 3600.00,
     healthRatio: 1.92,
     liquidationThreshold: 1.20,
-    buyoutCost: 787.50,
-    liquidationBonus: 6.0 // USDT market liquidation bonus
+    buyoutCost: 0.0336,
+    liquidationBonus: 8.0 // goBTCt market liquidation bonus
   },
   {
     id: '5',
-    debtToken: { symbol: 'USDC', name: 'USD Coin', id: '31566704' },
-    collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
-    userAddress: 'EFGH7890123456789012345678901234567890ABCDEFGHIJKLMN',
+    debtToken: { symbol: 'USDCt', name: 'USDC Testnet', id: '123456789' },
+    collateralToken: { symbol: 'cCOMPXt', name: 'Collateralized COMPX Testnet', id: '744856057' },
+    userAddress: 'TVGYOO5UKLE4MGTC7E5XLFE3QNSJXCJKBRHPQE7DBSDOJCH3MOHBHQOATY',
     totalDebt: 1800.25,
     totalCollateral: 2300.00,
     healthRatio: 1.08,
     liquidationThreshold: 1.20,
     buyoutCost: 1710.24,
-    liquidationBonus: 7.5 // USDC market liquidation bonus
+    liquidationBonus: 7.5 // USDCt market liquidation bonus
   },
   {
     id: '6',
-    debtToken: { symbol: 'USDT', name: 'Tether USD', id: '312769' },
-    collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
+    debtToken: { symbol: 'COMPXt', name: 'CompX Token Testnet', id: '744427950' },
+    collateralToken: { symbol: 'cxUSDt', name: 'Collateralized xUSD Testnet', id: '744855936' },
     userAddress: 'IJKL1234567890123456789012345678901234567890ABCDEFGH',
     totalDebt: 950.00,
     totalCollateral: 4800.00,
     healthRatio: 1.58,
     liquidationThreshold: 1.20,
     buyoutCost: 997.50,
-    liquidationBonus: 6.0 // USDT market liquidation bonus
+    liquidationBonus: 6.0 // COMPXt market liquidation bonus
   }
 ];
 
@@ -113,17 +114,36 @@ type SortOrder = 'asc' | 'desc';
 
 const MarketplacePage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const navigate = useNavigate();
 
-  const sortedPositions = useMemo(() => {
-    return [...mockDebtPositions].sort((a, b) => {
+  const filteredAndSortedPositions = useMemo(() => {
+    // First filter by search query
+    let filtered = mockDebtPositions;
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = mockDebtPositions.filter((position) => {
+        const debtTokenMatch = 
+          position.debtToken.symbol.toLowerCase().includes(query) ||
+          position.debtToken.name.toLowerCase().includes(query);
+        const collateralTokenMatch = 
+          position.collateralToken.symbol.toLowerCase().includes(query) ||
+          position.collateralToken.name.toLowerCase().includes(query);
+        
+        return debtTokenMatch || collateralTokenMatch;
+      });
+    }
+    
+    // Then sort the filtered results
+    return filtered.sort((a, b) => {
       if (sortOrder === 'asc') {
         return a.healthRatio - b.healthRatio;
       } else {
         return b.healthRatio - a.healthRatio;
       }
     });
-  }, [sortOrder]);
+  }, [sortOrder, searchQuery]);
 
   const handlePositionClick = (position: DebtPosition) => {
     navigate(`/app/marketplace/position/${position.id}`);
@@ -178,7 +198,7 @@ const MarketplacePage: React.FC = () => {
                       Active Listings:
                     </span>
                     <span className="font-mono font-bold text-white tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
-                      {sortedPositions.length}
+                      {filteredAndSortedPositions.length}
                     </span>
                   </div>
                   <div className="flex flex-col sm:block">
@@ -186,7 +206,7 @@ const MarketplacePage: React.FC = () => {
                       Total Volume:
                     </span>
                     <span className="font-mono font-bold text-cyan-400 tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
-                      {sortedPositions.reduce((sum, pos) => sum + pos.buyoutCost, 0).toFixed(0)} ALGO
+                      {filteredAndSortedPositions.reduce((sum, pos) => sum + pos.buyoutCost, 0).toFixed(0)} ALGO
                     </span>
                   </div>
                 </div>
@@ -224,29 +244,50 @@ const MarketplacePage: React.FC = () => {
           <div className="text-slate-600 cut-corners-lg bg-noise-dark border-2 border-slate-600 shadow-industrial">
             {/* Content Header */}
             <div className="p-4 md:p-6 border-b border-slate-600">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5 text-cyan-400" />
-                    AVAILABLE DEBT POSITIONS
-                  </h2>
-                  <p className="text-slate-400 font-mono text-sm mt-2">
-                    Browse and trade tokenized debt from active lending positions
-                  </p>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5 text-cyan-400" />
+                      AVAILABLE DEBT POSITIONS
+                    </h2>
+                    <p className="text-slate-400 font-mono text-sm mt-2">
+                      Browse and trade tokenized debt from active lending positions
+                    </p>
+                  </div>
+                  
+                  {/* Sort Controls */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-mono text-sm">Sort by Health:</span>
+                    <button
+                      onClick={toggleSortOrder}
+                      className="flex items-center gap-2 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-650 transition-colors"
+                    >
+                      <span className="text-slate-300 font-mono text-sm">
+                        {sortOrder === 'asc' ? 'Risk First' : 'Healthy First'}
+                      </span>
+                      <SortIcon className="w-4 h-4 text-cyan-400" />
+                    </button>
+                  </div>
                 </div>
-                
-                {/* Sort Controls */}
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-mono text-sm">Sort by Health:</span>
-                  <button
-                    onClick={toggleSortOrder}
-                    className="flex items-center gap-2 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-650 transition-colors"
-                  >
-                    <span className="text-slate-300 font-mono text-sm">
-                      {sortOrder === 'asc' ? 'Risk First' : 'Healthy First'}
-                    </span>
-                    <SortIcon className="w-4 h-4 text-cyan-400" />
-                  </button>
+
+                {/* Search Bar */}
+                <div className="flex items-center gap-4 justify-end">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by token name or symbol..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-300 placeholder-slate-500 font-mono text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                    />
+                  </div>
+                  {searchQuery && (
+                    <div className="text-slate-400 font-mono text-sm">
+                      {filteredAndSortedPositions.length} of {mockDebtPositions.length} positions
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -254,7 +295,7 @@ const MarketplacePage: React.FC = () => {
             {/* Debt Positions Grid */}
             <div className="p-4 md:p-6">
               <div className="grid gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {sortedPositions.map((position, index) => (
+                {filteredAndSortedPositions.map((position, index) => (
                   <motion.div
                     key={position.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -269,16 +310,30 @@ const MarketplacePage: React.FC = () => {
                 ))}
               </div>
               
-              {sortedPositions.length === 0 && (
+              {filteredAndSortedPositions.length === 0 && (
                 <div className="text-center py-12">
                   <div className="text-slate-600 cut-corners-lg p-8 bg-slate-800/20">
-                    <DollarSign className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-                    <div className="text-slate-400 font-mono mb-4">
-                      NO POSITIONS AVAILABLE
-                    </div>
-                    <div className="text-slate-500 text-sm font-mono">
-                      No debt positions currently available for trading
-                    </div>
+                    {searchQuery ? (
+                      <>
+                        <Search className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+                        <div className="text-slate-400 font-mono mb-4">
+                          NO MATCHING POSITIONS
+                        </div>
+                        <div className="text-slate-500 text-sm font-mono">
+                          No debt positions match your search for "{searchQuery}"
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+                        <div className="text-slate-400 font-mono mb-4">
+                          NO POSITIONS AVAILABLE
+                        </div>
+                        <div className="text-slate-500 text-sm font-mono">
+                          No debt positions currently available for trading
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

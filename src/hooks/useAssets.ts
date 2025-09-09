@@ -6,10 +6,12 @@ import {
   fetchUserAssetInfo 
 } from '../services/markets'
 import { AssetMetadata, UserAssetSummary, UserAssetInfo } from '../types/lending'
+import { IS_TESTNET } from '../constants/constants'
 
-const ASSETS_QUERY_KEY = ['assets'] as const
-const USER_ASSETS_QUERY_KEY = ['user-assets'] as const
-const MARKET_ASSET_IDS_QUERY_KEY = ['market-asset-ids'] as const
+const NETWORK_PREFIX = IS_TESTNET ? 'testnet' : 'mainnet'
+const ASSETS_QUERY_KEY = [NETWORK_PREFIX, 'assets'] as const
+const USER_ASSETS_QUERY_KEY = [NETWORK_PREFIX, 'user-assets'] as const
+const MARKET_ASSET_IDS_QUERY_KEY = [NETWORK_PREFIX, 'market-asset-ids'] as const
 
 // Hook to get all asset IDs from markets
 export function useMarketAssetIds() {

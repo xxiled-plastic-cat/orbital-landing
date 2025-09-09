@@ -5,6 +5,7 @@ import {
   Shield, 
   TrendingDown
 } from 'lucide-react';
+import { useNFD } from '../hooks/useNFD';
 
 interface DebtPosition {
   id: string;
@@ -36,8 +37,43 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
   position, 
   onClick 
 }) => {
+  // Fetch NFD data for the user address
+  const { nfdName, nfdAvatar, isLoadingNFD } = useNFD(position.userAddress);
+
+  // Map token symbols to their image paths
+  const getTokenImage = (symbol: string): string => {
+    const tokenImages: Record<string, string> = {
+      // Base tokens
+      'xUSDt': '/xUSDt.svg',
+      'COMPXt': '/COMPXt.svg',
+      'USDCt': '/USDCt-logo.svg',
+      'goBTCt': '/goBTCt-logo.svg',
+      // Collateral tokens
+      'cxUSDt': '/xUSDt.svg', // Using base token image for collateral
+      'cCOMPXt': '/COMPXt.svg', // Using base token image for collateral
+    };
+    
+    return tokenImages[symbol] || '/default-token.svg';
+  };
+
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-6)}`;
+  };
+
+  const formatDisplayName = (address: string) => {
+    // Show loading indicator if NFD is being fetched
+    if (isLoadingNFD) {
+      return "Loading...";
+    }
+    
+    // Use NFD name if available
+    if (nfdName) {
+      // Truncate long NFD names (keep first 12 chars + ...)
+      return nfdName.length > 15 ? `${nfdName.slice(0, 12)}...` : nfdName;
+    }
+    
+    // Fall back to truncated address
+    return formatAddress(address);
   };
 
   const getHealthStatus = (healthRatio: number) => {
@@ -54,7 +90,7 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
         color: 'text-amber-400',
         bgColor: 'bg-amber-400/10',
         borderColor: 'border-amber-400',
-        status: 'NEARING LIQUIDATION',
+        status: 'NEAR LIQUIDATION',
         icon: AlertTriangle
       };
     } else {
@@ -69,13 +105,20 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
   };
 
   const healthStatus = getHealthStatus(position.healthRatio);
-  const HealthIcon = healthStatus.icon;
 
   const formatNumber = (num: number, decimals = 2) => {
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(num);
+  };
+
+  // Get dynamic font size based on text length to keep values on one line
+  const getDynamicFontSize = (text: string) => {
+    const length = text.length;
+    if (length <= 12) return 'text-sm'; // Default size
+    if (length <= 16) return 'text-xs'; // Smaller for medium length
+    return 'text-xs'; // Smallest for long text
   };
 
   return (
@@ -86,16 +129,35 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <User className="w-5 h-5 text-slate-400" />
-          <span className="font-mono text-slate-300 text-sm">
-            {formatAddress(position.userAddress)}
-          </span>
+          {/* User avatar or default icon */}
+          <div className="w-6 h-6 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border border-slate-500 overflow-hidden">
+            {nfdAvatar ? (
+              <img
+                src={nfdAvatar}
+                alt="NFD Avatar"
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : (
+              <User className="w-3 h-3 text-cyan-400" />
+            )}
+          </div>
+          
+          {/* Display name and address */}
+          <div className="flex flex-col">
+            <span className="font-mono text-slate-300 text-sm font-semibold">
+              {formatDisplayName(position.userAddress)}
+            </span>
+            {nfdName && (
+              <span className="font-mono text-slate-500 text-xs">
+                {formatAddress(position.userAddress)}
+              </span>
+            )}
+          </div>
         </div>
         
         {/* Health Status Badge */}
         <div className={`px-3 py-1 rounded-md border ${healthStatus.borderColor} ${healthStatus.bgColor}`}>
           <div className="flex items-center gap-1">
-            <HealthIcon className={`w-3 h-3 ${healthStatus.color}`} />
             <span className={`text-xs font-mono font-semibold ${healthStatus.color}`}>
               {healthStatus.status}
             </span>
@@ -103,19 +165,39 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
         </div>
       </div>
 
-      {/* Token Pair */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      {/* Token Pair - Hidden on mobile */}
+      <div className="hidden sm:grid grid-cols-2 gap-4 mb-4">
         <div>
           <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Debt Token</div>
-          <div className="font-mono font-semibold text-white">
-            {position.debtToken.symbol}
+          <div className="flex items-center gap-2">
+            <img 
+              src={getTokenImage(position.debtToken.symbol)} 
+              alt={position.debtToken.symbol}
+              className="w-5 h-5 rounded-full"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className="font-mono font-semibold text-white">
+              {position.debtToken.symbol}
+            </div>
           </div>
           <div className="text-xs text-slate-500">{position.debtToken.name}</div>
         </div>
         <div>
           <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Collateral Token</div>
-          <div className="font-mono font-semibold text-white">
-            {position.collateralToken.symbol}
+          <div className="flex items-center gap-2">
+            <img 
+              src={getTokenImage(position.collateralToken.symbol)} 
+              alt={position.collateralToken.symbol}
+              className="w-5 h-5 rounded-full"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className="font-mono font-semibold text-white">
+              {position.collateralToken.symbol}
+            </div>
           </div>
           <div className="text-xs text-slate-500">{position.collateralToken.name}</div>
         </div>
@@ -125,14 +207,34 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Total Debt</div>
-          <div className="font-mono font-semibold text-red-400">
-            {formatNumber(position.totalDebt)} {position.debtToken.symbol}
+          <div className="flex items-center gap-1.5">
+            <img 
+              src={getTokenImage(position.debtToken.symbol)} 
+              alt={position.debtToken.symbol}
+              className="w-4 h-4 rounded-full flex-shrink-0"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className={`font-mono font-semibold text-red-400 ${getDynamicFontSize(`${formatNumber(position.totalDebt)} ${position.debtToken.symbol}`)} truncate`}>
+              {formatNumber(position.totalDebt)} {position.debtToken.symbol}
+            </div>
           </div>
         </div>
         <div>
           <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Total Collateral</div>
-          <div className="font-mono font-semibold text-cyan-400">
-            {formatNumber(position.totalCollateral)} {position.collateralToken.symbol}
+          <div className="flex items-center gap-1.5">
+            <img 
+              src={getTokenImage(position.collateralToken.symbol)} 
+              alt={position.collateralToken.symbol}
+              className="w-4 h-4 rounded-full flex-shrink-0"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className={`font-mono font-semibold text-cyan-400 ${getDynamicFontSize(`${formatNumber(position.totalCollateral)} ${position.collateralToken.symbol}`)} truncate`}>
+              {formatNumber(position.totalCollateral)} {position.collateralToken.symbol}
+            </div>
           </div>
         </div>
       </div>

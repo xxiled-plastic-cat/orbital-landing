@@ -8,10 +8,12 @@ import {
   Radio,
   AlertCircle,
   Loader,
+  ArrowLeft,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import MarketCard from "../components/MarketCard";
 import { useMarkets } from "../hooks/useMarkets";
+import { Link } from "react-router-dom";
 
 const LendingMarketsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,10 +133,21 @@ const LendingMarketsPage = () => {
           <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-mono font-bold mb-4 md:mb-6 text-white tracking-tight">
             ORBITAL <span className="text-cyan-400">MARKETS</span>
           </h1>
-          <p className="text-sm sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed">
+          <p className="text-sm sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed mb-6 md:mb-8">
             Supply assets to earn interest • Borrow against your collateral •
             Monitor your positions
           </p>
+
+          {/* Navigation Link */}
+          <div className="flex items-center gap-4">
+            <Link 
+              to="/app"
+              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-sm md:text-base group"
+            >
+              <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-150" />
+              <span className="uppercase tracking-wide">Back to Home</span>
+            </Link>
+          </div>
         </motion.div>
 
         {/* Search and Filters */}
