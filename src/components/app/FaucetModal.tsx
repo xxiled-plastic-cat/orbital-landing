@@ -125,7 +125,7 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
         >
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-space-dark bg-opacity-80 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -141,51 +141,50 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Background glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-neon-teal via-neon-purple to-neon-pink opacity-20 rounded-2xl blur-sm"></div>
-
             {/* Modal container */}
-            <div className="relative backdrop-blur-md bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="relative text-slate-600 cut-corners-lg bg-noise-dark border-2 border-slate-600 shadow-industrial overflow-hidden">
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-white border-opacity-10">
-                <div className="flex items-center gap-3">
-                  <div className="bg-neon-purple bg-opacity-20 p-3 rounded-full">
-                    <Droplets className="w-6 h-6 text-neon-purple" />
+              <div className="p-4 md:p-6 border-b border-slate-600">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center border border-slate-500">
+                      <Droplets className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h2
+                        id="faucet-modal-title"
+                        className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide"
+                      >
+                        Get Test Tokens
+                      </h2>
+                      <p className="text-sm text-slate-300 font-mono">
+                        Request testnet tokens for Orbital Lending
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2
-                      id="faucet-modal-title"
-                      className="text-2xl font-sora font-bold text-white"
-                    >
-                      Get Test Tokens
-                    </h2>
-                    <p className="text-sm text-soft-gray">
-                      Request testnet tokens for Orbital Lending
-                    </p>
-                  </div>
-                </div>
 
-                <button
-                  onClick={onClose}
-                  className="group relative p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-                >
-                  <X className="w-6 h-6 text-soft-gray group-hover:text-white transition-colors duration-200" />
-                </button>
+                  <button
+                    onClick={onClose}
+                    className="group relative p-2 rounded-lg hover:bg-slate-700 transition-all duration-150 border border-slate-600"
+                  >
+                    <X className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors duration-150" />
+                  </button>
+                </div>
               </div>
 
               {/* Wallet info */}
               {walletAddress && (
-                <div className="px-6 py-4 bg-neon-teal bg-opacity-5 border-b border-white border-opacity-5">
-                  <p className="text-sm text-soft-gray">
-                    <span className="text-neon-teal font-medium">Wallet:</span>{" "}
-                    {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
+                <div className="px-4 md:px-6 py-3 bg-slate-800/50 border-b border-slate-600">
+                  <p className="text-sm text-slate-300 font-mono">
+                    <span className="text-cyan-400 font-medium uppercase tracking-wide">Wallet:</span>{" "}
+                    <span className="text-white">{walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}</span>
                   </p>
                 </div>
               )}
 
               {/* Token Grid */}
-              <div className="p-6 max-h-[60vh] overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-4 md:p-6 max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {TESTNET_TOKENS.map((token, index) => (
                     <motion.div
                       key={token.id}
@@ -194,48 +193,42 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
                     >
-                      {/* Token card background glow */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-neon-teal to-neon-purple opacity-5 group-hover:opacity-10 rounded-xl blur-sm transition-opacity duration-300"></div>
-
                       {/* Token card */}
-                      <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-white border-opacity-10 rounded-xl p-4 hover:bg-opacity-10 transition-all duration-300">
+                      <div className="relative bg-slate-800 border border-slate-600 rounded-lg p-4 hover:border-slate-500 hover:bg-slate-750 transition-all duration-150">
                         {/* Token header */}
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="w-12 h-12 rounded-full overflow-hidden bg-white bg-opacity-10 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-slate-600 to-slate-700 border border-slate-500 flex items-center justify-center">
                             <img
                               src={token.image}
                               alt={`${token.name} logo`}
-                              className="w-8 h-8 object-contain"
+                              className="w-6 h-6 object-contain"
                               onError={(e) => {
                                 // Fallback to a generic token icon if image fails to load
-                                (e.target as HTMLImageElement).src =
-                                  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiM2NmZjZjEiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCAxMkwxMy4wOSAxNS43NEwxMiAyMkwxMC45MSAxNS43NEw0IDEyTDEwLjkxIDguMjZMMTIgMloiIGZpbGw9IiMwMDIwMzMiLz4KPC9zdmc+Cjwvc3ZnPgo=";
+                                (e.target as HTMLImageElement).style.display = 'none';
                               }}
                             />
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-semibold text-white">
-                              {token.name}
+                            <h3 className="font-mono font-semibold text-white">
+                              {token.symbol}
                             </h3>
-                            <p className="text-sm text-soft-gray">
+                            <p className="text-xs text-slate-400 font-mono">
+                              {token.name}
+                            </p>
+                            <p className="text-xs text-slate-500 font-mono">
                               ID: {token.id}
                             </p>
                           </div>
                         </div>
 
-                        {/* Token description */}
-                        <p className="text-sm text-soft-gray mb-4 leading-relaxed">
-                          {token.description}
-                        </p>
-
                         {/* Request button */}
                         <button
                           onClick={() => handleTokenRequest(token)}
                           disabled={requestingTokens.has(token.id)}
-                          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-mono font-semibold transition-all duration-150 border ${
                             requestingTokens.has(token.id)
-                              ? "bg-neon-purple bg-opacity-20 text-neon-purple cursor-not-allowed"
-                              : "bg-white bg-opacity-5 text-white hover:bg-opacity-10 hover:text-neon-teal"
+                              ? "bg-slate-700 border-slate-600 text-slate-400 cursor-not-allowed"
+                              : "bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-500 hover:border-cyan-400"
                           }`}
                         >
                           {getButtonContent(token)}
@@ -247,14 +240,14 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-white border-opacity-10 bg-white bg-opacity-5">
+              <div className="px-4 md:px-6 py-4 border-t border-slate-600 bg-slate-800/50">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-soft-gray">
+                  <p className="text-xs text-slate-400 font-mono">
                     Tokens are for testnet only and have no real value
                   </p>
                   <button
                     onClick={onClose}
-                    className="px-4 py-2 rounded-lg bg-white bg-opacity-10 text-soft-gray hover:bg-opacity-20 hover:text-white transition-all duration-200"
+                    className="px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-300 hover:bg-slate-600 hover:text-white transition-all duration-150 font-mono text-sm"
                   >
                     Close
                   </button>
