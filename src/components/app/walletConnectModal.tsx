@@ -44,9 +44,9 @@ export const WalletConnectionModal: React.FC = () => {
           role="dialog"
           aria-modal="true"
         >
-          {/* Backdrop with glassmorphism */}
+          {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-space-dark bg-opacity-80 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -62,34 +62,31 @@ export const WalletConnectionModal: React.FC = () => {
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Background glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-neon-teal via-neon-purple to-neon-pink opacity-20 rounded-2xl blur-sm"></div>
-            
-            {/* Glassmorphism container */}
-            <div className="relative backdrop-blur-md bg-white bg-opacity-10 border border-white border-opacity-20 rounded-2xl p-6 shadow-2xl">
+            {/* Modal container */}
+            <div className="relative text-slate-600 cut-corners-lg bg-noise-dark border-2 border-slate-600 shadow-industrial p-6">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="bg-neon-teal bg-opacity-20 p-2 rounded-full">
-                    <Wallet className="w-5 h-5 text-neon-teal" />
+                  <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center border border-slate-500">
+                    <Wallet className="w-5 h-5 text-cyan-400" />
                   </div>
-                  <h3 className="text-2xl font-sora font-bold text-white">
+                  <h3 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
                     Connect Wallet
                   </h3>
                 </div>
                 
                 <button
                   onClick={handleClose}
-                  className="group relative p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-all duration-200"
+                  className="group relative p-2 rounded-lg hover:bg-slate-700 transition-all duration-150 border border-slate-600"
                 >
-                  <X className="w-5 h-5 text-soft-gray group-hover:text-white transition-colors duration-200" />
+                  <X className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors duration-150" />
                 </button>
               </div>
 
               {/* Security notice / Eligibility status */}
-              <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-neon-teal bg-opacity-5 border border-neon-teal border-opacity-20">
-                <Shield className={`w-5 h-5 text-neon-teal flex-shrink-0 ${isCheckingEligibility ? 'animate-pulse' : ''}`} />
-                <p className="text-sm text-soft-gray">
+              <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-slate-800/50 border border-slate-600">
+                <Shield className={`w-5 h-5 text-cyan-400 flex-shrink-0 ${isCheckingEligibility ? 'animate-pulse' : ''}`} />
+                <p className="text-sm text-slate-300 font-mono">
                   {isCheckingEligibility ? 
                     "Checking testnet eligibility..." : 
                     "Connect your wallet to interact with Orbital Lending on Algorand testnet"
@@ -110,14 +107,11 @@ export const WalletConnectionModal: React.FC = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    {/* Button glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-neon-teal to-neon-purple opacity-0 group-hover:opacity-20 rounded-xl blur-sm transition-opacity duration-300"></div>
-                    
                     {/* Button content */}
-                    <div className="relative backdrop-blur-sm bg-white bg-opacity-5 border border-white border-opacity-10 rounded-xl p-4 group-hover:bg-opacity-10 transition-all duration-300">
+                    <div className="relative bg-slate-800 border border-slate-600 rounded-lg p-4 hover:border-slate-500 hover:bg-slate-750 transition-all duration-150">
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          <div className="w-12 h-12 rounded-full overflow-hidden bg-white bg-opacity-10 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-slate-600 to-slate-700 border border-slate-500 flex items-center justify-center">
                             <img
                               src={wallet.metadata.icon}
                               alt={`${wallet.metadata.name} logo`}
@@ -127,15 +121,15 @@ export const WalletConnectionModal: React.FC = () => {
                         </div>
                         
                         <div className="flex-1 text-left">
-                          <h4 className="font-semibold text-white group-hover:text-neon-teal transition-colors duration-200">
+                          <h4 className="font-mono font-semibold text-white group-hover:text-cyan-400 transition-colors duration-150">
                             {wallet.metadata.name}
                           </h4>
-                          <p className="text-sm text-soft-gray">
+                          <p className="text-sm text-slate-400 font-mono">
                             Connect via {wallet.metadata.name}
                           </p>
                         </div>
                         
-                        <div className="w-6 h-6 rounded-full border-2 border-soft-gray group-hover:border-neon-teal transition-colors duration-200"></div>
+                        <div className="w-6 h-6 rounded-full border-2 border-slate-500 group-hover:border-cyan-400 transition-colors duration-150"></div>
                       </div>
                     </div>
                   </motion.button>
@@ -144,13 +138,11 @@ export const WalletConnectionModal: React.FC = () => {
 
               {/* Footer */}
               <div className="text-center">
-
                 <button
                   onClick={handleClose}
-                  className="relative group overflow-hidden px-6 py-2 rounded-lg"
+                  className="relative group overflow-hidden px-6 py-2 rounded-lg bg-slate-700 border border-slate-600 hover:bg-slate-600 transition-all duration-150"
                 >
-                  <div className="absolute inset-0 bg-white bg-opacity-10 group-hover:bg-opacity-20 transition-all duration-200"></div>
-                  <span className="relative text-soft-gray group-hover:text-white transition-colors duration-200">
+                  <span className="relative text-slate-300 group-hover:text-white transition-colors duration-150 font-mono">
                     Cancel
                   </span>
                 </button>
