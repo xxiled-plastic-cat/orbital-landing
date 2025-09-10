@@ -170,7 +170,7 @@ const DebtPositionDetailPage: React.FC = () => {
   };
 
   return (
-    <AppLayout title={`Debt Position ${id} - Mercury Trading Post`}>
+    <AppLayout title={`Mercury Trading Post`}>
       <div className="container-section py-4 md:py-8">
         {/* Header */}
         <motion.div
