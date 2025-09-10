@@ -6,27 +6,9 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { useNFD } from '../hooks/useNFD';
+import { DebtPosition } from '../types/lending';
 
-interface DebtPosition {
-  id: string;
-  debtToken: {
-    symbol: string;
-    name: string;
-    id: string;
-  };
-  collateralToken: {
-    symbol: string;
-    name: string;
-    id: string;
-  };
-  userAddress: string;
-  totalDebt: number;
-  totalCollateral: number;
-  healthRatio: number; // Higher is better (>1.5 healthy, 1.2-1.5 warning, <1.2 liquidation)
-  liquidationThreshold: number;
-  buyoutCost: number;
-  liquidationBonus: number; // Percentage discount for liquidators (e.g., 8.5 = 8.5%)
-}
+// DebtPosition interface is now imported from types/lending.ts
 
 interface DebtPositionCardProps {
   position: DebtPosition;
@@ -111,6 +93,29 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(num);
+  };
+
+  const formatUSD = (num: number) => {
+    if (num === 0) return '0.00';
+    if (num < 0.01) {
+      // For very small amounts, show up to 6 decimal places
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6,
+      }).format(num);
+    } else if (num < 1) {
+      // For amounts less than $1, show up to 4 decimal places
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      }).format(num);
+    } else {
+      // For amounts $1 and above, show 2 decimal places
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(num);
+    }
   };
 
   // Get dynamic font size based on text length to keep values on one line
@@ -207,33 +212,49 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Total Debt</div>
-          <div className="flex items-center gap-1.5">
-            <img 
-              src={getTokenImage(position.debtToken.symbol)} 
-              alt={position.debtToken.symbol}
-              className="w-4 h-4 rounded-full flex-shrink-0"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-            <div className={`font-mono font-semibold text-red-400 ${getDynamicFontSize(`${formatNumber(position.totalDebt)} ${position.debtToken.symbol}`)} truncate`}>
-              {formatNumber(position.totalDebt)} {position.debtToken.symbol}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <img 
+                src={getTokenImage(position.debtToken.symbol)} 
+                alt={position.debtToken.symbol}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <div className={`font-mono font-semibold text-red-400 ${getDynamicFontSize(`${formatNumber(position.totalDebt)} ${position.debtToken.symbol}`)} truncate`}>
+                {formatNumber(position.totalDebt)} {position.debtToken.symbol}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-red-400 font-bold text-xs">$</span>
+              <div className="font-mono font-semibold text-slate-400 text-xs">
+                {formatUSD(position.totalDebtUSD)}
+              </div>
             </div>
           </div>
         </div>
         <div>
-          <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Total Collateral</div>
-          <div className="flex items-center gap-1.5">
-            <img 
-              src={getTokenImage(position.collateralToken.symbol)} 
-              alt={position.collateralToken.symbol}
-              className="w-4 h-4 rounded-full flex-shrink-0"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-            <div className={`font-mono font-semibold text-cyan-400 ${getDynamicFontSize(`${formatNumber(position.totalCollateral)} ${position.collateralToken.symbol}`)} truncate`}>
-              {formatNumber(position.totalCollateral)} {position.collateralToken.symbol}
+          <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Collateral Value</div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <img 
+                src={getTokenImage(position.collateralToken.symbol)} 
+                alt={position.collateralToken.symbol}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <div className={`font-mono font-semibold text-cyan-400 ${getDynamicFontSize(`${formatNumber(position.totalCollateralTokens)} ${position.collateralToken.symbol}`)} truncate`}>
+                {formatNumber(position.totalCollateralTokens)} {position.collateralToken.symbol}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-green-400 font-bold text-xs">$</span>
+              <div className="font-mono font-semibold text-slate-400 text-xs">
+                {formatUSD(position.totalCollateral)}
+              </div>
             </div>
           </div>
         </div>
@@ -248,9 +269,12 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
           </div>
         </div>
         <div>
-          <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Liquidation at</div>
-          <div className="font-mono font-semibold text-slate-300">
-            {formatNumber(position.liquidationThreshold, 3)}
+          <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Liquidation Price</div>
+          <div className="flex items-center gap-1">
+            <span className="text-red-400 font-bold text-xs">$</span>
+            <div className="font-mono font-semibold text-slate-300">
+              {position.liquidationPrice ? formatNumber(position.liquidationPrice, 4) : 'N/A'}
+            </div>
           </div>
         </div>
       </div>

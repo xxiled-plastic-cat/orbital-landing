@@ -12,103 +12,11 @@ import {
 import AppLayout from '../components/app/AppLayout';
 import DebtPositionCard from '../components/DebtPositionCard';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDebtPositions } from '../hooks/useLoanRecords';
+import { DebtPosition } from '../types/lending';
 
-interface DebtPosition {
-  id: string;
-  debtToken: {
-    symbol: string;
-    name: string;
-    id: string;
-  };
-  collateralToken: {
-    symbol: string;
-    name: string;
-    id: string;
-  };
-  userAddress: string;
-  totalDebt: number;
-  totalCollateral: number;
-  healthRatio: number;
-  liquidationThreshold: number;
-  buyoutCost: number;
-  liquidationBonus: number; // Percentage discount for liquidators (e.g., 8.5 = 8.5%)
-}
+// DebtPosition interface is now imported from types/lending.ts
 
-// Mock data for debt positions using available testnet tokens
-const mockDebtPositions: DebtPosition[] = [
-  {
-    id: '1',
-    debtToken: { symbol: 'USDCt', name: 'USDC Testnet', id: '123456789' },
-    collateralToken: { symbol: 'cxUSDt', name: 'Collateralized xUSD Testnet', id: '744855936' },
-    userAddress: 'RS7TLLQRXKBAQDAVTSZC2ZLMVMLNSCL3FOUOESJJZ5XSKFFL56UI6X33CI',
-    totalDebt: 850.50,
-    totalCollateral: 5000.00,
-    healthRatio: 1.65,
-    liquidationThreshold: 1.20,
-    buyoutCost: 892.03,
-    liquidationBonus: 7.5 // USDCt market liquidation bonus
-  },
-  {
-    id: '2',
-    debtToken: { symbol: 'COMPXt', name: 'CompX Token Testnet', id: '744427950' },
-    collateralToken: { symbol: 'cCOMPXt', name: 'Collateralized COMPX Testnet', id: '744856057' },
-    userAddress: 'HPD6ZADEDED6EIZ6HDGDJG4QQWVSEPUOKOPJD7BFTKUC7YFHHGFVYTW5QQ',
-    totalDebt: 1200.00,
-    totalCollateral: 4200.00,
-    healthRatio: 1.35,
-    liquidationThreshold: 1.20,
-    buyoutCost: 1260.00,
-    liquidationBonus: 6.0 // COMPXt market liquidation bonus
-  },
-  {
-    id: '3',
-    debtToken: { symbol: 'xUSDt', name: 'xUSD Testnet', id: '744427912' },
-    collateralToken: { symbol: 'cxUSDt', name: 'Collateralized xUSD Testnet', id: '744855936' },
-    userAddress: 'TVGYOO5UKLE4MGTC7E5XLFE3QNSJXCJKBRHPQE7DBSDOJCH3MOHBHQOATY',
-    totalDebt: 2500.75,
-    totalCollateral: 3800.00,
-    healthRatio: 1.15,
-    liquidationThreshold: 1.20,
-    buyoutCost: 2375.71,
-    liquidationBonus: 7.5 // xUSDt market liquidation bonus
-  },
-  {
-    id: '4',
-    debtToken: { symbol: 'goBTCt', name: 'goBTC Testnet', id: '987654321' },
-    collateralToken: { symbol: 'cCOMPXt', name: 'Collateralized COMPX Testnet', id: '744856057' },
-    userAddress: 'HPD6ZADEDED6EIZ6HDGDJG4QQWVSEPUOKOPJD7BFTKUC7YFHHGFVYTW5QQ',
-    totalDebt: 0.032,
-    totalCollateral: 3600.00,
-    healthRatio: 1.92,
-    liquidationThreshold: 1.20,
-    buyoutCost: 0.0336,
-    liquidationBonus: 8.0 // goBTCt market liquidation bonus
-  },
-  {
-    id: '5',
-    debtToken: { symbol: 'USDCt', name: 'USDC Testnet', id: '123456789' },
-    collateralToken: { symbol: 'cCOMPXt', name: 'Collateralized COMPX Testnet', id: '744856057' },
-    userAddress: 'TVGYOO5UKLE4MGTC7E5XLFE3QNSJXCJKBRHPQE7DBSDOJCH3MOHBHQOATY',
-    totalDebt: 1800.25,
-    totalCollateral: 2300.00,
-    healthRatio: 1.08,
-    liquidationThreshold: 1.20,
-    buyoutCost: 1710.24,
-    liquidationBonus: 7.5 // USDCt market liquidation bonus
-  },
-  {
-    id: '6',
-    debtToken: { symbol: 'COMPXt', name: 'CompX Token Testnet', id: '744427950' },
-    collateralToken: { symbol: 'cxUSDt', name: 'Collateralized xUSD Testnet', id: '744855936' },
-    userAddress: 'IJKL1234567890123456789012345678901234567890ABCDEFGH',
-    totalDebt: 950.00,
-    totalCollateral: 4800.00,
-    healthRatio: 1.58,
-    liquidationThreshold: 1.20,
-    buyoutCost: 997.50,
-    liquidationBonus: 6.0 // COMPXt market liquidation bonus
-  }
-];
 
 type SortOrder = 'asc' | 'desc';
 
@@ -117,13 +25,16 @@ const MarketplacePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const navigate = useNavigate();
 
+  // Use real data instead of mock data
+  const { data: debtPositions = [], isLoading, error } = useDebtPositions();
+
   const filteredAndSortedPositions = useMemo(() => {
     // First filter by search query
-    let filtered = mockDebtPositions;
+    let filtered = debtPositions;
     
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      filtered = mockDebtPositions.filter((position) => {
+      filtered = debtPositions.filter((position) => {
         const debtTokenMatch = 
           position.debtToken.symbol.toLowerCase().includes(query) ||
           position.debtToken.name.toLowerCase().includes(query);
@@ -143,7 +54,7 @@ const MarketplacePage: React.FC = () => {
         return b.healthRatio - a.healthRatio;
       }
     });
-  }, [sortOrder, searchQuery]);
+  }, [debtPositions, sortOrder, searchQuery]);
 
   const handlePositionClick = (position: DebtPosition) => {
     navigate(`/app/marketplace/position/${position.id}`);
@@ -159,6 +70,38 @@ const MarketplacePage: React.FC = () => {
   };
 
   const SortIcon = getSortIcon();
+
+  // Loading and error states
+  if (isLoading) {
+    return (
+      <AppLayout title="Mercury Trading Post - Trade Tokenized Debt">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+            <p className="text-slate-400">Loading debt positions...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout title="Mercury Trading Post - Trade Tokenized Debt">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-red-400 mb-4">Failed to load debt positions</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-cyan-400 text-slate-900 rounded-lg hover:bg-opacity-80 font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Mercury Trading Post - Trade Tokenized Debt">
@@ -285,7 +228,7 @@ const MarketplacePage: React.FC = () => {
                   </div>
                   {searchQuery && (
                     <div className="text-slate-400 font-mono text-sm">
-                      {filteredAndSortedPositions.length} of {mockDebtPositions.length} positions
+                      {filteredAndSortedPositions.length} of {debtPositions.length} positions
                     </div>
                   )}
                 </div>

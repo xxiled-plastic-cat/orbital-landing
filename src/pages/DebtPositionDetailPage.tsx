@@ -11,47 +11,17 @@ import {
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import AppLayout from '../components/app/AppLayout';
+import { DebtPosition } from '../types/lending';
+import { useDebtPosition } from '../hooks/useLoanRecords';
 
-interface DebtPosition {
-  id: string;
-  debtToken: {
-    symbol: string;
-    name: string;
-    id: string;
-  };
-  collateralToken: {
-    symbol: string;
-    name: string;
-    id: string;
-  };
-  userAddress: string;
-  totalDebt: number;
-  totalCollateral: number;
-  healthRatio: number;
-  liquidationThreshold: number;
-  buyoutCost: number;
-  liquidationBonus: number;
-}
+// DebtPosition interface is now imported from types/lending.ts
 
-// Mock data (in a real app, this would come from API or context)
-const mockDebtPosition: DebtPosition = {
-  id: '3',
-  debtToken: { symbol: 'USDC', name: 'USD Coin', id: '31566704' },
-  collateralToken: { symbol: 'ALGO', name: 'Algorand', id: '0' },
-  userAddress: 'PQRS9012345678901234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ12',
-  totalDebt: 2500.75,
-  totalCollateral: 3800.00,
-  healthRatio: 1.15,
-  liquidationThreshold: 1.20,
-  buyoutCost: 2375.71,
-  liquidationBonus: 7.5
-};
 
 const DebtPositionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   
-  // In a real app, you'd fetch the position by ID
-  const position = mockDebtPosition;
+  // Fetch the position by ID using real data
+  const { data: position, isLoading, error } = useDebtPosition(id || '');
   
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-6)}`;
@@ -62,6 +32,29 @@ const DebtPositionDetailPage: React.FC = () => {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(num);
+  };
+
+  const formatUSD = (num: number) => {
+    if (num === 0) return '0.00';
+    if (num < 0.01) {
+      // For very small amounts, show up to 6 decimal places
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6,
+      }).format(num);
+    } else if (num < 1) {
+      // For amounts less than $1, show up to 4 decimal places
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      }).format(num);
+    } else {
+      // For amounts $1 and above, show 2 decimal places
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(num);
+    }
   };
 
   const getHealthStatus = (healthRatio: number) => {
@@ -91,6 +84,40 @@ const DebtPositionDetailPage: React.FC = () => {
       };
     }
   };
+
+  // Loading and error states
+  if (isLoading) {
+    return (
+      <AppLayout title="Loading Position - Mercury Trading Post">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+            <p className="text-slate-400">Loading debt position...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error || !position) {
+    return (
+      <AppLayout title="Position Not Found - Mercury Trading Post">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-red-400 mb-4">
+              {error ? 'Failed to load debt position' : 'Debt position not found'}
+            </p>
+            <Link 
+              to="/app/marketplace" 
+              className="px-4 py-2 bg-cyan-400 text-slate-900 rounded-lg hover:bg-opacity-80 font-semibold"
+            >
+              Back to Marketplace
+            </Link>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const healthStatus = getHealthStatus(position.healthRatio);
   const HealthIcon = healthStatus.icon;
@@ -204,16 +231,24 @@ const DebtPositionDetailPage: React.FC = () => {
                         {formatNumber(position.totalDebt)}
                       </div>
                       <div className="text-slate-400 text-sm">{position.debtToken.symbol}</div>
+                      <div className="font-mono font-semibold text-lg text-slate-300 mt-2">
+                        ${formatUSD(position.totalDebtUSD)}
+                      </div>
+                      <div className="text-slate-400 text-xs">USD Value</div>
                     </div>
                   </div>
                   
                   <div>
-                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">Collateral Amount</h3>
+                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">Collateral Value</h3>
                     <div className="bg-slate-700 rounded-lg p-4">
                       <div className="font-mono font-bold text-2xl text-cyan-400">
-                        {formatNumber(position.totalCollateral)}
+                        {formatNumber(position.totalCollateralTokens)}
                       </div>
                       <div className="text-slate-400 text-sm">{position.collateralToken.symbol}</div>
+                      <div className="font-mono font-semibold text-lg text-slate-300 mt-2">
+                        ${formatUSD(position.totalCollateral)}
+                      </div>
+                      <div className="text-slate-400 text-xs">USD Value</div>
                     </div>
                   </div>
                 </div>
@@ -231,12 +266,12 @@ const DebtPositionDetailPage: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">Liquidation Threshold</h3>
+                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">Liquidation Price</h3>
                     <div className="bg-slate-700 rounded-lg p-4">
                       <div className="font-mono font-bold text-2xl text-slate-300">
-                        {formatNumber(position.liquidationThreshold, 3)}
+                        ${position.liquidationPrice ? formatNumber(position.liquidationPrice, 4) : 'N/A'}
                       </div>
-                      <div className="text-slate-400 text-sm">Trigger Point</div>
+                      <div className="text-slate-400 text-sm">Collateral Price</div>
                     </div>
                   </div>
                 </div>

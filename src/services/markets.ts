@@ -58,6 +58,24 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
     verified: true,
     frozen: false,
   },
+  "744856057": {
+    id: "744856057",
+    name: "Collateralized COMPX Testnet",
+    symbol: "cCOMPXt",
+    decimals: 6,
+    image: "/COMPXt.svg",
+    verified: true,
+    frozen: false,
+  },
+  "744855936": {
+    id: "744855936",
+    name: "Collateralized xUSDt Testnet",
+    symbol: "cxUSDt",
+    decimals: 6,
+    image: "/xUSDt.svg",
+    verified: true,
+    frozen: false,
+  },
 };
 
 // Testnet market asset IDs (base and LST tokens)
@@ -66,7 +84,8 @@ const TESTNET_MARKET_ASSET_IDS = [
   "744427950", // COMPXt
   "123456789", // USDCt (placeholder ID)
   "987654321", // goBTCt (placeholder ID)
-  // Add LST token IDs here as well when available
+  "744856057", // cCOMPXt (collateral token)
+  "744855936", // cxUSDt (collateral token)
 ];
 
 // Token metadata mapping for markets - you can expand this or fetch from another endpoint
@@ -110,6 +129,7 @@ export async function fetchMarkets(
         const ltvBps = appGlobalState.ltvBps ?? 0n;
         const liqThresholdBps = appGlobalState.liqThresholdBps ?? 0n;
         const oracleAppId = appGlobalState.oracleApp ?? 0n;
+        const borrowIndexWad = appGlobalState.borrowIndexWad ?? 0n;
 
         // Calculate normalized utilization (0-10000 basis points)
         const utilNormBpsValue = utilNormBps(
@@ -198,6 +218,7 @@ export async function fetchMarkets(
           oracleAppId: Number(oracleAppId),
           baseTokenPrice: Number(baseTokenPrice),
           circulatingLST: Number(appGlobalState.circulatingLst) / 10 ** 6,
+          borrowIndexWad: borrowIndexWad,
           // Interest Rate Model Parameters
           baseBps: Number(appGlobalState.baseBps ?? 200n), // Default 2%
           utilCapBps: Number(utilCapBps),
