@@ -116,4 +116,5 @@ export interface DebtPosition {
   marketId: string;
   lastUpdated: Date;
   liquidationPrice?: number; // Collateral price at which liquidation occurs
+  currentCollateralPrice?: number; // Current market price of collateral token
 }

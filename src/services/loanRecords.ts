@@ -227,52 +227,57 @@ export async function transformLoanRecordsToDebtPositions(
         }
         
         if (acceptedCollateralInfo) {
-          // All collateral is LST tokens - get the correct base token info and LST market data
-          const lstMarketAppId = Number(acceptedCollateralInfo.marketBaseAssetId);
+          // Map marketBaseAssetId to the corresponding LST market app ID
+          const marketBaseAssetId = Number(acceptedCollateralInfo.marketBaseAssetId);
           const baseTokenId = Number(acceptedCollateralInfo.baseAssetId);
           
+          // Find the LST market that has this base token
+          const lstMarket = markets.find(m => Number(m.baseTokenId) === marketBaseAssetId);
           
-          try {
-            // Get the LST market data (where this LST token originated)
-            const lstMarketClient = await getExistingClient(signer, address, lstMarketAppId);
-            const lstMarketState = await lstMarketClient.state.global.getAll();
-            
-            // Get the base token price from oracle
-            const oracleAppId = Number(market.oracleAppId || 0);
-            let baseTokenPrice = 0;
-            
-            if (oracleAppId > 0) {
-              baseTokenPrice = await getPricing({
-                tokenId: baseTokenId,
-                address,
-                signer,
-                appId: oracleAppId,
-              });
-            }
-            
-            
-            if (baseTokenPrice > 0 && lstMarketState.totalDeposits && lstMarketState.circulatingLst) {
-              // Calculate LST value using the collateralUSDFromLST helper function
-              const collateralValueUSDMicro = collateralUSDFromLST(
-                record.collateralAmount, // LST amount in micro units
-                lstMarketState.totalDeposits, // Total deposits from LST market
-                lstMarketState.circulatingLst, // Circulating LST from LST market
-                BigInt(Math.floor(baseTokenPrice * 1e6)) // Base token price in micro USD
-              );
+          if (lstMarket) {
+            try {
+              // Get the LST market data (where this LST token originated)
+              const lstMarketClient = await getExistingClient(signer, address, Number(lstMarket.id));
+              const lstMarketState = await lstMarketClient.state.global.getAll();
               
-              collateralValueUSD = Number(collateralValueUSDMicro) / 1e6;
-            } else {
-              console.warn('Missing data for LST calculation, using fallback');
-              collateralValueUSD = currentDebt * 1.5;
+              // Get the base token price from oracle
+              const oracleAppId = Number(market.oracleAppId || 0);
+              let baseTokenPrice = 0;
+              
+              if (oracleAppId > 0) {
+                baseTokenPrice = await getPricing({
+                  tokenId: baseTokenId,
+                  address,
+                  signer,
+                  appId: oracleAppId,
+                });
+              }
+              
+              if (baseTokenPrice > 0 && lstMarketState.totalDeposits && lstMarketState.circulatingLst) {
+                // Calculate LST value using the collateralUSDFromLST helper function
+                const collateralValueUSDMicro = collateralUSDFromLST(
+                  record.collateralAmount, // LST amount in micro units
+                  lstMarketState.totalDeposits, // Total deposits from LST market
+                  lstMarketState.circulatingLst, // Circulating LST from LST market
+                  BigInt(Math.floor(baseTokenPrice * 1e6)) // Base token price in micro USD
+                );
+                
+                collateralValueUSD = Number(collateralValueUSDMicro) / 1e6;
+              } else {
+                console.warn('Missing data for LST calculation, using fallback');
+                collateralValueUSD = debtValueUSD * 1.5;
+              }
+            } catch (error) {
+              console.warn('Failed to get LST market data:', error);
+              collateralValueUSD = debtValueUSD * 1.5;
             }
-          } catch (error) {
-            console.warn('Failed to get LST market data:', error);
-            collateralValueUSD = currentDebt * 1.5;
+          } else {
+            console.warn(`No LST market found for base asset ID ${marketBaseAssetId}, using fallback`);
+            collateralValueUSD = debtValueUSD * 1.5;
           }
         } else {
-          // Fallback if we can't find accepted collateral info
           console.warn('No accepted collateral info found, using fallback');
-          collateralValueUSD = currentDebt * 1.5;
+          collateralValueUSD = debtValueUSD * 1.5;
         }
         
         // Calculate health ratio (collateral ratio)
@@ -280,6 +285,52 @@ export async function transformLoanRecordsToDebtPositions(
 
         // Calculate collateral amount in tokens (convert from micro units)
         const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+        
+        // Calculate current collateral token price (LST price per token)
+        let currentCollateralPrice = 0;
+        if (acceptedCollateralInfo) {
+          // Map marketBaseAssetId to the corresponding LST market app ID
+          const marketBaseAssetId = Number(acceptedCollateralInfo.marketBaseAssetId);
+          const baseTokenId = Number(acceptedCollateralInfo.baseAssetId);
+          
+          // Find the LST market that has this base token
+          const lstMarket = markets.find(m => Number(m.baseTokenId) === marketBaseAssetId);
+          
+          if (lstMarket) {
+            try {
+              // Get the LST market data (where this LST token originated)
+              const lstMarketClient = await getExistingClient(signer, address, Number(lstMarket.id));
+              const lstMarketState = await lstMarketClient.state.global.getAll();
+              
+              // Get the base token price from oracle
+              const oracleAppId = Number(market.oracleAppId || 0);
+              let baseTokenPrice = 0;
+              
+              if (oracleAppId > 0) {
+                baseTokenPrice = await getPricing({
+                  tokenId: baseTokenId,
+                  address,
+                  signer,
+                  appId: oracleAppId,
+                });
+              }
+              
+              // Calculate LST price per token using collateralUSDFromLST for 1 token (1e6 micro units)
+              if (baseTokenPrice > 0 && lstMarketState.totalDeposits && lstMarketState.circulatingLst) {
+                const oneTokenAmount = BigInt(1e6); // 1 token in micro units
+                const pricePerTokenUSDMicro = collateralUSDFromLST(
+                  oneTokenAmount,
+                  lstMarketState.totalDeposits,
+                  lstMarketState.circulatingLst,
+                  BigInt(Math.floor(baseTokenPrice * 1e6)) // Convert to micro USD
+                );
+                currentCollateralPrice = Number(pricePerTokenUSDMicro) / 1e6; // Convert back to USD
+              }
+            } catch (error) {
+              console.warn('Failed to calculate current collateral price:', error);
+            }
+          }
+        }
         
         // Calculate liquidation price (price at which collateral value equals debt * liquidation threshold)
         // Formula: liquidationPrice = (debtValueUSD * liquidationThreshold) / collateralAmount
@@ -319,6 +370,7 @@ export async function transformLoanRecordsToDebtPositions(
           marketId: record.marketId,
           lastUpdated: new Date(),
           liquidationPrice: liquidationPrice,
+          currentCollateralPrice: currentCollateralPrice,
         };
 
         debtPositions.push(debtPosition);
