@@ -89,7 +89,7 @@ export const Toast = () => {
   return (
     <AnimatePresence>
       {toastVisible && (
-        <div className="fixed w-screen h-screen py-5 top-0 left-0 flex items-start justify-center text-white pointer-events-none z-[10000]">
+        <div className="fixed inset-0 py-5 flex items-start justify-center text-white pointer-events-none z-[10000]">
           <motion.div
             initial={{ y: -400, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}

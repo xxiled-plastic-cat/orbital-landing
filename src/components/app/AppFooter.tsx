@@ -77,27 +77,27 @@ const AppFooter = () => {
 
   return (
     <motion.footer
-      className="relative mt-12 md:mt-20 mb-4"
+      className="relative mt-12 md:mt-20 mb-4 w-full overflow-hidden"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
     >
-      <div className="text-slate-600 cut-corners-lg mx-4 md:mx-6 lg:mx-8 p-6 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial">
+      <div className="text-slate-600 cut-corners-lg mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 bg-noise-dark border-2 border-slate-600 shadow-industrial max-w-7xl w-full">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8 min-w-0">
           {/* Branding Section */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 min-w-0">
             <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 planet-ring">
+              <div className="relative w-8 h-8 planet-ring flex-shrink-0">
                 <div className="w-full h-full rounded-full overflow-hidden bg-black flex items-center justify-center border-2 border-slate-500">
                   <img
                     src="/orbital-logo.png"
                     alt="Orbital Lending"
-                    className="w-10 h-10 rounded-full object-contain"
+                    className="w-6 h-6 rounded-full object-contain"
                   />
                 </div>
               </div>
-              <span className="text-xl font-mono font-bold text-white">
+              <span className="text-xl font-mono font-bold text-white break-words">
                 ORBITAL<span className="text-cyan-400">LENDING</span>
               </span>
             </div>
@@ -105,22 +105,22 @@ const AppFooter = () => {
               Decentralized lending protocol on Algorand. Supply assets, borrow
               funds, and trade debt positions.
             </p>
-            <div className="flex items-center gap-2 text-amber-400">
-              <Shield className="w-4 h-4" />
-              <span className="text-xs font-mono uppercase tracking-wide">
+            <div className="flex items-center gap-2 text-amber-400 flex-wrap">
+              <Shield className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs font-mono uppercase tracking-wide break-words">
                 TESTNET ENVIRONMENT
               </span>
             </div>
-            <div className="flex items-center gap-2 text-compx-pink">
-              <Zap className="w-4 h-4" />
-              <span className="text-xs font-mono uppercase tracking-wide text-compx-pink">
+            <div className="flex items-center gap-2 text-compx-pink flex-wrap">
+              <Zap className="w-4 h-4 flex-shrink-0" />
+              <span className="text-xs font-mono uppercase tracking-wide text-compx-pink break-words">
                 Powered by CompX
               </span>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 min-w-0">
             <h3 className="text-sm font-mono font-semibold text-white uppercase tracking-wide mb-2">
               Navigation
             </h3>
@@ -162,7 +162,7 @@ const AppFooter = () => {
           </div>
 
           {/* Social & Community */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 min-w-0">
             <h3 className="text-sm font-mono font-semibold text-white uppercase tracking-wide mb-2">
               Community
             </h3>
@@ -194,13 +194,13 @@ const AppFooter = () => {
 
         {/* Bottom Section */}
         <div className="flex flex-col md:flex-row justify-between items-center pt-6 md:pt-8 border-t border-slate-700 gap-4">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
-            <p className="text-slate-500 font-mono text-xs">
+          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-center md:text-left">
+            <p className="text-slate-500 font-mono text-xs break-words">
               © {currentYear} Orbital Lending by CompX Labs. All rights
               reserved.
             </p>
-            <div className="hidden md:block w-px h-4 bg-slate-600"></div>
-            <p className="text-slate-500 font-mono text-xs">
+            <div className="hidden md:block w-px h-4 bg-slate-600 flex-shrink-0"></div>
+            <p className="text-slate-500 font-mono text-xs break-words">
               Built on Algorand
             </p>
           </div>
