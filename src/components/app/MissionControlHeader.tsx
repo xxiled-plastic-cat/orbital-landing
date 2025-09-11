@@ -12,7 +12,7 @@ const MissionControlHeader: React.FC = () => {
     >
       {/* Status Strip */}
       <div className="relative mb-4 md:mb-8">
-        <div className="absolute inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm border border-slate-700 rounded-lg"></div>
+        <div className="absolute inset-0 bg-slate-900 bg-opacity-90 backdrop-blur-sm border border-slate-700 "></div>
         <div className="relative px-3 md:px-6 py-3 md:py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 md:gap-6">
@@ -27,7 +27,7 @@ const MissionControlHeader: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center">
-              <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-2 md:px-3 py-1 rounded-md">
+              <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-2 md:px-3 py-1 ">
                 <span className="text-amber-400 text-xs md:text-sm font-mono">TESTNET</span>
               </div>
             </div>
@@ -48,7 +48,7 @@ const MissionControlHeader: React.FC = () => {
         </p>
         
         {/* Testnet Notice */}
-        <div className="bg-amber-500 bg-opacity-10 border border-amber-500 border-opacity-30 rounded-lg p-3 md:p-4 max-w-2xl mx-auto">
+        <div className="bg-amber-500 bg-opacity-10 border border-amber-500 border-opacity-30  p-3 md:p-4 max-w-2xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 md:gap-3">
             <Zap className="w-4 h-4 md:w-5 md:h-5 text-amber-400 shrink-0" />
             <p className="text-amber-400 font-mono text-xs md:text-sm text-center sm:text-left leading-relaxed">
