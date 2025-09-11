@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
 import { ExternalLink, Shield, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const AppFooter = () => {
   const currentYear = new Date().getFullYear();
+  const navigate = useNavigate();
 
   const socialLinks = [
     {
@@ -125,24 +127,24 @@ const AppFooter = () => {
               Navigation
             </h3>
             <div className="flex flex-col gap-3">
-              <a
-                href="/app/markets"
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
+              <button
+                onClick={() => navigate('/app/markets')}
+                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
               >
                 Markets
-              </a>
-              <a
-                href="/app/portfolio"
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
+              </button>
+              <button
+                onClick={() => navigate('/app/portfolio')}
+                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
               >
                 Logbook
-              </a>
-              <a
-                href="/app"
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
+              </button>
+              <button
+                onClick={() => navigate('/app')}
+                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
               >
                 Dashboard
-              </a>
+              </button>
               <a
                 href="https://compx.io"
                 target="_blank"
@@ -152,12 +154,12 @@ const AppFooter = () => {
                 CompX Website
                 <ExternalLink className="w-3 h-3" />
               </a>
-              <a
-                href="/app/docs"
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
+              <button
+                onClick={() => navigate('/app/docs')}
+                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
               >
                 Documentation
-              </a>
+              </button>
             </div>
           </div>
 

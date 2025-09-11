@@ -172,7 +172,7 @@ const DocsPage: React.FC = () => {
                       <button
                         key={section.id}
                         onClick={() => setActiveSection(section.id)}
-                        className={`w-full text-left p-3 rounded-lg transition-all duration-150 group ${
+                        className={`w-full text-left p-3  transition-all duration-150 group ${
                           isActive 
                             ? 'bg-cyan-400 bg-opacity-20 border border-cyan-400 border-opacity-30 text-cyan-400' 
                             : 'hover:bg-slate-700 text-slate-300 hover:text-white'
