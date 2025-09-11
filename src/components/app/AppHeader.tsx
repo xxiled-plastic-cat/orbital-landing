@@ -1,4 +1,6 @@
 import React from "react";
+import { BookOpen } from "lucide-react";
+import { Link } from "react-router-dom";
 import WalletButton from "./WalletButton";
 
 interface AppHeaderProps {
@@ -35,6 +37,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                       : title.toUpperCase()}
                   </span>
                 </h1>
+                
+                {/* Documentation Link */}
+                <Link 
+                  to="/app/docs"
+                  className="ml-2 md:ml-4 flex items-center gap-1 md:gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-xs md:text-sm group"
+                >
+                  <BookOpen className="w-3 h-3 md:w-4 md:h-4" />
+                  <span className="hidden md:inline uppercase tracking-wide">DOCS</span>
+                </Link>
               </div>
             </div>
 

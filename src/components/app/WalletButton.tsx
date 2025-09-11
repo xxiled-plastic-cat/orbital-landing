@@ -244,10 +244,10 @@ const WalletButton: React.FC = () => {
                     </div>
                     <div className="flex-1 text-left">
                       <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
-                        Get Test Tokens
+                        Resource Station
                       </p>
                       <p className="text-xs text-purple-200 font-mono">
-                        Request testnet tokens
+                        Request testnet resources
                       </p>
                     </div>
                   </button>

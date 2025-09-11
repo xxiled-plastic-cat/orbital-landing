@@ -60,23 +60,23 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
     try {
       openToast({
         type: "loading",
-        message: "Requesting tokens...",
-        description: `Requesting ${token.symbol} tokens`,
+        message: "Requesting resources...",
+        description: `Requesting ${token.symbol} from Resource Station`,
       });
       
       await getTestTokens(activeAddress!, signTransactions, token.faucetId).then(() => {
         openToast({
           type: "success",
-          message: "Tokens requested successfully",
-          description: `${token.symbol} tokens have been sent to your wallet`,
+          message: "Resources acquired successfully",
+          description: `${token.symbol} resources have been transferred to your wallet`,
         });
       })
     } catch (error: any) {
       console.error(`Failed to request ${token.symbol}:`, error);
       openToast({
         type: "error",
-        message: "Failed to request tokens",
-        description: error?.message || "An error occurred while requesting tokens",
+        message: "Failed to acquire resources",
+        description: error?.message || "An error occurred while requesting resources from Resource Station",
       });
     } finally {
       setRequestingTokens(prev => {
@@ -155,10 +155,10 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
                         id="faucet-modal-title"
                         className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide"
                       >
-                        Get Test Tokens
+                        Resource Station
                       </h2>
                       <p className="text-sm text-slate-300 font-mono">
-                        Request testnet tokens for Orbital Lending
+                        Request testnet resources for orbital missions
                       </p>
                     </div>
                   </div>
@@ -243,7 +243,7 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
               <div className="px-4 md:px-6 py-4 border-t border-slate-600 bg-slate-800/50">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-400 font-mono">
-                    Tokens are for testnet only and have no real value
+                    Resources are for testnet only and have no real value
                   </p>
                   <button
                     onClick={onClose}

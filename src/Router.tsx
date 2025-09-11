@@ -7,6 +7,7 @@ import MarketDetailsPage from './pages/MarketDetailsPage';
 import PortfolioPage from './pages/PortfolioPage';
 import MarketplacePage from './pages/MarketplacePage';
 import DebtPositionDetailPage from './pages/DebtPositionDetailPage';
+import DocsPage from './pages/DocsPage';
 
 const Router = () => {
   return (
@@ -19,6 +20,7 @@ const Router = () => {
         <Route path="/app/portfolio" element={<PortfolioPage />} />
         <Route path="/app/marketplace" element={<MarketplacePage />} />
         <Route path="/app/marketplace/position/:id" element={<DebtPositionDetailPage />} />
+        <Route path="/app/docs" element={<DocsPage />} />
       </Routes>
     </BrowserRouter>
   );

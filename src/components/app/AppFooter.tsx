@@ -153,11 +153,10 @@ const AppFooter = () => {
                 <ExternalLink className="w-3 h-3" />
               </a>
               <a
-                href="https://compx-documentation.gitbook.io/compx-documentation"
+                href="/app/docs"
                 className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
               >
                 Documentation
-                <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           </div>

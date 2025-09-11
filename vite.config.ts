@@ -16,6 +16,7 @@ export default defineConfig({
   },
   // Handle client-side routing
   server: {
+    port: 5138,
     historyApiFallback: true,
   },
 });
