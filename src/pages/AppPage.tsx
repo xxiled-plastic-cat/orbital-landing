@@ -171,7 +171,7 @@ const AppPage = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 1.2 }}
               >
-                <div className="bg-slate-700 border border-slate-600 p-4 md:p-6">
+                <div className="bg-transparent border border-slate-600 p-4 md:p-6">
                   <h4 className="font-mono font-bold text-cyan-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
                     <Droplets className="w-4 h-4 md:w-5 md:h-5" />
                     FOUNDATION
@@ -204,7 +204,7 @@ const AppPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.4 }}
               >
-                <div className="bg-slate-700 border border-slate-600 p-4 md:p-6">
+                <div className="bg-transparent border border-slate-600 p-4 md:p-6">
                   <h4 className="font-mono font-bold text-amber-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
                     <Zap className="w-4 h-4 md:w-5 md:h-5" />
                     CORE LENDING
@@ -237,7 +237,7 @@ const AppPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.6 }}
               >
-                <div className="bg-slate-700 border border-slate-600 p-4 md:p-6">
+                <div className="bg-transparent border border-slate-600 p-4 md:p-6">
                   <h4 className="font-mono font-bold text-red-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
                     <BarChart3 className="w-4 h-4 md:w-5 md:h-5" />
                     MERCURY TRADING POST
