@@ -32,6 +32,7 @@ export interface LendingMarket {
   maxAprBps?: number; // Maximum APR cap in basis points
   rateModelType?: number; // Rate model type (0=kinked, 1=linear, etc.)
   originationFeeBps?: number; // Origination fee in basis points
+  liqBonusBps?: number; // Liquidation bonus in basis points (e.g., 750 = 7.5%)
   contractState: number; // Contract state (0=inactive, 1=active, 2=migrating)
 }
 

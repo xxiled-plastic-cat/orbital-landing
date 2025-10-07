@@ -243,15 +243,12 @@ export async function transformLoanRecordsToDebtPositions(
         }
 
         if (acceptedCollateralInfo) {
-          // Map marketBaseAssetId to the corresponding LST market app ID
-          const marketBaseAssetId = Number(
-            acceptedCollateralInfo.marketBaseAssetId
-          );
           const baseTokenId = Number(acceptedCollateralInfo.baseAssetId);
+          const originatingAppId = Number(acceptedCollateralInfo.originatingAppId);
 
-          // Find the LST market that has this base token
+          // Find the LST market using the originatingAppId (home market of the LST token)
           const lstMarket = markets.find(
-            (m) => Number(m.baseTokenId) === marketBaseAssetId
+            (m) => Number(m.id) === originatingAppId
           );
 
           if (lstMarket) {
@@ -304,7 +301,7 @@ export async function transformLoanRecordsToDebtPositions(
             }
           } else {
             console.warn(
-              `No LST market found for base asset ID ${marketBaseAssetId}, using fallback`
+              `No LST market found for originating app ID ${originatingAppId}, using fallback`
             );
             collateralValueUSD = debtValueUSD * 1.5;
           }
@@ -323,15 +320,12 @@ export async function transformLoanRecordsToDebtPositions(
         // Calculate current collateral token price (LST price per token)
         let currentCollateralPrice = 0;
         if (acceptedCollateralInfo) {
-          // Map marketBaseAssetId to the corresponding LST market app ID
-          const marketBaseAssetId = Number(
-            acceptedCollateralInfo.marketBaseAssetId
-          );
           const baseTokenId = Number(acceptedCollateralInfo.baseAssetId);
+          const originatingAppId = Number(acceptedCollateralInfo.originatingAppId);
 
-          // Find the LST market that has this base token
+          // Find the LST market using the originatingAppId (home market of the LST token)
           const lstMarket = markets.find(
-            (m) => Number(m.baseTokenId) === marketBaseAssetId
+            (m) => Number(m.id) === originatingAppId
           );
 
           if (lstMarket) {
@@ -423,7 +417,7 @@ export async function transformLoanRecordsToDebtPositions(
           buyoutDebtRepaymentTokens: buyoutCalculation.debtRepaymentTokens,
           buyoutPremium: buyoutCalculation.premium,
           buyoutPremiumTokens: buyoutCalculation.premiumTokens,
-          liquidationBonus: 7.5, // Default liquidation bonus - could be made configurable
+          liquidationBonus: market.liqBonusBps ? market.liqBonusBps / 100 : 7.5, // Convert basis points to percentage
           marketId: record.marketId,
           lastUpdated: new Date(),
           liquidationPrice: liquidationPrice,

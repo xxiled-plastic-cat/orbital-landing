@@ -264,6 +264,7 @@ export async function fetchMarkets(
           maxAprBps: Number(appGlobalState.maxAprBps ?? 50000n), // Default 500%
           rateModelType: Number(appGlobalState.rateModelType ?? 0n), // Default kinked model
           originationFeeBps: Number(originationFeeBps), // Origination fee in basis points
+          liqBonusBps: Number(appGlobalState.liqBonusBps ?? 750n), // Default 7.5% liquidation bonus
           contractState: Number(contractState),
         };
 

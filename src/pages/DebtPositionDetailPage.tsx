@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import AppLayout from "../components/app/AppLayout";
-import { useDebtPosition } from "../hooks/useLoanRecords";
+import { useOptimizedDebtPosition } from "../hooks/useOptimizedLoanRecords";
 import { useNFD } from "../hooks/useNFD";
 import { useMarket } from "../hooks/useMarkets";
 import MomentumSpinner from "../components/MomentumSpinner";
@@ -26,8 +26,8 @@ const DebtPositionDetailPage: React.FC = () => {
   const { openToast } = useToast();
   const [isExecutingBuyout, setIsExecutingBuyout] = useState(false);
 
-  // Fetch the position by ID using real data
-  const { data: position, isLoading, error } = useDebtPosition(id || "");
+  // Use optimized pricing system with fixed LST market lookup
+  const { data: position, isLoading, error } = useOptimizedDebtPosition(id || "");
 
   // Fetch market data to get buyoutTokenId, oracleAppId, etc.
   const { data: market } = useMarket(position?.marketId || "");
@@ -104,8 +104,12 @@ const DebtPositionDetailPage: React.FC = () => {
   };
 
   const getHealthStatus = (healthRatio: number, liquidationThreshold: number) => {
-    // Healthy: significantly above liquidation threshold
-    if (healthRatio >= liquidationThreshold * 1.5) {
+    // liquidationThreshold is already a decimal (e.g., 0.85 for 85%)
+    // healthRatio is collateralValueUSD / debtValueUSD
+    // Liquidation occurs when healthRatio <= liquidationThreshold
+    
+    // Healthy: significantly above liquidation threshold (20% buffer)
+    if (healthRatio >= liquidationThreshold * 1.2) {
       return {
         color: "text-green-400",
         bgColor: "bg-green-400/10",
@@ -114,8 +118,8 @@ const DebtPositionDetailPage: React.FC = () => {
         icon: Shield,
       };
     } 
-    // Warning: close to liquidation threshold (within 20% buffer)
-    else if (healthRatio >= liquidationThreshold * 1.2) {
+    // Warning: close to liquidation threshold (within 10% buffer above threshold)
+    else if (healthRatio >= liquidationThreshold * 1.1) {
       return {
         color: "text-amber-400",
         bgColor: "bg-amber-400/10",
@@ -124,7 +128,7 @@ const DebtPositionDetailPage: React.FC = () => {
         icon: AlertTriangle,
       };
     } 
-    // Liquidation zone: below liquidation threshold
+    // Liquidation zone: at or below liquidation threshold
     else {
       return {
         color: "text-red-400",
@@ -180,7 +184,7 @@ const DebtPositionDetailPage: React.FC = () => {
   const healthStatus = getHealthStatus(position.healthRatio, position.liquidationThreshold);
   const HealthIcon = healthStatus.icon;
   // Use the actual liquidation threshold from the position data, not hardcoded 1.2
-  const isLiquidationZone = position.healthRatio < position.liquidationThreshold;
+  const isLiquidationZone = position.healthRatio <= position.liquidationThreshold;
 
   const handleLiquidate = () => {
     console.log("Execute liquidation for position:", position.id);
@@ -604,7 +608,9 @@ const DebtPositionDetailPage: React.FC = () => {
                     </h3>
                     <div className="bg-slate-700 rounded-lg p-4">
                       <div className="font-mono font-bold text-2xl text-white">
-                        {formatNumber(position.liquidationBonus, 1)}%
+                        {market?.liqBonusBps 
+                          ? formatNumber(market.liqBonusBps / 100, 1) 
+                          : formatNumber(position.liquidationBonus, 1)}%
                       </div>
                       <div className="text-slate-400 text-sm">
                         Liquidation Discount

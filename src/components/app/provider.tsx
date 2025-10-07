@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NetworkId, WalletId, WalletManager, WalletProvider } from '@txnlab/use-wallet-react'
+import { PriceProvider } from '../../context/priceContext'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -30,7 +31,11 @@ const walletManager = new WalletManager({
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <WalletProvider manager={walletManager}>{children}</WalletProvider>
+      <WalletProvider manager={walletManager}>
+        <PriceProvider>
+          {children}
+        </PriceProvider>
+      </WalletProvider>
     </QueryClientProvider>
   )
 }

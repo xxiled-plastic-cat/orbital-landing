@@ -12,8 +12,10 @@ import {
 import AppLayout from '../components/app/AppLayout';
 import DebtPositionCard from '../components/DebtPositionCard';
 import { Link, useNavigate } from 'react-router-dom';
+import { useOptimizedDebtPositions } from '../hooks/useOptimizedLoanRecords';
 import { useDebtPositions } from '../hooks/useLoanRecords';
 import MomentumSpinner from '../components/MomentumSpinner';
+import PriceStatusIndicator from '../components/PriceStatusIndicator';
 import { DebtPosition } from '../types/lending';
 
 // DebtPosition interface is now imported from types/lending.ts
@@ -26,8 +28,8 @@ const MarketplacePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const navigate = useNavigate();
 
-  // Use real data instead of mock data
-  const { data: debtPositions = [], isLoading, error } = useDebtPositions();
+  // Use optimized data with cached pricing (fixed LST market lookup)
+  const { data: debtPositions = [], isLoading, error } = useOptimizedDebtPositions();
 
   const filteredAndSortedPositions = useMemo(() => {
     // First filter by search query
@@ -205,18 +207,21 @@ const MarketplacePage: React.FC = () => {
                     </p>
                   </div>
                   
-                  {/* Sort Controls */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400 font-mono text-sm">Sort by Health:</span>
-                    <button
-                      onClick={toggleSortOrder}
-                      className="flex items-center gap-2 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-650 transition-colors"
-                    >
-                      <span className="text-slate-300 font-mono text-sm">
-                        {sortOrder === 'asc' ? 'Risk First' : 'Healthy First'}
-                      </span>
-                      <SortIcon className="w-4 h-4 text-cyan-400" />
-                    </button>
+                  {/* Sort Controls and Price Status */}
+                  <div className="flex items-center gap-4">
+                    <PriceStatusIndicator showDetails={false} />
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-400 font-mono text-sm">Sort by Health:</span>
+                      <button
+                        onClick={toggleSortOrder}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-650 transition-colors"
+                      >
+                        <span className="text-slate-300 font-mono text-sm">
+                          {sortOrder === 'asc' ? 'Risk First' : 'Healthy First'}
+                        </span>
+                        <SortIcon className="w-4 h-4 text-cyan-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
