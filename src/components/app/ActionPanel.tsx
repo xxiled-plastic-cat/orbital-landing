@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { DollarSign, AlertCircle, ChevronDown } from "lucide-react";
 import {
@@ -9,7 +9,13 @@ import { calculateRealTimeBorrowAPR } from "../../utils/interestRateCalculations
 import { LendingMarket } from "../../types/lending";
 import { getLoanRecordReturnType } from "../../contracts/lending/interface";
 import { useCollateralTokens } from "../../hooks/useCollateralTokens";
+import { getPricing } from "../../contracts/oracle/pricing";
+import { useWallet } from "@txnlab/use-wallet-react";
+import { collateralUSDFromLST } from "../../contracts/lending/testing-utils";
+import { getExistingClient } from "../../contracts/lending/getClient";
+import { useMarkets } from "../../hooks/useMarkets";
 import TabSelector from "./TabSelector";
+import Tooltip from "../Tooltip";
 
 interface ActionPanelProps {
   market: LendingMarket;
@@ -52,6 +58,8 @@ const ActionPanel = ({
   onRepay,
   onWithdrawCollateral,
 }: ActionPanelProps) => {
+  // Check if market is inactive
+  const isMarketInactive = market.contractState === 0;
   // Main tab state: lend or borrow
   const [activeMainTab, setActiveMainTab] = useState<"lend" | "borrow">(initialTab);
   // Action state within each main tab
@@ -71,8 +79,14 @@ const ActionPanel = ({
   const [withdrawCollateralAssetId, setWithdrawCollateralAssetId] = useState<string>("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
 
+  // Collateral token prices state
+  const [collateralTokenPrices, setCollateralTokenPrices] = useState<Map<string, number>>(new Map());
+
   // Ref for dropdown click outside detection
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get wallet context for pricing calls
+  const { transactionSigner, activeAccount } = useWallet();
 
   // Handle main tab changes and reset action state
   const handleMainTabChange = (newTab: "lend" | "borrow") => {
@@ -95,6 +109,91 @@ const ActionPanel = ({
 
   // Use the collateral tokens hook
   const { getCollateralAssets } = useCollateralTokens(acceptedCollateral);
+  
+  // Get all markets for LST price calculation
+  const { data: allMarkets } = useMarkets();
+
+  // Function to fetch collateral token price (handles LST tokens)
+  const fetchCollateralTokenPrice = useCallback(async (tokenId: string): Promise<number> => {
+    if (!transactionSigner || !activeAccount?.address || !market.oracleAppId || !allMarkets) {
+      return 0;
+    }
+
+    try {
+      // First, try to get price directly from oracle (for non-LST tokens)
+      const directPrice = await getPricing({
+        tokenId: Number(tokenId),
+        address: activeAccount.address,
+        signer: transactionSigner,
+        appId: market.oracleAppId,
+      });
+
+      if (directPrice > 0) {
+        return directPrice;
+      }
+
+      // If direct price is 0, this might be an LST token - calculate its price
+      // Find the market where this token is the LST token
+      const lstMarket = allMarkets.find(m => m.lstTokenId === tokenId);
+      
+      if (!lstMarket) {
+        console.warn(`No market found for LST token ${tokenId}`);
+        return 0;
+      }
+
+      // Get the base token price from oracle
+      const baseTokenPrice = await getPricing({
+        tokenId: Number(lstMarket.baseTokenId),
+        address: activeAccount.address,
+        signer: transactionSigner,
+        appId: market.oracleAppId,
+      });
+
+      if (baseTokenPrice <= 0) {
+        console.warn(`No base token price found for ${lstMarket.baseTokenId}`);
+        return 0;
+      }
+
+      // Get the LST market state to calculate exchange rate
+      const lstMarketClient = await getExistingClient(transactionSigner, activeAccount.address, Number(lstMarket.id));
+      const lstMarketState = await lstMarketClient.state.global.getAll();
+
+      if (!lstMarketState.totalDeposits || !lstMarketState.circulatingLst) {
+        console.warn(`Invalid LST market state for ${lstMarket.id}`);
+        return 0;
+      }
+
+      // Calculate LST price per token using collateralUSDFromLST for 1 token (1e6 micro units)
+      const oneTokenAmount = BigInt(1e6); // 1 token in micro units
+      const pricePerTokenUSDMicro = collateralUSDFromLST(
+        oneTokenAmount,
+        lstMarketState.totalDeposits,
+        lstMarketState.circulatingLst,
+        BigInt(Math.floor(baseTokenPrice * 1e6)) // Convert to micro USD
+      );
+      
+      const lstPrice = Number(pricePerTokenUSDMicro) / 1e6; // Convert back to USD
+      console.log(`Calculated LST price for ${tokenId}: $${lstPrice}`);
+      return lstPrice;
+
+    } catch (error) {
+      console.error(`Failed to fetch price for token ${tokenId}:`, error);
+      return 0;
+    }
+  }, [transactionSigner, activeAccount?.address, market.oracleAppId, allMarkets]);
+
+  // Function to get or fetch collateral token price
+  const getCollateralTokenPrice = useCallback(async (tokenId: string): Promise<number> => {
+    // Check if we already have the price cached
+    if (collateralTokenPrices.has(tokenId)) {
+      return collateralTokenPrices.get(tokenId) || 0;
+    }
+
+    // Fetch the price and cache it
+    const price = await fetchCollateralTokenPrice(tokenId);
+    setCollateralTokenPrices(prev => new Map(prev.set(tokenId, price)));
+    return price;
+  }, [collateralTokenPrices, fetchCollateralTokenPrice]);
 
   // Update tab when initialTab changes (for drawer)
   useEffect(() => {
@@ -120,6 +219,38 @@ const ActionPanel = ({
       }
     }
   }, [activeAction, userDebt, selectedCollateral, withdrawCollateralAssetId]);
+
+  // Fetch collateral token prices when needed
+  useEffect(() => {
+    const fetchPrices = async () => {
+      const tokensToFetch: string[] = [];
+
+      // Add selected collateral token
+      if (selectedCollateral && !collateralTokenPrices.has(selectedCollateral)) {
+        tokensToFetch.push(selectedCollateral);
+      }
+
+      // Add existing debt collateral token
+      if (userDebt && userDebt.collateralTokenId) {
+        const existingCollateralId = userDebt.collateralTokenId.toString();
+        if (!collateralTokenPrices.has(existingCollateralId)) {
+          tokensToFetch.push(existingCollateralId);
+        }
+      }
+
+      console.log('Fetching prices for tokens:', tokensToFetch);
+
+      // Fetch prices for tokens we don't have cached
+      for (const tokenId of tokensToFetch) {
+        const price = await getCollateralTokenPrice(tokenId);
+        console.log(`Fetched price for ${tokenId}: $${price}`);
+      }
+    };
+
+    if (activeAccount?.address && market.oracleAppId) {
+      void fetchPrices();
+    }
+  }, [selectedCollateral, userDebt, collateralTokenPrices, getCollateralTokenPrice, activeAccount?.address, market.oracleAppId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -233,6 +364,31 @@ const ActionPanel = ({
     return formattedBalance.toFixed(6).replace(/\.?0+$/, "");
   };
 
+  // Smart formatting for USD amounts (hide decimals for whole numbers)
+  const formatUSD = (amount: number): string => {
+    if (amount === 0) return "$0";
+    if (amount < 0.01) return `$${amount.toFixed(4)}`;
+    if (amount % 1 === 0) return `$${amount.toFixed(0)}`; // Whole number, no decimals
+    return `$${amount.toFixed(2)}`;
+  };
+
+  // Smart formatting for token amounts (hide decimals for whole numbers)
+  const formatTokenAmount = (amount: number, maxDecimals = 6): string => {
+    if (amount === 0) return "0";
+    if (amount < 0.000001) return amount.toFixed(8).replace(/\.?0+$/, "");
+    if (amount % 1 === 0) return amount.toFixed(0); // Whole number, no decimals
+    if (amount < 1) return amount.toFixed(maxDecimals).replace(/\.?0+$/, "");
+    return amount.toFixed(Math.min(maxDecimals, 2)).replace(/\.?0+$/, "");
+  };
+
+  // Dynamic font size based on content length (responsive)
+  const getDynamicFontSize = (content: string): string => {
+    // Use responsive classes that work for both mobile and desktop
+    if (content.length > 35) return "text-[9px] md:text-[11px]";
+    if (content.length > 25) return "text-[10px] md:text-xs";
+    return "text-xs md:text-sm";
+  };
+
   // Handle MAX button click
   const handleMaxClick = () => {
     const maxBalance = getMaxBalance();
@@ -251,7 +407,7 @@ const ActionPanel = ({
   // Get available collateral assets using the hook
   const availableCollateral = getCollateralAssets(userAssets);
 
-  // Calculate borrow details
+  // Calculate borrow details with proper USD-based LTV calculation
   const calculateBorrowDetails = () => {
     if (!borrowAmount) {
       return {
@@ -260,36 +416,83 @@ const ActionPanel = ({
         originationFee: 0,
         totalFees: 0,
         maxBorrowAmount: 0,
+        totalCollateralValueUSD: 0,
+        totalDebtValueUSD: 0,
+        existingCollateralValueUSD: 0,
+        existingDebtValueUSD: 0,
       };
     }
 
-    // Get existing collateral amount
-    const existingCollateralValue = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, 6) : 0;
-    // Get additional collateral amount (if any)
-    const additionalCollateralValue = collateralAmount ? parseFloat(collateralAmount) : 0;
-    // Total collateral = existing + additional
-    const totalCollateralValue = existingCollateralValue + additionalCollateralValue;
+    // Get token prices
+    const baseTokenPrice = market.baseTokenPrice || 0; // Price of the token being borrowed
+    let collateralTokenPrice = 0;
 
-    // Get existing debt
-    const existingDebtValue = userDebt ? Number(userDebt.principal) / Math.pow(10, 6) : 0;
-    // Get additional borrow amount
-    const additionalBorrowValue = parseFloat(borrowAmount);
-    // Total debt = existing + additional
-    const totalDebtValue = existingDebtValue + additionalBorrowValue;
+    // Get collateral token price from cache if available
+    if (selectedCollateral) {
+      collateralTokenPrice = collateralTokenPrices.get(selectedCollateral) || 0;
+      console.log(`Selected collateral ${selectedCollateral} price: $${collateralTokenPrice}`);
+    } else if (userDebt && userDebt.collateralTokenId) {
+      // For existing debt, use the existing collateral token
+      const collateralTokenId = userDebt.collateralTokenId.toString();
+      collateralTokenPrice = collateralTokenPrices.get(collateralTokenId) || 0;
+      console.log(`Existing collateral ${collateralTokenId} price: $${collateralTokenPrice}`);
+    }
 
-    // Calculate LTV ratio based on total debt vs total collateral
-    const ltvRatio = totalCollateralValue > 0 ? (totalDebtValue / totalCollateralValue) * 100 : 0;
+    // Calculate existing collateral value in USD
+    const existingCollateralTokens = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, 6) : 0;
+    const existingCollateralValueUSD = existingCollateralTokens * collateralTokenPrice;
+
+    // Calculate additional collateral value in USD
+    const additionalCollateralTokens = collateralAmount ? parseFloat(collateralAmount) : 0;
+    const additionalCollateralValueUSD = additionalCollateralTokens * collateralTokenPrice;
+
+    // Total collateral value in USD
+    const totalCollateralValueUSD = existingCollateralValueUSD + additionalCollateralValueUSD;
+
+    // Calculate existing debt value in USD
+    const existingDebtTokens = userDebt ? Number(userDebt.principal) / Math.pow(10, 6) : 0;
+    const existingDebtValueUSD = existingDebtTokens * baseTokenPrice;
+
+    // Calculate additional borrow value in USD
+    const additionalBorrowTokens = parseFloat(borrowAmount);
+    const additionalBorrowValueUSD = additionalBorrowTokens * baseTokenPrice;
+
+    // Total debt value in USD
+    const totalDebtValueUSD = existingDebtValueUSD + additionalBorrowValueUSD;
+
+    // Calculate LTV ratio based on USD values (this is the key fix!)
+    const ltvRatio = totalCollateralValueUSD > 0 ? (totalDebtValueUSD / totalCollateralValueUSD) * 100 : 0;
+    
+    console.log('LTV Calculation Debug:', {
+      baseTokenPrice,
+      collateralTokenPrice,
+      existingCollateralTokens,
+      existingCollateralValueUSD,
+      additionalCollateralTokens,
+      additionalCollateralValueUSD,
+      totalCollateralValueUSD,
+      existingDebtTokens,
+      existingDebtValueUSD,
+      additionalBorrowTokens,
+      additionalBorrowValueUSD,
+      totalDebtValueUSD,
+      ltvRatio
+    });
 
     // Calculate daily interest on the additional borrow amount
     const realTimeBorrowAPR = calculateRealTimeBorrowAPR(market);
-    const dailyInterest = (additionalBorrowValue * realTimeBorrowAPR) / 100 / 365;
+    const dailyInterest = (additionalBorrowTokens * realTimeBorrowAPR) / 100 / 365;
 
-    // Estimate origination fee (typically 0.1-0.5% of additional borrow amount)
-    const originationFee = additionalBorrowValue * 0.001; // 0.1% as example
+    // Calculate origination fee using actual market rate
+    const originationFeeBps = market.originationFeeBps || 0; // Get from market state
+    const originationFee = (additionalBorrowTokens * originationFeeBps) / 10000; // Convert basis points to decimal
 
-    // Calculate max additional borrow amount based on existing collateral + any new collateral
-    const maxTotalDebt = (totalCollateralValue * market.ltv) / 100;
-    const maxAdditionalBorrowByCollateral = Math.max(0, maxTotalDebt - existingDebtValue);
+    // Calculate max additional borrow amount based on USD values
+    const maxTotalDebtUSD = (totalCollateralValueUSD * market.ltv) / 100;
+    const maxAdditionalBorrowUSD = Math.max(0, maxTotalDebtUSD - existingDebtValueUSD);
+    
+    // Convert max borrow USD back to tokens
+    const maxAdditionalBorrowByCollateral = baseTokenPrice > 0 ? maxAdditionalBorrowUSD / baseTokenPrice : 0;
     
     // Also consider market supply availability
     const marketAvailableSupply = market.availableToBorrow;
@@ -303,10 +506,15 @@ const ActionPanel = ({
       originationFee,
       totalFees: originationFee,
       maxBorrowAmount: maxAdditionalBorrow,
-      totalCollateralValue,
-      totalDebtValue,
-      existingCollateralValue,
-      existingDebtValue,
+      totalCollateralValueUSD,
+      totalDebtValueUSD,
+      existingCollateralValueUSD,
+      existingDebtValueUSD,
+      // Keep token amounts for display
+      totalCollateralTokens: existingCollateralTokens + additionalCollateralTokens,
+      totalDebtTokens: existingDebtTokens + additionalBorrowTokens,
+      existingCollateralTokens,
+      existingDebtTokens,
     };
   };
 
@@ -376,21 +584,78 @@ const ActionPanel = ({
     return userBalance >= requestedAmount;
   };
 
+  // Calculate max borrow amount independently (for MAX button)
+  const calculateMaxBorrowAmount = (): number => {
+    // Get token prices
+    const baseTokenPrice = market.baseTokenPrice || 0;
+    let collateralTokenPrice = 0;
+
+    // Get collateral token price from cache if available
+    if (selectedCollateral) {
+      collateralTokenPrice = collateralTokenPrices.get(selectedCollateral) || 0;
+    } else if (userDebt && userDebt.collateralTokenId) {
+      const collateralTokenId = userDebt.collateralTokenId.toString();
+      collateralTokenPrice = collateralTokenPrices.get(collateralTokenId) || 0;
+    }
+
+    if (collateralTokenPrice <= 0 || baseTokenPrice <= 0) {
+      return 0;
+    }
+
+    // Calculate existing collateral value in USD
+    const existingCollateralTokens = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, 6) : 0;
+    const existingCollateralValueUSD = existingCollateralTokens * collateralTokenPrice;
+
+    // Calculate additional collateral value in USD
+    const additionalCollateralTokens = collateralAmount ? parseFloat(collateralAmount) : 0;
+    const additionalCollateralValueUSD = additionalCollateralTokens * collateralTokenPrice;
+
+    // Total collateral value in USD
+    const totalCollateralValueUSD = existingCollateralValueUSD + additionalCollateralValueUSD;
+
+    // Calculate existing debt value in USD
+    const existingDebtTokens = userDebt ? Number(userDebt.principal) / Math.pow(10, 6) : 0;
+    const existingDebtValueUSD = existingDebtTokens * baseTokenPrice;
+
+    // Calculate max total debt based on LTV
+    const maxTotalDebtUSD = (totalCollateralValueUSD * market.ltv) / 100;
+    const maxAdditionalBorrowUSD = Math.max(0, maxTotalDebtUSD - existingDebtValueUSD);
+    
+    // Convert max borrow USD back to tokens
+    const maxAdditionalBorrowByCollateral = maxAdditionalBorrowUSD / baseTokenPrice;
+    
+    // Also consider market supply availability
+    const marketAvailableSupply = market.availableToBorrow;
+    
+    // The actual max is the minimum of collateral-based limit and market supply
+    return Math.min(maxAdditionalBorrowByCollateral, marketAvailableSupply);
+  };
+
   // Handle max borrow click
   const handleMaxBorrowClick = () => {
-    // Use the calculated max additional borrow amount
-    setBorrowAmount(borrowDetails.maxBorrowAmount.toFixed(6));
+    const maxAmount = calculateMaxBorrowAmount();
+    setBorrowAmount(formatTokenAmount(maxAmount));
+    console.log(`MAX borrow clicked: ${maxAmount} tokens`);
   };
 
   return (
     <div className="space-y-4 md:space-y-8">
       {/* Action Panel */}
-      <div className="text-slate-600 cut-corners-lg p-4 md:p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial">
+      <div className={`text-slate-600 cut-corners-lg p-4 md:p-6 bg-noise-dark border-2 shadow-industrial ${
+        isMarketInactive 
+          ? "border-slate-700 opacity-60 pointer-events-none" 
+          : "border-slate-600"
+      }`}>
         <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
           <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-cyan-400" />
           <h3 className="text-base md:text-lg font-mono font-bold text-white uppercase tracking-wide">
             Market Actions
           </h3>
+          {isMarketInactive && (
+            <div className="ml-auto px-2 py-1 bg-red-500/20 border border-red-500/40 rounded text-xs font-mono text-red-400 uppercase tracking-wide">
+              INACTIVE
+            </div>
+          )}
         </div>
 
         {/* Main Tab Selector */}
@@ -595,13 +860,19 @@ const ActionPanel = ({
                     <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
                       Collateral Amount
                     </span>
-                    <button
-                      onClick={handleMaxCollateralClick}
-                      disabled={isLoadingAssets}
-                      className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-blue-400 hover:text-blue-300"
+                    <Tooltip
+                      content="Use your entire balance as collateral"
+                      textColor="text-blue-300"
+                      position="top"
                     >
-                      MAX
-                    </button>
+                      <button
+                        onClick={handleMaxCollateralClick}
+                        disabled={isLoadingAssets}
+                        className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-blue-400 hover:text-blue-300"
+                      >
+                        MAX
+                      </button>
+                    </Tooltip>
                   </div>
                   <div className="relative">
                     <input
@@ -632,12 +903,18 @@ const ActionPanel = ({
                   <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
                     {userDebt && Number(userDebt.principal) > 0 ? "Additional Borrow Amount" : "Borrow Amount"}
                   </span>
-                  <button
-                    onClick={handleMaxBorrowClick}
-                    className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-blue-400 hover:text-blue-300"
+                  <Tooltip
+                    content="Borrow maximum amount based on your collateral"
+                    textColor="text-blue-300"
+                    position="top"
                   >
-                    MAX
-                  </button>
+                    <button
+                      onClick={handleMaxBorrowClick}
+                      className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-blue-400 hover:text-blue-300"
+                    >
+                      MAX
+                    </button>
+                  </Tooltip>
                 </div>
                   <div className="relative">
                     <input
@@ -669,13 +946,19 @@ const ActionPanel = ({
                 <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
                   Repay Amount
                 </span>
-                <button
-                  onClick={handleMaxClick}
-                  disabled={isLoadingAssets || !userDebt}
-                  className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-amber-400 hover:text-amber-300"
+                <Tooltip
+                  content="Repay your entire debt balance"
+                  textColor="text-amber-300"
+                  position="top"
                 >
-                  MAX
-                </button>
+                  <button
+                    onClick={handleMaxClick}
+                    disabled={isLoadingAssets || !userDebt}
+                    className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-amber-400 hover:text-amber-300"
+                  >
+                    MAX
+                  </button>
+                </Tooltip>
               </div>
               <div className="relative">
                 <input
@@ -731,13 +1014,19 @@ const ActionPanel = ({
                     <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
                       Withdraw Amount
                     </span>
-                    <button
-                      onClick={handleMaxClick}
-                      disabled={isLoadingAssets}
-                      className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-purple-400 hover:text-purple-300"
+                    <Tooltip
+                      content="Withdraw all available collateral"
+                      textColor="text-purple-300"
+                      position="top"
                     >
-                      MAX
-                    </button>
+                      <button
+                        onClick={handleMaxClick}
+                        disabled={isLoadingAssets}
+                        className="text-xs font-mono font-semibold uppercase tracking-wide transition-colors text-purple-400 hover:text-purple-300"
+                      >
+                        MAX
+                      </button>
+                    </Tooltip>
                   </div>
                   <div className="relative">
                     <input
@@ -769,21 +1058,40 @@ const ActionPanel = ({
                 <span className="font-mono text-slate-400 text-xs md:text-sm uppercase tracking-wide">
                   Amount
                 </span>
-                <button
-                  onClick={handleMaxClick}
-                  disabled={isLoadingAssets}
-                  className={`text-xs font-mono font-semibold uppercase tracking-wide transition-colors ${
-                    isLoadingAssets
-                      ? "text-slate-500 cursor-not-allowed"
-                      : activeAction === "deposit"
-                      ? "text-cyan-400 hover:text-cyan-300"
+                <Tooltip
+                  content={
+                    activeAction === "deposit" 
+                      ? "Use your entire wallet balance" 
                       : activeAction === "redeem"
-                      ? "text-green-400 hover:text-green-300"
-                      : "text-blue-400 hover:text-blue-300"
-                  }`}
+                      ? "Redeem all your LST tokens"
+                      : "Use maximum available amount"
+                  }
+                  textColor={
+                    activeAction === "deposit"
+                      ? "text-cyan-300"
+                      : activeAction === "redeem"
+                      ? "text-green-300"
+                      : "text-blue-300"
+                  }
+                  position="top"
+                  disabled={isLoadingAssets}
                 >
-                  {isLoadingAssets ? "LOADING..." : "MAX"}
-                </button>
+                  <button
+                    onClick={handleMaxClick}
+                    disabled={isLoadingAssets}
+                    className={`text-xs font-mono font-semibold uppercase tracking-wide transition-colors ${
+                      isLoadingAssets
+                        ? "text-slate-500 cursor-not-allowed"
+                        : activeAction === "deposit"
+                        ? "text-cyan-400 hover:text-cyan-300"
+                        : activeAction === "redeem"
+                        ? "text-green-400 hover:text-green-300"
+                        : "text-blue-400 hover:text-blue-300"
+                    }`}
+                  >
+                    {isLoadingAssets ? "LOADING..." : "MAX"}
+                  </button>
+                </Tooltip>
               </div>
               <div className="relative">
                 <input
@@ -840,9 +1148,15 @@ const ActionPanel = ({
                 {borrowAmount && (
                   <>
                     <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">
-                        Total LTV Ratio
-                      </span>
+                      <Tooltip
+                        content="Loan-to-Value ratio: how much you're borrowing vs your collateral value"
+                        textColor="text-slate-300"
+                        position="left"
+                      >
+                        <span className="font-mono text-slate-400 cursor-help">
+                          Total LTV Ratio
+                        </span>
+                      </Tooltip>
                       <span
                         className={`font-mono font-bold ${
                           borrowDetails.ltvRatio > market.ltv
@@ -854,105 +1168,211 @@ const ActionPanel = ({
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
                         Total Collateral
                       </span>
-                      <span className="font-mono text-white">
-                        {borrowDetails.totalCollateralValue?.toFixed(6)} {userDebt ? availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol : ""}
-                      </span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const collateralSymbol = userDebt ? availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol : "";
+                          const usdAmount = formatUSD(borrowDetails.totalCollateralValueUSD || 0);
+                          const tokenAmount = formatTokenAmount(borrowDetails.totalCollateralTokens || 0);
+                          const fullText = `${usdAmount} (${tokenAmount} ${collateralSymbol})`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          
+                          return (
+                            <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
                         Total Debt
                       </span>
-                      <span className="font-mono text-white">
-                        {borrowDetails.totalDebtValue?.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
-                      </span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const usdAmount = formatUSD(borrowDetails.totalDebtValueUSD || 0);
+                          const tokenAmount = formatTokenAmount(borrowDetails.totalDebtTokens || 0);
+                          const symbol = getBaseTokenSymbol(market?.symbol);
+                          const fullText = `${usdAmount} (${tokenAmount} ${symbol})`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          
+                          return (
+                            <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
                         Daily Interest
                       </span>
-                      <span className="font-mono text-white">
-                        {borrowDetails.dailyInterest.toFixed(6)}{" "}
-                        {getBaseTokenSymbol(market?.symbol)}
-                      </span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const tokenAmount = formatTokenAmount(borrowDetails.dailyInterest);
+                          const symbol = getBaseTokenSymbol(market?.symbol);
+                          const fullText = `${tokenAmount} ${symbol}`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          
+                          return (
+                            <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
                         Origination Fee
                       </span>
-                      <span className="font-mono text-white">
-                        {borrowDetails.originationFee.toFixed(6)}{" "}
-                        {getBaseTokenSymbol(market?.symbol)}
-                      </span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const tokenAmount = formatTokenAmount(borrowDetails.originationFee);
+                          const symbol = getBaseTokenSymbol(market?.symbol);
+                          const fullText = `${tokenAmount} ${symbol}`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          
+                          return (
+                            <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
                         You Will Receive
                       </span>
-                      <span className="font-mono text-white">
-                        {(
-                          parseFloat(borrowAmount) -
-                          borrowDetails.originationFee
-                        ).toFixed(6)}{" "}
-                        {getBaseTokenSymbol(market?.symbol)}
-                      </span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const receiveAmount = parseFloat(borrowAmount) - borrowDetails.originationFee;
+                          const tokenAmount = formatTokenAmount(receiveAmount);
+                          const symbol = getBaseTokenSymbol(market?.symbol);
+                          const fullText = `${tokenAmount} ${symbol}`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          
+                          return (
+                            <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </>
                 )}
 
                 {collateralAmount && !borrowAmount && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="font-mono text-slate-400">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
                       Max Borrow Amount
                     </span>
-                    <span className="font-mono text-white">
-                      {borrowDetails.maxBorrowAmount.toFixed(6)}{" "}
-                      {getBaseTokenSymbol(market?.symbol)}
-                    </span>
+                    <div className="text-right min-w-0 flex-1">
+                      {(() => {
+                        const tokenAmount = formatTokenAmount(borrowDetails.maxBorrowAmount);
+                        const symbol = getBaseTokenSymbol(market?.symbol);
+                        const fullText = `${tokenAmount} ${symbol}`;
+                        const fontSize = getDynamicFontSize(fullText);
+                        
+                        return (
+                          <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                            <div className="break-words">{fullText}</div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
               </>
             ) : activeAction === "repay" ? (
               // Repayment transaction details
               <>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-mono text-slate-400">Total Debt</span>
-                  <span className="font-mono text-white">
-                    {repaymentDetails.totalDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
-                  </span>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">Total Debt</span>
+                  <div className="text-right min-w-0 flex-1">
+                    {(() => {
+                      const tokenAmount = formatTokenAmount(repaymentDetails.totalDebt);
+                      const symbol = getBaseTokenSymbol(market?.symbol);
+                      const fullText = `${tokenAmount} ${symbol}`;
+                      const fontSize = getDynamicFontSize(fullText);
+                      
+                      return (
+                        <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                          <div className="break-words">{fullText}</div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 {repayAmount && (
                   <>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">Repay Amount</span>
-                      <span className="font-mono font-bold text-amber-400">
-                        {repaymentDetails.repaymentAmount.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
-                      </span>
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">Repay Amount</span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const tokenAmount = formatTokenAmount(repaymentDetails.repaymentAmount);
+                          const symbol = getBaseTokenSymbol(market?.symbol);
+                          const fullText = `${tokenAmount} ${symbol}`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          
+                          return (
+                            <div className={`font-mono font-bold text-amber-400 ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-mono text-slate-400">Remaining Debt</span>
-                      <span className={`font-mono font-bold ${repaymentDetails.isFullRepayment ? "text-green-400" : "text-white"}`}>
-                        {repaymentDetails.remainingDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
-                      </span>
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">Remaining Debt</span>
+                      <div className="text-right min-w-0 flex-1">
+                        {(() => {
+                          const tokenAmount = formatTokenAmount(repaymentDetails.remainingDebt);
+                          const symbol = getBaseTokenSymbol(market?.symbol);
+                          const fullText = `${tokenAmount} ${symbol}`;
+                          const fontSize = getDynamicFontSize(fullText);
+                          const textColor = repaymentDetails.isFullRepayment ? "text-green-400" : "text-white";
+                          
+                          return (
+                            <div className={`font-mono font-bold ${textColor} ${fontSize} leading-tight`}>
+                              <div className="break-words">{fullText}</div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
                     {repaymentDetails.isFullRepayment && (
                       <>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="font-mono text-slate-400">Collateral Returned</span>
-                          <span className="font-mono text-white">
-                            {repaymentDetails.collateralReturned.toFixed(6)} 
-                            {userDebt && availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
-                          </span>
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">Collateral Returned</span>
+                          <div className="text-right min-w-0 flex-1">
+                            {(() => {
+                              const tokenAmount = formatTokenAmount(repaymentDetails.collateralReturned);
+                              const symbol = userDebt && availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol;
+                              const fullText = `${tokenAmount} ${symbol}`;
+                              const fontSize = getDynamicFontSize(fullText);
+                              
+                              return (
+                                <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                                  <div className="break-words">{fullText}</div>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
 
                         <div className="text-xs font-mono text-green-400 bg-green-500/10 border border-green-500/20 p-2 rounded">
@@ -1079,6 +1499,9 @@ const ActionPanel = ({
         {/* Action Button */}
         <button
           className={`w-full h-10 md:h-12 cut-corners-sm font-mono text-xs md:text-sm font-semibold transition-all duration-150 ${(() => {
+              if (isMarketInactive) {
+                return "bg-slate-800 border-2 border-slate-700 text-slate-500 cursor-not-allowed";
+              }
               if (activeAction === "open") {
                 // For existing debt, allow borrowing without new collateral
                 // For new debt, require collateral selection
@@ -1128,6 +1551,7 @@ const ActionPanel = ({
             })()}`}
             onClick={handleAction}
             disabled={
+              isMarketInactive ||
               Boolean(transactionLoading) ||
               (() => {
                 if (activeAction === "open") {
@@ -1174,21 +1598,35 @@ const ActionPanel = ({
             }
           >
             <span className="relative z-20">
-              {activeAction === "deposit" &&
-                `DEPOSIT ${getBaseTokenSymbol(market?.symbol)}`}
-              {activeAction === "redeem" &&
-                `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
-              {activeAction === "open" &&
-                `${userDebt && Number(userDebt.principal) > 0 ? "ADD TO POSITION" : "BORROW"} ${getBaseTokenSymbol(market?.symbol)}`}
-              {activeAction === "repay" &&
-                `REPAY ${getBaseTokenSymbol(market?.symbol)}`}
-              {activeAction === "withdraw" &&
-                `WITHDRAW COLLATERAL`}
+              {isMarketInactive ? (
+                "MARKET INACTIVE"
+              ) : (
+                <>
+                  {activeAction === "deposit" &&
+                    `DEPOSIT ${getBaseTokenSymbol(market?.symbol)}`}
+                  {activeAction === "redeem" &&
+                    `REDEEM ${getLSTTokenSymbol(market?.symbol)}`}
+                  {activeAction === "open" &&
+                    `${userDebt && Number(userDebt.principal) > 0 ? "ADD TO POSITION" : "BORROW"} ${getBaseTokenSymbol(market?.symbol)}`}
+                  {activeAction === "repay" &&
+                    `REPAY ${getBaseTokenSymbol(market?.symbol)}`}
+                  {activeAction === "withdraw" &&
+                    `WITHDRAW COLLATERAL`}
+                </>
+              )}
             </span>
         </button>
 
+        {/* Inactive Market Message */}
+        {isMarketInactive && (
+          <div className="flex items-center gap-2 text-red-400 text-sm font-mono bg-red-500/10 border border-red-500/20 p-3 rounded">
+            <AlertCircle className="w-4 h-4" />
+            <span>This market is currently inactive and does not accept new transactions</span>
+          </div>
+        )}
+
         {/* Status Messages */}
-        {activeAction === "open" && (
+        {!isMarketInactive && activeAction === "open" && (
           <>
               {market.availableToBorrow === 0 && (
                 <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
@@ -1302,7 +1740,7 @@ const ActionPanel = ({
         )}
 
         {/* Repay Status Messages */}
-        {activeAction === "repay" && (
+        {!isMarketInactive && activeAction === "repay" && (
           <>
               {!userDebt && (
                 <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">

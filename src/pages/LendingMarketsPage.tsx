@@ -7,23 +7,33 @@ import {
   TrendingDown,
   Radio,
   AlertCircle,
-  Loader,
   ArrowLeft,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import MarketCard from "../components/MarketCard";
+import MomentumSpinner from "../components/MomentumSpinner";
 import { useMarkets } from "../hooks/useMarkets";
 import { Link } from "react-router-dom";
 
 const LendingMarketsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const { data: markets, isLoading, error, isError } = useMarkets();
 
-  const filteredMarkets = (markets || []).filter(
-    (market) =>
+  const filteredMarkets = (markets || []).filter((market) => {
+    // Text search filter
+    const matchesSearch = 
       market.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (market.symbol?.toLowerCase() || "").includes(searchQuery.toLowerCase())
-  );
+      (market.symbol?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+    
+    // Status filter
+    const matchesStatus = 
+      statusFilter === "all" ||
+      (statusFilter === "active" && market.contractState === 1) ||
+      (statusFilter === "inactive" && market.contractState === 0);
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const formatNumber = (num: number, decimals = 2) => {
     if (num >= 1000000) {
@@ -171,10 +181,19 @@ const LendingMarketsPage = () => {
 
           {/* Filter Controls */}
           <div className="flex gap-2 md:gap-3">
-            <button className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600  hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
-              <Filter className="w-3 h-3 md:w-4 md:h-4" />
-              <span>FILTER</span>
-            </button>
+            {/* Status Filter Dropdown */}
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600 hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm appearance-none cursor-pointer min-w-[120px]"
+              >
+                <option value="all">ALL MARKETS</option>
+                <option value="active">ACTIVE ONLY</option>
+                <option value="inactive">INACTIVE ONLY</option>
+              </select>
+              <Filter className="absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 w-3 h-3 md:w-4 md:h-4 text-slate-400 pointer-events-none" />
+            </div>
             <button className="px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600  hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
               SORT: APR
             </button>
@@ -244,7 +263,12 @@ const LendingMarketsPage = () => {
             transition={{ duration: 0.6 }}
           >
             <div className="text-slate-600 cut-corners-lg p-8">
-              <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
+              <MomentumSpinner 
+                size="48" 
+                speed="1.1" 
+                color="#06b6d4" 
+                className="mx-auto mb-4" 
+              />
               <div className="text-slate-400 font-mono mb-4">
                 SCANNING ORBITAL MARKETS...
               </div>

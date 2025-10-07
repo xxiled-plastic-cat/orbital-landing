@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AlgoAmount } from "@algorandfoundation/algokit-utils/types/amount";
-import { getExistingClient } from "./getClient";
+import { getExistingClient, getExistingClientAsa } from "./getClient";
 import {
   BorrowParams,
+  BuyoutAlgoParams,
+  BuyoutAsaParams,
   DepositParams,
   getLoanRecordParams,
   getLoanRecordReturnType,
@@ -15,7 +17,7 @@ import { microAlgo } from "@algorandfoundation/algokit-utils";
 import algosdk from "algosdk";
 import { getCollateralBoxValue } from "./state";
 
-export async function deposit({
+export async function depositAsa({
   address,
   amount,
   appId,
@@ -24,7 +26,8 @@ export async function deposit({
   lstAssetId,
 }: DepositParams) {
   try {
-    const appClient = await getExistingClient(signer, address, appId);
+    const appClient = await getExistingClientAsa(signer, address, appId);
+
     appClient.algorand.setDefaultSigner(signer);
     const upscaledAmount = amount * 10 ** 6;
 
@@ -67,8 +70,77 @@ export async function deposit({
     }
 
     const result = await group
-
       .depositAsa({
+        args: [depositTxn, upscaledAmount, mbrTxn],
+        assetReferences: [BigInt(depositAssetId)],
+        sender: address,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
+      })
+      .send({
+        coverAppCallInnerTransactionFees: true,
+        populateAppCallResources: true,
+        suppressLog: true,
+      });
+    return result.txIds[0];
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function depositAlgo({
+  address,
+  amount,
+  appId,
+  depositAssetId,
+  signer,
+  lstAssetId,
+}: DepositParams) {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+
+    appClient.algorand.setDefaultSigner(signer);
+    const upscaledAmount = amount * 10 ** 6;
+
+    let optInRequired = false;
+    const group = appClient.newGroup();
+    try {
+      await appClient.algorand.client.algod
+        .accountAssetInformation(address, lstAssetId)
+        .do();
+      optInRequired = false;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      optInRequired = true;
+    }
+
+    console.log("optInRequired", optInRequired);
+
+    const mbrTxn = appClient.algorand.createTransaction.payment({
+      sender: address,
+      amount: AlgoAmount.MicroAlgos(1000n),
+      receiver: appClient.appAddress,
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+    const depositTxn = appClient.algorand.createTransaction.payment({
+      sender: address,
+      receiver: appClient.appAddress,
+      amount: AlgoAmount.MicroAlgos(upscaledAmount),
+      note: "Depositing ALGO",
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+
+    if (optInRequired) {
+      const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
+        assetId: BigInt(lstAssetId),
+        sender: address,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
+      });
+      group.addTransaction(optInTxn);
+    }
+
+    const result = await group
+      .depositAlgo({
         args: [depositTxn, upscaledAmount, mbrTxn],
         assetReferences: [BigInt(depositAssetId)],
         sender: address,
@@ -212,7 +284,7 @@ export async function repayDebtAsa({
   signer,
 }: RepayDebtAsaParams) {
   try {
-    const appClient = await getExistingClient(signer, address, appId);
+    const appClient = await getExistingClientAsa(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
     const upscaledAmount = amount * 10 ** 6;
 
@@ -370,4 +442,148 @@ export async function getLoanRecordBoxValue({
       name: boxName,
     },
   };
+}
+
+export async function buyoutSplitASA({
+  buyerAddress,
+  debtorAddress,
+  appId,
+  premiumAmount,
+  debtRepayAmount,
+  xUSDAssetId,
+  baseTokenAssetId,
+  collateralTokenId,
+  lstAppId,
+  oracleAppId,
+  signer,
+}: BuyoutAsaParams) {
+  try {
+    const appClient = await getExistingClientAsa(signer, buyerAddress, appId);
+    appClient.algorand.setDefaultSigner(signer);
+    console.log('lstAppId', lstAppId);
+    // Scale amounts to micro units
+    const upscaledPremiumAmount = premiumAmount * 10 ** 6;
+    const upscaledDebtRepayAmount = debtRepayAmount * 10 ** 6;
+
+    // Create premium transfer transaction (xUSD)
+    const premiumAxferTxn = appClient.algorand.createTransaction.assetTransfer({
+      sender: buyerAddress,
+      receiver: appClient.appAddress,
+      assetId: BigInt(xUSDAssetId),
+      amount: BigInt(upscaledPremiumAmount),
+      note: "Paying buyout premium in xUSD",
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+
+    // Create debt repayment transaction (base ASA)
+    const repayAxferTxn = appClient.algorand.createTransaction.assetTransfer({
+      sender: buyerAddress,
+      receiver: appClient.appAddress,
+      assetId: BigInt(baseTokenAssetId),
+      amount: BigInt(upscaledDebtRepayAmount),
+      note: "Repaying loan with ASA",
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+
+    // Execute the buyout
+    const result = await appClient
+      .newGroup()
+      .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .buyoutSplitAsa({
+        args: [
+          buyerAddress,
+          debtorAddress,
+          premiumAxferTxn,
+          repayAxferTxn,
+          BigInt(lstAppId),
+        ],
+        assetReferences: [
+          BigInt(xUSDAssetId),
+          BigInt(baseTokenAssetId),
+          BigInt(collateralTokenId),
+        ],
+        appReferences: [BigInt(appId), BigInt(lstAppId), BigInt(oracleAppId)],
+        sender: buyerAddress,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
+      })
+      .send({
+        suppressLog: false,
+        coverAppCallInnerTransactionFees: true,
+        populateAppCallResources: true,
+      });
+
+    return result.txIds[0];
+  } catch (error) {
+    console.error("Buyout ASA failed:", error);
+    throw error;
+  }
+}
+
+export async function buyoutSplitAlgo({
+  buyerAddress,
+  debtorAddress,
+  appId,
+  premiumAmount,
+  debtRepayAmount,
+  xUSDAssetId,
+  collateralTokenId,
+  lstAppId,
+  oracleAppId,
+  signer,
+}: BuyoutAlgoParams) {
+  try {
+    const appClient = await getExistingClient(signer, buyerAddress, appId);
+    appClient.algorand.setDefaultSigner(signer);
+
+    // Scale premium amount to micro units
+    const upscaledPremiumAmount = premiumAmount * 10 ** 6;
+    // debtRepayAmount is already in microAlgos
+
+    // Create premium transfer transaction (xUSD)
+    const premiumAxferTxn = appClient.algorand.createTransaction.assetTransfer({
+      sender: buyerAddress,
+      receiver: appClient.appAddress,
+      assetId: BigInt(xUSDAssetId),
+      amount: BigInt(upscaledPremiumAmount),
+      note: "Paying buyout premium in xUSD",
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+
+    // Create debt repayment transaction (ALGO)
+    const repayPayTxn = appClient.algorand.createTransaction.payment({
+      sender: buyerAddress,
+      receiver: appClient.appAddress,
+      amount: AlgoAmount.MicroAlgos(debtRepayAmount),
+      note: "Repaying loan with ALGO",
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+
+    // Execute the buyout
+    const result = await appClient
+      .newGroup()
+      .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .buyoutSplitAlgo({
+        args: [
+          buyerAddress,
+          debtorAddress,
+          premiumAxferTxn,
+          repayPayTxn,
+          BigInt(lstAppId),
+        ],
+        assetReferences: [BigInt(xUSDAssetId), BigInt(collateralTokenId)],
+        appReferences: [BigInt(appId), BigInt(lstAppId), BigInt(oracleAppId)],
+        sender: buyerAddress,
+        maxFee: AlgoAmount.MicroAlgos(250_000),
+      })
+      .send({
+        suppressLog: false,
+        coverAppCallInnerTransactionFees: true,
+        populateAppCallResources: true,
+      });
+
+    return result.txIds[0];
+  } catch (error) {
+    console.error("Buyout ALGO failed:", error);
+    throw error;
+  }
 }

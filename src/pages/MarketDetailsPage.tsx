@@ -11,19 +11,20 @@ import {
   AlertCircle,
   Radio,
   BarChart3,
-  Loader,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import InterestRateModel from "../components/InterestRateModel";
 import CollateralRelationships from "../components/CollateralRelationships";
 import ActionDrawer from "../components/app/ActionDrawer";
 import PositionHeader from "../components/app/PositionHeader";
+import MomentumSpinner from "../components/MomentumSpinner";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
 import {
   borrow,
-  deposit,
+  depositAlgo,
+  depositAsa,
   getLoanRecordBoxValue,
   repayDebtAlgo,
   repayDebtAsa,
@@ -52,7 +53,9 @@ const MarketDetailsPage = () => {
   >(undefined);
 
   // User debt state management
-  const [userDebt, setUserDebt] = useState<getLoanRecordReturnType | undefined>(undefined);
+  const [userDebt, setUserDebt] = useState<getLoanRecordReturnType | undefined>(
+    undefined
+  );
 
   // Ref to track the last fetched collateral combination to prevent unnecessary calls
   const lastFetchedRef = useRef<string | null>(null);
@@ -169,75 +172,85 @@ const MarketDetailsPage = () => {
           market?.symbol
         )} to receive ${amount} ${getLSTTokenSymbol(market?.symbol)}`,
       });
-
-      await deposit({
-        address: activeAddress as string,
-        amount: Number(amount),
-        appId: Number(market?.id),
-        depositAssetId: Number(market?.baseTokenId),
-        lstAssetId: Number(market?.lstTokenId),
-        signer: transactionSigner,
-      })
-        .then((txId) => {
-          // Apply optimistic updates only after transaction success
-          applyOptimisticBalanceUpdate(
-            baseTokenId,
-            `-${depositAmountMicrounits}`
-          );
-          if (lstTokenId) {
-            applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
-          }
-
-          // Confirm the updates immediately since transaction was successful
-          confirmOptimisticUpdate(baseTokenId);
-          if (lstTokenId) {
-            confirmOptimisticUpdate(lstTokenId);
-          }
-
-          // Immediately refetch market data to reflect changes in market overview and interest rates
-          refetchMarkets();
-          
-          // Refetch user debt data
-          refetchUserDebt();
-
-          // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
-          const lstMinted = calculateLSTDue(
-            BigInt(Number(amount) * 10 ** 6),
-            BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-            BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
-          );
-
-          recordUserAction({
-            address: activeAddress as string,
-            marketId: Number(market?.id),
-            action: "deposit",
-            tokensOut: Number(lstMinted), //LST returned
-            tokensIn: Number(amount), //Base token deposited
-            timestamp: Date.now(),
-            txnId: txId,
-            tokenInId: Number(market?.baseTokenId),
-            tokenOutId: Number(market?.lstTokenId),
-          });
-
-          openToast({
-            type: "success",
-            message: "Deposit successful",
-            description: `You have deposited ${amount} ${getBaseTokenSymbol(
-              market?.symbol
-            )} and received ${amount} ${getLSTTokenSymbol(market?.symbol)}!`,
-          });
+      if (market?.baseTokenId === "0") {
+        await depositAlgo({
+          address: activeAddress as string,
+          amount: Number(amount),
+          appId: Number(market?.id),
+          depositAssetId: Number(market?.baseTokenId),
+          lstAssetId: Number(market?.lstTokenId),
+          signer: transactionSigner,
         })
-        .catch((error) => {
-          console.error(error);
-          openToast({
-            type: "error",
-            message: "Deposit failed",
-            description: `Unable to deposit ${amount} ${getBaseTokenSymbol(
-              market?.symbol
-            )}`,
+          .then((txId) => {
+            // Apply optimistic updates only after transaction success
+            applyOptimisticBalanceUpdate(
+              baseTokenId,
+              `-${depositAmountMicrounits}`
+            );
+            if (lstTokenId) {
+              applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
+            }
+
+            // Confirm the updates immediately since transaction was successful
+            confirmOptimisticUpdate(baseTokenId);
+            if (lstTokenId) {
+              confirmOptimisticUpdate(lstTokenId);
+            }
+
+            // Immediately refetch market data to reflect changes in market overview and interest rates
+            refetchMarkets();
+
+            // Refetch user debt data
+            refetchUserDebt();
+
+            // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            const lstMinted = calculateLSTDue(
+              BigInt(Number(amount) * 10 ** 6),
+              BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
+              BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+            );
+
+            recordUserAction({
+              address: activeAddress as string,
+              marketId: Number(market?.id),
+              action: "deposit",
+              tokensOut: Number(lstMinted), //LST returned
+              tokensIn: Number(amount), //Base token deposited
+              timestamp: Date.now(),
+              txnId: txId,
+              tokenInId: Number(market?.baseTokenId),
+              tokenOutId: Number(market?.lstTokenId),
+            });
+
+            openToast({
+              type: "success",
+              message: "Deposit successful",
+              description: `You have deposited ${amount} ${getBaseTokenSymbol(
+                market?.symbol
+              )} and received ${amount} ${getLSTTokenSymbol(market?.symbol)}!`,
+            });
+          })
+          .catch((error) => {
+            console.error(error);
+            openToast({
+              type: "error",
+              message: "Deposit failed",
+              description: `Unable to deposit ${amount} ${getBaseTokenSymbol(
+                market?.symbol
+              )}`,
+            });
           });
+        setTransactionLoading(false);
+      } else {
+        await depositAsa({
+          address: activeAddress as string,
+          amount: Number(amount),
+          appId: Number(market?.id),
+          depositAssetId: Number(market?.baseTokenId),
+          lstAssetId: Number(market?.lstTokenId),
+          signer: transactionSigner,
         });
-      setTransactionLoading(false);
+      }
     } catch (error) {
       console.error(error);
     }
@@ -286,7 +299,7 @@ const MarketDetailsPage = () => {
 
           // Immediately refetch market data to reflect changes in market overview and interest rates
           refetchMarkets();
-          
+
           // Refetch user debt data
           refetchUserDebt();
 
@@ -358,7 +371,10 @@ const MarketDetailsPage = () => {
           const baseTokenId = market?.baseTokenId || "0";
 
           // Remove repaid tokens from user balance
-          applyOptimisticBalanceUpdate(baseTokenId, `-${repayAmountMicrounits}`);
+          applyOptimisticBalanceUpdate(
+            baseTokenId,
+            `-${repayAmountMicrounits}`
+          );
 
           // Confirm the updates immediately since transaction was successful
           confirmOptimisticUpdate(baseTokenId);
@@ -413,7 +429,10 @@ const MarketDetailsPage = () => {
           const baseTokenId = market?.baseTokenId || "0";
 
           // Remove repaid tokens from user balance
-          applyOptimisticBalanceUpdate(baseTokenId, `-${repayAmountMicrounits}`);
+          applyOptimisticBalanceUpdate(
+            baseTokenId,
+            `-${repayAmountMicrounits}`
+          );
 
           // Confirm the updates immediately since transaction was successful
           confirmOptimisticUpdate(baseTokenId);
@@ -481,7 +500,10 @@ const MarketDetailsPage = () => {
         ).toString();
 
         // Add withdrawn collateral tokens back to user balance
-        applyOptimisticBalanceUpdate(collateralAssetId, withdrawAmountMicrounits);
+        applyOptimisticBalanceUpdate(
+          collateralAssetId,
+          withdrawAmountMicrounits
+        );
 
         // Confirm the updates immediately since transaction was successful
         confirmOptimisticUpdate(collateralAssetId);
@@ -528,12 +550,13 @@ const MarketDetailsPage = () => {
   ) => {
     // Check if user has existing debt and is borrowing against existing collateral
     const hasExistingDebt = userDebt && Number(userDebt.principal) > 0;
-    const isAddingCollateral = collateralAmount && parseFloat(collateralAmount) > 0;
-    
+    const isAddingCollateral =
+      collateralAmount && parseFloat(collateralAmount) > 0;
+
     // If user has existing debt and isn't adding collateral, use existing collateral
     let effectiveCollateralAssetId = collateralAssetId;
     let effectiveCollateralAmount = collateralAmount;
-    
+
     if (hasExistingDebt && !isAddingCollateral) {
       effectiveCollateralAssetId = userDebt.collateralTokenId.toString();
       effectiveCollateralAmount = "0"; // No new collateral being added
@@ -554,7 +577,7 @@ const MarketDetailsPage = () => {
       return;
     }
 
-    const toastDescription = isAddingCollateral 
+    const toastDescription = isAddingCollateral
       ? `Please sign the transaction to borrow ${borrowAmount} ${getBaseTokenSymbol(
           market?.symbol
         )} using ${effectiveCollateralAmount} ${getBaseTokenSymbol(
@@ -595,13 +618,13 @@ const MarketDetailsPage = () => {
           const collateralAmountMicrounits = (
             Number(effectiveCollateralAmount) * Math.pow(10, 6)
           ).toString();
-          
+
           // Remove collateral tokens from user balance
           applyOptimisticBalanceUpdate(
             effectiveCollateralAssetId,
             `-${collateralAmountMicrounits}`
           );
-          
+
           // Confirm collateral update
           confirmOptimisticUpdate(effectiveCollateralAssetId);
         }
@@ -612,7 +635,7 @@ const MarketDetailsPage = () => {
         // Immediately refetch market data to reflect changes in market overview and interest rates
         refetchMarkets();
 
-        const successDescription = isAddingCollateral 
+        const successDescription = isAddingCollateral
           ? `You have borrowed ${borrowAmount} ${getBaseTokenSymbol(
               market?.symbol
             )} using ${effectiveCollateralAmount} ${getBaseTokenSymbol(
@@ -642,7 +665,7 @@ const MarketDetailsPage = () => {
       })
       .catch((error) => {
         console.error(error);
-        const errorDescription = isAddingCollateral 
+        const errorDescription = isAddingCollateral
           ? `Unable to borrow ${borrowAmount} ${getBaseTokenSymbol(
               market?.symbol
             )} using ${effectiveCollateralAmount} ${getBaseTokenSymbol(
@@ -673,7 +696,12 @@ const MarketDetailsPage = () => {
             transition={{ duration: 0.6 }}
           >
             <div className="text-slate-600 cut-corners-lg p-8">
-              <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
+              <MomentumSpinner 
+                size="48" 
+                speed="1.1" 
+                color="#06b6d4" 
+                className="mx-auto mb-4" 
+              />
               <div className="text-slate-400 font-mono mb-4">
                 LOADING ORBITAL MARKET...
               </div>
@@ -804,7 +832,11 @@ const MarketDetailsPage = () => {
                 <div className="flex items-center gap-1 md:gap-2 text-cyan-400">
                   <Radio className="w-4 h-4 md:w-5 md:h-5" />
                   <span className="text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                    ACTIVE
+                    {market.contractState === 1
+                      ? "ACTIVE"
+                      : market.contractState === 2
+                      ? "MIGRATING"
+                      : "INACTIVE"}
                   </span>
                 </div>
               </div>
@@ -961,7 +993,7 @@ const MarketDetailsPage = () => {
                       Oracle Price
                     </span>
                     <span className="font-mono text-white text-sm">
-                      ${market?.baseTokenPrice}
+                      ${market?.baseTokenPrice.toLocaleString()}
                     </span>
                   </div>
                 </div>

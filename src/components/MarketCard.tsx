@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Radio, AlertCircle } from "lucide-react";
 import { LendingMarket } from "../types/lending";
 import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 
@@ -20,6 +20,11 @@ const MarketCard: React.FC<MarketCardProps> = ({
   getUtilizationBgColor,
 }) => {
   const navigate = useNavigate();
+  
+  // Determine market status
+  const isMarketActive = market.contractState === 1;
+  const isMarketMigrating = market.contractState === 2;
+  const isMarketInactive = market.contractState === 0;
   return (
     <motion.div
       key={market.id}
@@ -29,9 +34,33 @@ const MarketCard: React.FC<MarketCardProps> = ({
       transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
     >
       {/* Industrial Planet Card */}
-      <div className="text-slate-600 cut-corners-lg p-8 hover:text-slate-500 transition-all duration-150 bg-noise-dark border-2 border-slate-600 shadow-industrial hover:shadow-industrial-hover relative">
+      <div className={`text-slate-600 cut-corners-lg p-8 hover:text-slate-500 transition-all duration-150 bg-noise-dark border-2 shadow-industrial hover:shadow-industrial-hover relative ${
+        isMarketInactive ? "opacity-75 border-slate-700" : "border-slate-600"
+      }`}>
         {/* Edge lighting */}
         <div className="absolute inset-0 cut-corners-lg shadow-edge-glow pointer-events-none"></div>
+        
+        {/* Market Status Indicator */}
+        <div className="pb-3 w-fit">
+          {isMarketActive && (
+            <div className="flex items-center gap-1 px-2 py-1.5 border border-green-500/60 cut-corners-sm text-[10px] font-mono text-green-400 uppercase tracking-wide">
+              <Radio className="w-2.5 h-2.5" />
+              <span>ACTIVE</span>
+            </div>
+          )}
+          {isMarketMigrating && (
+            <div className="flex items-center gap-1 px-2 py-1.5 border border-amber-500/60 cut-corners-sm text-[10px] font-mono text-amber-400 uppercase tracking-wide">
+              <Radio className="w-2.5 h-2.5" />
+              <span>MIGRATING</span>
+            </div>
+          )}
+          {isMarketInactive && (
+            <div className="flex items-center gap-1 px-2 py-1.5 border border-red-500/60 cut-corners-sm text-[10px] font-mono text-red-400 uppercase tracking-wide">
+              <AlertCircle className="w-2.5 h-2.5" />
+              <span>INACTIVE</span>
+            </div>
+          )}
+        </div>
 
         {/* Planet Header */}
         <div className="flex items-center justify-between mb-8">
@@ -189,9 +218,15 @@ const MarketCard: React.FC<MarketCardProps> = ({
         <div className="flex gap-4">
           <button
             onClick={() => navigate(`/app/markets/details?id=${market.id}`)}
-            className="flex-1 h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-inset relative z-10"
+            className={`flex-1 h-12 px-4 border-2 cut-corners-sm font-mono text-sm font-semibold transition-all duration-150 shadow-inset relative z-10 ${
+              isMarketInactive 
+                ? "bg-slate-800 border-slate-700 text-slate-500 cursor-default"
+                : "bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600 hover:border-slate-500"
+            }`}
           >
-            <span className="relative z-20">DETAILS</span>
+            <span className="relative z-20">
+              DETAILS
+            </span>
           </button>
         </div>
       </div>

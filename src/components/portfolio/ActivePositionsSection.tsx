@@ -4,7 +4,6 @@ import {
   TrendingUp,
   TrendingDown,
   PieChart,
-  Loader,
   Coins
 } from 'lucide-react';
 import { useWallet } from '@txnlab/use-wallet-react';
@@ -12,6 +11,7 @@ import { useMarkets } from '../../hooks/useMarkets';
 import { useAssetMetadata } from '../../hooks/useAssets';
 import { WalletContext } from '../../context/wallet';
 import { useLoanRecords } from '../../hooks/useLoanRecords';
+import MomentumSpinner from '../MomentumSpinner';
 
 const ActivePositionsSection: React.FC = () => {
   const { activeAccount } = useWallet();
@@ -178,7 +178,12 @@ const ActivePositionsSection: React.FC = () => {
             </span>
           </div>
           <div className="text-center py-8">
-            <Loader className="w-8 h-8 text-cyan-400 mx-auto mb-3 animate-spin" />
+            <MomentumSpinner 
+              size="32" 
+              speed="1.1" 
+              color="#06b6d4" 
+              className="mx-auto mb-3" 
+            />
             <div className="text-slate-400 font-mono text-sm">
               LOADING POSITIONS...
             </div>

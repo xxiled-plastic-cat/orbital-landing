@@ -1,10 +1,11 @@
 import React, { useMemo, useContext, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Wallet, Loader, Coins } from "lucide-react";
+import { Wallet, Coins } from "lucide-react";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { useMarkets } from "../../hooks/useMarkets";
 import { useAssetMetadata } from "../../hooks/useAssets";
 import { WalletContext } from "../../context/wallet";
+import MomentumSpinner from "../MomentumSpinner";
 
 const WalletBalancesSection: React.FC = () => {
   const { activeAccount } = useWallet();
@@ -214,7 +215,12 @@ const WalletBalancesSection: React.FC = () => {
             </span>
           </div>
           <div className="text-center py-8">
-            <Loader className="w-8 h-8 text-cyan-400 mx-auto mb-3 animate-spin" />
+            <MomentumSpinner 
+              size="32" 
+              speed="1.1" 
+              color="#06b6d4" 
+              className="mx-auto mb-3" 
+            />
             <div className="text-slate-400 font-mono text-sm">
               LOADING WALLET BALANCES...
             </div>

@@ -6,7 +6,7 @@ import { OrbitalLendingClient } from "./orbital-lendingClient";
 export async function getContractState(
   address: string,
   appId: number,
-  signer: TransactionSigner
+  signer: TransactionSigner,
 ) {
   const appClient = await getExistingClient(signer, address, appId);
   appClient.algorand.setDefaultSigner(signer);
@@ -18,11 +18,13 @@ export async function getContractState(
 export async function getAcceptedCollateral(
   address: string,
   appId: number,
-  signer: TransactionSigner
+  signer: TransactionSigner,
 ) {
   const appClient = await getExistingClient(signer, address, appId);
 
+  console.log("appClient", appClient);
   const collateralBox = await appClient.state.box.acceptedCollaterals.getMap();
+  console.log("collateralBox", collateralBox);
   return collateralBox;
 }
 
@@ -84,6 +86,7 @@ export async function getCollateralBoxValue(
     new algosdk.ABIUintType(64), // baseAssetId
     new algosdk.ABIUintType(64), // marketBaseAssetId
     new algosdk.ABIUintType(64), // totalCollateral
+    new algosdk.ABIUintType(64), // originatingAppId
   ]);
 
   const boxNames = await appClient.state.box.acceptedCollaterals.getMap();
@@ -100,12 +103,13 @@ export async function getCollateralBoxValue(
     boxName,
     acceptedCollateralType
   );
-  const [assetId, baseAssetId, marketBaseAssetId, totalCollateral] = collateral as bigint[];
+  const [assetId, baseAssetId, marketBaseAssetId, totalCollateral, originatingAppId] = collateral as bigint[];
   return {
     assetId,
     baseAssetId,
     marketBaseAssetId,
     totalCollateral,
+    originatingAppId,
     boxRef: {
       appIndex: appId,
       name: new TextEncoder().encode("accepted_collaterals" + index),

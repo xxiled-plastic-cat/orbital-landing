@@ -57,6 +57,7 @@ export interface getBoxValueReturnType {
   baseAssetId: bigint
   marketBaseAssetId: bigint
   totalCollateral: bigint
+  originatingAppId: bigint
   boxRef: algosdk.BoxReference
 }
 
@@ -75,6 +76,33 @@ export interface WithdrawCollateralParams {
   appId: number;
   collateralAssetId: number;
   lstAppId: number;
+  signer: TransactionSigner;
+}
+
+export interface BuyoutAsaParams {
+  buyerAddress: string;
+  debtorAddress: string;
+  appId: number;
+  premiumAmount: number; // Premium amount in xUSD tokens
+  debtRepayAmount: number; // Debt repayment amount in base ASA tokens
+  xUSDAssetId: number;
+  baseTokenAssetId: number;
+  collateralTokenId: number;
+  lstAppId: number;
+  oracleAppId: number;
+  signer: TransactionSigner;
+}
+
+export interface BuyoutAlgoParams {
+  buyerAddress: string;
+  debtorAddress: string;
+  appId: number;
+  premiumAmount: number; // Premium amount in xUSD tokens
+  debtRepayAmount: number; // Debt repayment amount in microAlgos
+  xUSDAssetId: number;
+  collateralTokenId: number;
+  lstAppId: number;
+  oracleAppId: number;
   signer: TransactionSigner;
 }
 

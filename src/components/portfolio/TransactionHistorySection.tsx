@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { 
   ExternalLink, 
   AlertCircle, 
-  Loader, 
   Radio,
   Clock,
   ArrowUpRight,
@@ -15,6 +14,7 @@ import { useWallet } from '@txnlab/use-wallet-react';
 import { GENERAL_BACKEND_URL } from '../../constants/constants';
 import { useMarkets } from '../../hooks/useMarkets';
 import { useAssetMetadata } from '../../hooks/useAssets';
+import MomentumSpinner from '../MomentumSpinner';
 
 interface Transaction {
   address: string;
@@ -177,7 +177,12 @@ const TransactionHistorySection: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <div className="text-slate-600 cut-corners-lg p-8">
-          <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
+          <MomentumSpinner 
+            size="48" 
+            speed="1.1" 
+            color="#06b6d4" 
+            className="mx-auto mb-4" 
+          />
           <div className="text-slate-400 font-mono mb-4">
             SCANNING LOG ENTRIES...
           </div>

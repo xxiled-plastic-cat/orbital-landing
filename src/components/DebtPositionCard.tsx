@@ -58,8 +58,9 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
     return formatAddress(address);
   };
 
-  const getHealthStatus = (healthRatio: number) => {
-    if (healthRatio >= 1.5) {
+  const getHealthStatus = (healthRatio: number, liquidationThreshold: number) => {
+    // Healthy: significantly above liquidation threshold
+    if (healthRatio >= liquidationThreshold * 1.5) {
       return {
         color: 'text-green-400',
         bgColor: 'bg-green-400/10',
@@ -67,7 +68,9 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
         status: 'HEALTHY',
         icon: Shield
       };
-    } else if (healthRatio >= 1.2) {
+    } 
+    // Warning: close to liquidation threshold (within 20% buffer)
+    else if (healthRatio >= liquidationThreshold * 1.2) {
       return {
         color: 'text-amber-400',
         bgColor: 'bg-amber-400/10',
@@ -75,7 +78,9 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
         status: 'NEAR LIQUIDATION',
         icon: AlertTriangle
       };
-    } else {
+    } 
+    // Liquidation zone: below liquidation threshold
+    else {
       return {
         color: 'text-red-400',
         bgColor: 'bg-red-400/10',
@@ -86,7 +91,7 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
     }
   };
 
-  const healthStatus = getHealthStatus(position.healthRatio);
+  const healthStatus = getHealthStatus(position.healthRatio, position.liquidationThreshold);
 
   const formatNumber = (num: number, decimals = 2) => {
     return new Intl.NumberFormat('en-US', {

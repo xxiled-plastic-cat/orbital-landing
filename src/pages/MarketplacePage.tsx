@@ -13,6 +13,7 @@ import AppLayout from '../components/app/AppLayout';
 import DebtPositionCard from '../components/DebtPositionCard';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDebtPositions } from '../hooks/useLoanRecords';
+import MomentumSpinner from '../components/MomentumSpinner';
 import { DebtPosition } from '../types/lending';
 
 // DebtPosition interface is now imported from types/lending.ts
@@ -77,7 +78,12 @@ const MarketplacePage: React.FC = () => {
       <AppLayout title="Mercury Trading Post - Trade Tokenized Debt">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+            <MomentumSpinner 
+              size="48" 
+              speed="1.1" 
+              color="#06b6d4" 
+              className="mx-auto mb-4" 
+            />
             <p className="text-slate-400">Loading debt positions...</p>
           </div>
         </div>

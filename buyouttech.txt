@@ -1,0 +1,364 @@
+const params = {
+      collateralLSTAmount: record.collateralAmount as bigint, // borrower’s LST balance locked
+      totalDepositsLST: xusdGlobalState.totalDeposits as bigint,
+      circulatingLST: xusdGlobalState.circulatingLst as bigint,
+      underlyingBasePrice: xUSDPrice.return?.price || 0n,
+      baseTokenPrice: algoPrice.return?.price || 0n,
+      buyoutTokenPrice: xUSDPrice.return?.price || 0n,
+      principal: record.principal as bigint,
+      userIndexWad: record.userIndexWad as bigint,
+      borrowIndexWad: algoGlobalState.borrowIndexWad as bigint,
+      liq_threshold_bps: algoGlobalState.liqThresholdBps as bigint,
+    }
+
+    const r = computeBuyoutTerms(params)
+
+    /**
+ * Compute buyout premium and debt repayment amounts.
+ *
+ * @param params
+ *  - collateralLSTAmount: amount of LST being bought out (borrower’s full collateral)
+ *  - totalDepositsLST, circulatingLST: from LST app
+ *  - underlyingBasePrice: µUSD price of the LST’s underlying base asset (e.g., xUSD=1e6)
+ *  - baseTokenPrice: µUSD price of the market base token (debt is in this token)
+ *  - buyoutTokenPrice: µUSD price of the token used to pay the premium (e.g., xUSD)
+ *  - principal, userIndexWad, borrowIndexWad: borrower snapshot + market index
+ *  - liq_threshold_bps: liquidation threshold in bps (e.g., 8500)
+ *
+ * @returns
+ *  - eligible: whether CR_bps > liq_threshold_bps
+ *  - premiumTokens: amount of buyout token (xUSD) needed to pay the premium
+ *  - premiumUSD: premium value in µUSD (for debugging/asserts)
+ *  - debtRepayAmountBase: full live debt in base token units (ASA/ALGO) to be repaid
+ *  - collateralUSD, debtUSDv, CR_bps, premiumRateBps: intermediates for assertions
+ */
+export function computeBuyoutTerms(params: {
+  // Collateral (LST)
+  collateralLSTAmount: bigint
+  totalDepositsLST: bigint
+  circulatingLST: bigint
+  underlyingBasePrice: bigint // µUSD (oracle of LST's underlying base asset)
+  // Debt (market base)
+  baseTokenPrice: bigint // µUSD (oracle of market base token)
+  // Premium payment token
+  buyoutTokenPrice: bigint // µUSD (oracle of buyout token, e.g., xUSD = 1e6)
+  // Borrower snapshot + market index
+  principal: bigint
+  userIndexWad: bigint
+  borrowIndexWad: bigint
+  // Parameters
+  liq_threshold_bps: bigint
+}) {
+  const {
+    collateralLSTAmount,
+    totalDepositsLST,
+    circulatingLST,
+    underlyingBasePrice,
+    baseTokenPrice,
+    buyoutTokenPrice,
+    principal,
+    userIndexWad,
+    borrowIndexWad,
+    liq_threshold_bps,
+  } = params
+
+  // 1) Live debt (base units) and USD legs
+  const debtRepayAmountBase = liveDebtFromSnapshot(principal, userIndexWad, borrowIndexWad)
+  const collateralUSD = collateralUSDFromLST(collateralLSTAmount, totalDepositsLST, circulatingLST, underlyingBasePrice)
+  const debtUSDv = debtUSD(debtRepayAmountBase, baseTokenPrice)
+
+  // Edge cases (no debt → premium 0, repay 0)
+  if (debtRepayAmountBase === 0n || debtUSDv === 0n) {
+    return {
+      premiumTokens: 0n,
+      premiumUSD: 0n,
+      premiumRateBps: 0n,
+      CR_bps: 0n,
+      collateralUSD,
+      debtUSDv,
+      debtRepayAmountBase,
+    }
+  }
+
+  // 2) CR in bps
+  const CR_bps = (collateralUSD * BASIS_POINTS) / debtUSDv
+  console.log('CR_bps:', CR_bps)
+  console.log('liq_threshold_bps:', liq_threshold_bps)
+  // 3) Premium rate (bps). 0 at/below threshold; grows unbounded above it.
+  let premiumRateBps = 0n
+  if (CR_bps > liq_threshold_bps) {
+    // (CR_bps * 10_000 / liq_threshold_bps) - 10_000
+    premiumRateBps = (CR_bps * BASIS_POINTS) / liq_threshold_bps - BASIS_POINTS
+    console.log('premiumRateBps:', premiumRateBps)
+  }
+
+  // 4) Premium USD & buyout token amount
+  const premiumUSD = (collateralUSD * premiumRateBps) / BASIS_POINTS
+  console.log('premiumUSD:', premiumUSD)
+  const premiumTokens = buyoutTokenPrice === 0n ? 0n : (premiumUSD * USD_MICRO_UNITS) / buyoutTokenPrice
+  console.log('premiumTokens:', premiumTokens)
+
+  return {
+    premiumTokens, // amount of buyout token to send (xUSD)
+    premiumUSD, // µUSD
+    premiumRateBps, // for assertions/logs
+    CR_bps, // for assertions/logs
+    collateralUSD, // µUSD
+    debtUSDv, // µUSD
+    debtRepayAmountBase, // base token units to repay (ASA/ALGO)
+  }
+}
+
+Contract Code:
+
+  /**
+   * Purchases a borrower's collateral at a premium when loan is above liquidation threshold
+   * @param buyer - Account that will receive the collateral
+   * @param debtor - Account whose loan is being bought out
+   * @param axferTxn - Asset transfer transaction with buyout payment
+   * @dev Buyout price includes premium based on how far above liquidation threshold
+   * @dev Only available when collateral ratio exceeds liquidation threshold
+   * @dev Closes the loan and transfers collateral to buyer
+   */
+  @abimethod({ allowActions: 'NoOp' })
+  public buyoutSplitASA(
+    buyer: Account,
+    debtor: Account,
+    premiumAxferTxn: gtxn.AssetTransferTxn, // buyout token (xUSD) PREMIUM
+    repayAxferTxn: gtxn.AssetTransferTxn, // BASE TOKEN (ASA) full DEBT
+    lstAppId: uint64, // LST app backing the collateral
+  ): void {
+    assert(this.loan_record(debtor).exists, 'NO_LOAN_RECORD')
+    assert(this.contract_state.value.native === 1, 'CONTRACT_NOT_ACTIVE')
+
+    // 1) Make time current
+    this.accrueMarket()
+
+    // 2) Load state
+    const rec = this.loan_record(debtor).value.copy()
+    const collateralAmount: uint64 = rec.collateralAmount.native
+    const collateralTokenId: UintN64 = rec.collateralTokenId
+
+    // Live debt (base token units)
+    const debtBase: uint64 = this.currentDebtFromSnapshot(rec)
+    assert(debtBase > 0, 'NO_DEBT')
+
+    // 3) USD legs
+    const collateralUSD: uint64 = this.calculateCollateralValueUSD(collateralTokenId, collateralAmount, lstAppId)
+    const debtUSDv: uint64 = this.debtUSD(debtBase)
+    assert(debtUSDv > 0, 'BAD_DEBT_USD')
+
+    // CR in bps
+    const [hCR, lCR] = mulw(collateralUSD, BASIS_POINTS)
+    const CR_bps: uint64 = divw(hCR, lCR, debtUSDv)
+
+    // Premium rate (bps), clamped at 0 below threshold
+    let premiumRateBps: uint64 = 0
+    if (CR_bps > this.liq_threshold_bps.value) {
+      const [hR, lR] = mulw(CR_bps, BASIS_POINTS)
+      const ratio_bps: uint64 = divw(hR, lR, this.liq_threshold_bps.value) // > 10_000 if CR_bps > thresh
+      premiumRateBps = ratio_bps - BASIS_POINTS
+    }
+
+    // Premium (USD)
+    const [hP, lP] = mulw(collateralUSD, premiumRateBps)
+    const premiumUSD: uint64 = divw(hP, lP, BASIS_POINTS)
+
+    // 4) Convert premium USD → buyout token amount
+    const buyoutTokenId: uint64 = this.buyout_token_id.value.native
+    const buyoutTokenPrice: uint64 = this.getOraclePrice(this.buyout_token_id.value) // µUSD per token
+
+    // premiumTokens = premiumUSD * 1e6 / buyoutTokenPrice
+    const [hPT, lPT] = mulw(premiumUSD, USD_MICRO_UNITS)
+    const premiumTokens: uint64 = buyoutTokenPrice === 0 ? 0 : divw(hPT, lPT, buyoutTokenPrice)
+
+    // Validate premium transfer (exact)
+    assertMatch(premiumAxferTxn, {
+      sender: buyer,
+      assetReceiver: Global.currentApplicationAddress,
+      xferAsset: Asset(buyoutTokenId),
+      assetAmount: premiumTokens,
+    })
+
+    // 5) Debt repayment in market base token (ASA)
+    const baseAssetId = this.base_token_id.value.native
+    assertMatch(repayAxferTxn, {
+      sender: buyer,
+      assetReceiver: Global.currentApplicationAddress,
+      xferAsset: Asset(baseAssetId),
+      assetAmount: debtBase, // full live debt
+    })
+
+    // 6) Close loan & transfer collateral
+    this.loan_record(debtor).delete()
+    this.active_loan_records.value = this.active_loan_records.value - 1
+
+    itxn
+      .assetTransfer({
+        assetReceiver: buyer,
+        xferAsset: collateralTokenId.native,
+        assetAmount: collateralAmount,
+        fee: STANDARD_TXN_FEE,
+      })
+      .submit()
+
+    // Update collateral totals
+    const acKey = new AcceptedCollateralKey({ assetId: collateralTokenId })
+    const acVal = this.accepted_collaterals(acKey).value.copy()
+    const updatedTotal: uint64 = acVal.totalCollateral.native - collateralAmount
+    this.accepted_collaterals(acKey).value = new AcceptedCollateral({
+      assetId: acVal.assetId,
+      baseAssetId: acVal.baseAssetId,
+      totalCollateral: new UintN64(updatedTotal),
+      marketBaseAssetId: acVal.marketBaseAssetId,
+      originatingAppId: acVal.originatingAppId,
+    }).copy()
+
+    // Market aggregates
+    this.total_borrows.value = this.total_borrows.value - debtBase
+    this.addCash(debtBase)
+
+    // 7) Split the received premium (in buyout token units)
+    this.splitPremium(premiumTokens, buyoutTokenId, debtor)
+
+    // 8) Set next-slice APR
+    this.last_apr_bps.value = this.current_apr_bps()
+  }
+
+
+    /**
+   * Purchases a borrower's collateral at a premium using ALGO payment
+   * @param buyer - Account that will receive the collateral
+   * @param debtor - Account whose loan is being bought out
+   * @param premiumAxferTxn - Asset transfer transaction with buyout token payment (xUSD)
+   * @param repayPayTxn - ALGO payment transaction with base token repayment
+   * @param lstAppId - The LST app backing the collateral
+   * @dev Similar to buyoutASA but uses ALGO payment instead of asset transfer
+   * @dev Buyout price includes premium based on how far above liquidation threshold
+   * @dev Only available when collateral ratio exceeds liquidation threshold
+   */
+  @abimethod({ allowActions: 'NoOp' })
+  public buyoutSplitAlgo(
+    buyer: Account,
+    debtor: Account,
+    premiumAxferTxn: gtxn.AssetTransferTxn, // buyout token (xUSD) PREMIUM
+    repayPayTxn: gtxn.PaymentTxn, // ALGO DEBT repayment
+    lstAppId: uint64,
+  ): void {
+    assert(this.loan_record(debtor).exists, 'NO_LOAN_RECORD')
+    assert(this.contract_state.value.native === 1, 'CONTRACT_NOT_ACTIVE')
+
+    // 1) Make time current
+    this.accrueMarket()
+
+    const rec = this.loan_record(debtor).value.copy()
+    const collateralAmount: uint64 = rec.collateralAmount.native
+    const collateralTokenId: UintN64 = rec.collateralTokenId
+
+    const debtBase: uint64 = this.currentDebtFromSnapshot(rec)
+    assert(debtBase > 0, 'NO_DEBT')
+
+    // 2) USD legs
+    const collateralUSD: uint64 = this.calculateCollateralValueUSD(collateralTokenId, collateralAmount, lstAppId)
+    const debtUSDv: uint64 = this.debtUSD(debtBase)
+    assert(debtUSDv > 0, 'BAD_DEBT_USD')
+
+    const [hCR, lCR] = mulw(collateralUSD, BASIS_POINTS)
+    const CR_bps: uint64 = divw(hCR, lCR, debtUSDv)
+
+    let premiumRateBps: uint64 = 0
+    if (CR_bps > this.liq_threshold_bps.value) {
+      const [hR, lR] = mulw(CR_bps, BASIS_POINTS)
+      const ratio_bps: uint64 = divw(hR, lR, this.liq_threshold_bps.value)
+      premiumRateBps = ratio_bps - BASIS_POINTS
+    }
+
+    const [hP, lP] = mulw(collateralUSD, premiumRateBps)
+    const premiumUSD: uint64 = divw(hP, lP, BASIS_POINTS)
+
+    // 3) Premium in buyout token
+    const buyoutTokenId: uint64 = this.buyout_token_id.value.native
+    const buyoutTokenPrice: uint64 = this.getOraclePrice(this.buyout_token_id.value)
+
+    const [hPT, lPT] = mulw(premiumUSD, USD_MICRO_UNITS)
+    const premiumTokens: uint64 = buyoutTokenPrice === 0 ? 0 : divw(hPT, lPT, buyoutTokenPrice)
+
+    assertMatch(premiumAxferTxn, {
+      sender: buyer,
+      assetReceiver: Global.currentApplicationAddress,
+      xferAsset: Asset(buyoutTokenId),
+      assetAmount: premiumTokens,
+    })
+
+    // 4) Debt repayment in ALGO
+    assertMatch(repayPayTxn, {
+      sender: buyer,
+      receiver: Global.currentApplicationAddress,
+      amount: debtBase,
+    })
+
+    // 5) Close loan, transfer collateral, update aggregates
+    this.loan_record(debtor).delete()
+    this.active_loan_records.value = this.active_loan_records.value - 1
+
+    itxn
+      .assetTransfer({
+        assetReceiver: buyer,
+        xferAsset: collateralTokenId.native,
+        assetAmount: collateralAmount,
+        fee: STANDARD_TXN_FEE,
+      })
+      .submit()
+
+    const acKey = new AcceptedCollateralKey({ assetId: collateralTokenId })
+    const acVal = this.accepted_collaterals(acKey).value.copy()
+    const updatedTotal: uint64 = acVal.totalCollateral.native - collateralAmount
+    this.accepted_collaterals(acKey).value = new AcceptedCollateral({
+      assetId: acVal.assetId,
+      baseAssetId: acVal.baseAssetId,
+      totalCollateral: new UintN64(updatedTotal),
+      marketBaseAssetId: acVal.marketBaseAssetId,
+      originatingAppId: acVal.originatingAppId,
+    }).copy()
+
+    this.total_borrows.value = this.total_borrows.value - debtBase
+    this.addCash(debtBase)
+
+    this.splitPremium(premiumTokens, buyoutTokenId, debtor)
+
+    this.last_apr_bps.value = this.current_apr_bps()
+  }
+
+  Example transaction creation:
+
+  const xUSDPremiumTransferTxn = await algoLendingContractClient.algorand.createTransaction.assetTransfer({
+      sender: buyer.addr,
+      receiver: algoLendingContractClient.appClient.appAddress,
+      assetId: xUSDAssetId,
+      amount: r.premiumTokens,
+      note: 'Paying buyout premium in xUSD',
+    })
+
+    //reapyment pay txn (algo lending)
+    const repayPayTxn = await algoLendingContractClient.algorand.createTransaction.payment({
+      sender: buyer.addr,
+      receiver: algoLendingContractClient.appClient.appAddress,
+      amount: microAlgos(r.debtRepayAmountBase),
+      note: 'Repaying loan with algo',
+    })
+
+    await algoLendingContractClient
+      .newGroup()
+      .gas({args:[], note: '1'})
+      .buyoutSplitAlgo({
+        args: [
+          buyer.addr.publicKey,
+          debtor.addr.publicKey,
+          xUSDPremiumTransferTxn,
+          repayPayTxn,
+          xUSDLendingContractClient.appId,
+        ],
+        assetReferences: [xUSDAssetId, collateralTokenId],
+        appReferences: [algoLendingContractClient.appId, xUSDLendingContractClient.appId, oracleAppClient.appId],
+      })
+      .send()

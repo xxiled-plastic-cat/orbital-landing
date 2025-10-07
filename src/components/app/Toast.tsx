@@ -7,7 +7,7 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CgSpinner } from "react-icons/cg";
+import MomentumSpinner from "../MomentumSpinner";
 import { useRef } from "react";
 
 export const Toast = () => {
@@ -66,7 +66,7 @@ export const Toast = () => {
                 {index < toast.currentStepIndex! ? (
                   <CheckCheckIcon className="w-4 h-4" />
                 ) : index === toast.currentStepIndex ? (
-                  <CgSpinner className="w-4 h-4 animate-spin" />
+                  <MomentumSpinner size="16" speed="1.1" color="#06b6d4" />
                 ) : (
                   <div className="w-4 h-4 border-2 border-slate-500 cut-corners-sm" />
                 )}
@@ -117,14 +117,14 @@ export const Toast = () => {
             <div className="flex items-start gap-3">
               <div className="flex flex-col justify-start items-start">
                 {toast.type === "loading" && (
-                  <CgSpinner className="h-8 w-8 animate-spin text-cyan-400" />
+                  <MomentumSpinner size="32" speed="1.1" color="#06b6d4" />
                 )}
                 {toast.type === "success" && (
                   <CheckCheckIcon className="w-8 h-8 text-cyan-400" />
                 )}
                 {toast.type === "error" && <XCircleIcon className="w-8 h-8 text-red-400" />}
                 {toast.type === "multi-step" && (
-                  <CgSpinner className="h-8 w-8 animate-spin text-cyan-400" />
+                  <MomentumSpinner size="32" speed="1.1" color="#06b6d4" />
                 )}
                 {toast.type === "reward" && (
                   <StarIcon className="w-8 h-8 text-amber-400" />

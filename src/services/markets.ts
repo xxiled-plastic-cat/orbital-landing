@@ -40,39 +40,66 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
     frozen: false,
   },
   // Add USDCt and goBTCt when asset IDs are available
-  "123456789": {
-    id: "123456789",
+  "747008852": {
+    id: "747008852",
     name: "USDC Testnet",
     symbol: "USDCt",
     decimals: 6,
-    image: "/USDCt.svg", // You'll need to add this image
+    image: "/USDCt-logo.svg", // You'll need to add this image
     verified: true,
     frozen: false,
   },
-  "987654321": {
-    id: "987654321",
+  "747008871": {
+    id: "747008871",
     name: "goBTC Testnet",
     symbol: "goBTCt",
     decimals: 8,
-    image: "/goBTCt.svg", // You'll need to add this image
+    image: "/goBTCt-logo.svg", // You'll need to add this image
     verified: true,
     frozen: false,
   },
-  "744856057": {
-    id: "744856057",
+  "747010716": {
+    id: "747010716",
     name: "Collateralized COMPX Testnet",
     symbol: "cCOMPXt",
     decimals: 6,
-    image: "/COMPXt.svg",
+    image: "/cCOMPXt.svg",
     verified: true,
     frozen: false,
   },
-  "744855936": {
-    id: "744855936",
+  "747010778": {
+    id: "747010778",
     name: "Collateralized xUSDt Testnet",
     symbol: "cxUSDt",
     decimals: 6,
-    image: "/xUSDt.svg",
+    image: "/cxUSDt.svg",
+    verified: true,
+    frozen: false,
+  },
+  "747010543": {
+    id: "747010543",
+    name: "Collateralized ALGO Testnet",
+    symbol: "cALGO",
+    decimals: 6,
+    image: "/cALGO-logo.svg",
+    verified: true,
+    frozen: false,
+  },
+  "747010840": {
+    id: "747010840",
+    name: "Collateralized USDCt Testnet",
+    symbol: "cUSDCt",
+    decimals: 6,
+    image: "/cUSDCt-logo.svg",
+    verified: true,
+    frozen: false,
+  },
+  "747010926": {
+    id: "747010926",
+    name: "Collateralized goBTCt Testnet",
+    symbol: "cgoBTCt",
+    decimals: 8,
+    image: "/cgoBTCt-logo.svg",
     verified: true,
     frozen: false,
   },
@@ -82,10 +109,13 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
 const TESTNET_MARKET_ASSET_IDS = [
   "744427912", // xUSDt
   "744427950", // COMPXt
-  "123456789", // USDCt (placeholder ID)
-  "987654321", // goBTCt (placeholder ID)
-  "744856057", // cCOMPXt (collateral token)
-  "744855936", // cxUSDt (collateral token)
+  "747008852", // USDCt 
+  "747008871", // goBTCt 
+  "747010716", // cCOMPXt (collateral token)
+  "747010778", // cxUSDt (collateral token)
+  "747010543", // cALGO (collateral token)
+  "747010840", // cUSDCt (collateral token)
+  "747010926", // cgoBTCt (collateral token)
 ];
 
 // Token metadata mapping for markets - you can expand this or fetch from another endpoint
@@ -100,6 +130,9 @@ const TOKEN_METADATA: Record<
     symbol: "COMPXt",
     image: "/COMPXt.svg",
   },
+  747008852: { name: "USDC Testnet", symbol: "USDCt", image: "/USDCt-logo.svg" },
+  747008871: { name: "goBTC Testnet", symbol: "goBTCt", image: "/goBTCt-logo.svg" },
+  0: { name: "ALGO Testnet", symbol: "ALGO", image: "/algo-icon.svg" },
 };
 
 export async function fetchMarkets(
@@ -128,9 +161,11 @@ export async function fetchMarkets(
         const utilCapBps = appGlobalState.utilCapBps ?? 10000n; // Default 100% if not set
         const ltvBps = appGlobalState.ltvBps ?? 0n;
         const liqThresholdBps = appGlobalState.liqThresholdBps ?? 0n;
+        const originationFeeBps = appGlobalState.originationFeeBps ?? 0n;
         const oracleAppId = appGlobalState.oracleApp ?? 0n;
+        const buyoutTokenId = appGlobalState.buyoutTokenId ?? 0n;
         const borrowIndexWad = appGlobalState.borrowIndexWad ?? 0n;
-
+        const contractState = appGlobalState.contractState ?? 0n;
         // Calculate normalized utilization (0-10000 basis points)
         const utilNormBpsValue = utilNormBps(
           totalDeposits,
@@ -216,6 +251,7 @@ export async function fetchMarkets(
           baseTokenId: market.baseTokenId,
           lstTokenId: market.lstTokenId,
           oracleAppId: Number(oracleAppId),
+          buyoutTokenId: Number(buyoutTokenId),
           baseTokenPrice: Number(baseTokenPrice),
           circulatingLST: Number(appGlobalState.circulatingLst) / 10 ** 6,
           borrowIndexWad: borrowIndexWad,
@@ -227,6 +263,8 @@ export async function fetchMarkets(
           slope2Bps: Number(appGlobalState.slope2Bps ?? 400n), // Default 4%
           maxAprBps: Number(appGlobalState.maxAprBps ?? 50000n), // Default 500%
           rateModelType: Number(appGlobalState.rateModelType ?? 0n), // Default kinked model
+          originationFeeBps: Number(originationFeeBps), // Origination fee in basis points
+          contractState: Number(contractState),
         };
 
         marketStates.push(marketState);
@@ -269,6 +307,7 @@ export async function fetchAssetMetadata(
           });
         }
       });
+      console.log("Metadata array:", metadataArray);
       return metadataArray;
     }
 

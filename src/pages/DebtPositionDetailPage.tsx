@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -13,12 +13,24 @@ import { Link, useParams } from "react-router-dom";
 import AppLayout from "../components/app/AppLayout";
 import { useDebtPosition } from "../hooks/useLoanRecords";
 import { useNFD } from "../hooks/useNFD";
+import { useMarket } from "../hooks/useMarkets";
+import MomentumSpinner from "../components/MomentumSpinner";
+import { buyoutSplitASA, buyoutSplitAlgo } from "../contracts/lending/user";
+import { getAcceptedCollateral } from "../contracts/lending/state";
+import { useWallet } from "@txnlab/use-wallet-react";
+import { useToast } from "../context/toastContext";
 
 const DebtPositionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { activeAddress, transactionSigner } = useWallet();
+  const { openToast } = useToast();
+  const [isExecutingBuyout, setIsExecutingBuyout] = useState(false);
 
   // Fetch the position by ID using real data
   const { data: position, isLoading, error } = useDebtPosition(id || "");
+
+  // Fetch market data to get buyoutTokenId, oracleAppId, etc.
+  const { data: market } = useMarket(position?.marketId || "");
 
   // Fetch NFD data for the user address
   const { nfdName, nfdAvatar, isLoadingNFD } = useNFD(
@@ -91,8 +103,9 @@ const DebtPositionDetailPage: React.FC = () => {
     }
   };
 
-  const getHealthStatus = (healthRatio: number) => {
-    if (healthRatio >= 1.5) {
+  const getHealthStatus = (healthRatio: number, liquidationThreshold: number) => {
+    // Healthy: significantly above liquidation threshold
+    if (healthRatio >= liquidationThreshold * 1.5) {
       return {
         color: "text-green-400",
         bgColor: "bg-green-400/10",
@@ -100,7 +113,9 @@ const DebtPositionDetailPage: React.FC = () => {
         status: "HEALTHY",
         icon: Shield,
       };
-    } else if (healthRatio >= 1.2) {
+    } 
+    // Warning: close to liquidation threshold (within 20% buffer)
+    else if (healthRatio >= liquidationThreshold * 1.2) {
       return {
         color: "text-amber-400",
         bgColor: "bg-amber-400/10",
@@ -108,7 +123,9 @@ const DebtPositionDetailPage: React.FC = () => {
         status: "NEARING LIQUIDATION",
         icon: AlertTriangle,
       };
-    } else {
+    } 
+    // Liquidation zone: below liquidation threshold
+    else {
       return {
         color: "text-red-400",
         bgColor: "bg-red-400/10",
@@ -125,7 +142,12 @@ const DebtPositionDetailPage: React.FC = () => {
       <AppLayout title="Loading Position - Mercury Trading Post">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+            <MomentumSpinner 
+              size="48" 
+              speed="1.1" 
+              color="#06b6d4" 
+              className="mx-auto mb-4" 
+            />
             <p className="text-slate-400">Loading debt position...</p>
           </div>
         </div>
@@ -155,18 +177,138 @@ const DebtPositionDetailPage: React.FC = () => {
     );
   }
 
-  const healthStatus = getHealthStatus(position.healthRatio);
+  const healthStatus = getHealthStatus(position.healthRatio, position.liquidationThreshold);
   const HealthIcon = healthStatus.icon;
-  const isLiquidationZone = position.healthRatio < 1.2;
+  // Use the actual liquidation threshold from the position data, not hardcoded 1.2
+  const isLiquidationZone = position.healthRatio < position.liquidationThreshold;
 
   const handleLiquidate = () => {
     console.log("Execute liquidation for position:", position.id);
     // TODO: Implement liquidation logic
   };
 
-  const handleBUYOUT = () => {
-    console.log("Execute acquisition for position:", position.id);
-    // TODO: Implement acquisition logic
+  const handleBUYOUT = async () => {
+    if (!transactionSigner || !activeAddress) {
+      openToast({
+        type: "error",
+        message: "Please connect your wallet to execute buyout",
+        description: null,
+      });
+      return;
+    }
+
+    if (!position) {
+      openToast({
+        type: "error",
+        message: "Position data not available",
+        description: null,
+      });
+      return;
+    }
+
+    if (!market) {
+      openToast({
+        type: "error",
+        message: "Market data not available",
+        description: null,
+      });
+      return;
+    }
+
+    setIsExecutingBuyout(true);
+
+    try {
+      console.log("Execute buyout for position:", position.id);
+      
+      // Check if debt token is ALGO (baseTokenId = 0) or ASA
+      const isAlgoDebt = position.debtToken.id === "0";
+      
+      // Get IDs from market data
+      const marketAppId = parseInt(position.marketId);
+      const oracleAppId = market.oracleAppId;
+      const buyoutTokenId = market.buyoutTokenId;
+      
+      // Get LST app ID from accepted collateral data
+      let lstAppId = 0;
+      
+      try {
+        // Get accepted collateral data to find the LST app ID (originatingAppId)
+        const acceptedCollaterals = await getAcceptedCollateral(
+          activeAddress,
+          marketAppId,
+          transactionSigner
+        );
+        
+        // Find the collateral that matches our position's collateral token
+        const collateralTokenId = BigInt(position.collateralToken.id);
+        for (const [, collateral] of acceptedCollaterals.entries()) {
+          if (collateral.assetId === collateralTokenId) {
+            lstAppId = Number(collateral.originatingAppId);
+            console.log("Found LST app ID:", lstAppId, "for collateral token:", collateralTokenId);
+            break;
+          }
+        }
+        
+        if (lstAppId === 0) {
+          console.warn("Could not find LST app ID for collateral token:", collateralTokenId);
+        }
+      } catch (error) {
+        console.warn("Failed to get accepted collateral data:", error);
+        // Continue with lstAppId = 0, the transaction might still work
+      }
+      
+      let txId: string;
+      
+      if (isAlgoDebt) {
+        console.log("Executing ALGO buyout method");
+        
+        txId = await buyoutSplitAlgo({
+          buyerAddress: activeAddress,
+          debtorAddress: position.userAddress,
+          appId: marketAppId,
+          premiumAmount: position.buyoutPremiumTokens,
+          debtRepayAmount: position.buyoutDebtRepaymentTokens * 1e6, // Convert to microAlgos
+          xUSDAssetId: buyoutTokenId,
+          collateralTokenId: parseInt(position.collateralToken.id),
+          lstAppId,
+          oracleAppId,
+          signer: transactionSigner,
+        });
+      } else {
+        console.log("Executing ASA buyout method");
+        
+        txId = await buyoutSplitASA({
+          buyerAddress: activeAddress,
+          debtorAddress: position.userAddress,
+          appId: marketAppId,
+          premiumAmount: position.buyoutPremiumTokens,
+          debtRepayAmount: position.buyoutDebtRepaymentTokens,
+          xUSDAssetId: buyoutTokenId,
+          baseTokenAssetId: parseInt(position.debtToken.id),
+          collateralTokenId: parseInt(position.collateralToken.id),
+          lstAppId,
+          oracleAppId,
+          signer: transactionSigner,
+        });
+      }
+      
+      openToast({
+        type: "success",
+        message: "Buyout successful! Transaction ID: " + txId,
+        description: null,
+      });
+      console.log("Buyout transaction completed:", txId);
+      
+    } catch (error) {
+      console.error("Buyout failed:", error);
+      openToast({
+        type: "error",
+        message: "Buyout failed: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: null,
+      });
+    } finally {
+      setIsExecutingBuyout(false);
+    }
   };
 
   return (
@@ -455,50 +597,134 @@ const DebtPositionDetailPage: React.FC = () => {
 
               <div className="p-4 md:p-6 space-y-6">
                 {/* Cost/Bonus Display */}
-                <div>
-                  <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">
-                    {isLiquidationZone ? "Liquidation Bonus" : "Buyout Cost"}
-                  </h3>
-                  <div className="bg-slate-700 rounded-lg p-4">
-                    <div className="font-mono font-bold text-2xl text-white">
-                      {isLiquidationZone
-                        ? `${formatNumber(position.liquidationBonus, 1)}%`
-                        : `${formatNumber(position.buyoutCost)} xUSDt`}
-                    </div>
-                    <div className="text-slate-400 text-sm">
-                      Total Cost
+                {isLiquidationZone ? (
+                  <div>
+                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">
+                      Liquidation Bonus
+                    </h3>
+                    <div className="bg-slate-700 rounded-lg p-4">
+                      <div className="font-mono font-bold text-2xl text-white">
+                        {formatNumber(position.liquidationBonus, 1)}%
+                      </div>
+                      <div className="text-slate-400 text-sm">
+                        Liquidation Discount
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-slate-400 uppercase tracking-wide text-sm">
+                      Buyout Breakdown
+                    </h3>
+                    
+                    {/* Debt Repayment */}
+                    <div className="bg-slate-700 rounded-lg p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <img
+                          src={getTokenImage(position.debtToken.symbol)}
+                          alt={position.debtToken.symbol}
+                          className="w-6 h-6 rounded-full flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="font-mono font-bold text-lg text-red-400">
+                          {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol}
+                        </div>
+                      </div>
+                      <div className="font-mono font-semibold text-slate-300">
+                        ${formatUSD(position.buyoutDebtRepayment)}
+                      </div>
+                      <div className="text-slate-400 text-sm">
+                        Debt Repayment
+                      </div>
+                    </div>
+                    
+                    {/* Premium */}
+                    <div className="bg-slate-700 rounded-lg p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <img
+                          src="/xUSDt.svg"
+                          alt="xUSDt"
+                          className="w-6 h-6 rounded-full flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="font-mono font-bold text-lg text-amber-400">
+                          {formatNumber(position.buyoutPremiumTokens)} xUSDt
+                        </div>
+                      </div>
+                      <div className="font-mono font-semibold text-slate-300">
+                        ${formatUSD(position.buyoutPremium)}
+                      </div>
+                      <div className="text-slate-400 text-sm mb-2">
+                        Buyout Premium
+                      </div>
+                      <div className="text-slate-500 text-xs">
+                        50% goes to borrower, 50% to protocol
+                      </div>
+                    </div>
+                    
+                    {/* Total */}
+                    <div className="bg-slate-600 rounded-lg p-4 border border-cyan-500/30">
+                      <div className="font-mono font-bold text-2xl text-cyan-400">
+                        ${formatUSD(position.buyoutCost)}
+                      </div>
+                      <div className="text-slate-300 text-sm font-semibold">
+                        Total Buyout Cost
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Button */}
                 <button
                   onClick={isLiquidationZone ? handleLiquidate : handleBUYOUT}
+                  disabled={isExecutingBuyout}
                   className={`w-full py-4 border text-white rounded-lg font-mono text-lg font-semibold transition-all duration-150 flex items-center justify-center gap-3 ${
                     isLiquidationZone
-                      ? "bg-red-600 border-red-500 hover:bg-red-500"
-                      : "bg-cyan-600 border-cyan-500 hover:bg-cyan-500"
-                  }`}
+                      ? "bg-red-600 border-red-500 hover:bg-red-500 disabled:bg-red-400 disabled:border-red-400"
+                      : "bg-cyan-600 border-cyan-500 hover:bg-cyan-500 disabled:bg-cyan-400 disabled:border-cyan-400"
+                  } disabled:cursor-not-allowed disabled:opacity-70`}
                 >
-                  <DollarSign className="w-5 h-5" />
-                  <span>
-                    {isLiquidationZone
-                      ? "LIQUIDATE POSITION"
-                      : "BUYOUT POSITION"}
-                  </span>
+                  {isExecutingBuyout ? (
+                    <>
+                      <MomentumSpinner size="20" speed="1.2" color="#ffffff" />
+                      <span>EXECUTING...</span>
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign className="w-5 h-5" />
+                      <span>
+                        {isLiquidationZone
+                          ? "LIQUIDATE POSITION"
+                          : "BUYOUT POSITION"}
+                      </span>
+                    </>
+                  )}
                 </button>
 
                 {/* Transaction Details */}
                 <div className="bg-slate-800/50 rounded-lg p-4 text-sm font-mono">
                   <div className="text-slate-400 mb-2">Transaction will:</div>
                   <ul className="space-y-1 text-slate-300">
-                    <li>
-                      • {isLiquidationZone ? "Liquidate" : "Buyout"} debt
-                      position
-                    </li>
-                    <li>• Execute smart contract transaction</li>
-                    <li>• Transfer collateral to your wallet</li>
-                    <li>• Remove position from the marketplace</li>
+                    {isLiquidationZone ? (
+                      <>
+                        <li>• Liquidate debt position</li>
+                        <li>• Repay full debt amount</li>
+                        <li>• Claim collateral at discount</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>• Buyout debt position</li>
+                        <li>• Repay debt: {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol} (${formatUSD(position.buyoutDebtRepayment)})</li>
+                        <li>• Pay premium: {formatNumber(position.buyoutPremiumTokens)} xUSDt (${formatUSD(position.buyoutPremium)})</li>
+                        <li>• Receive collateral: {formatNumber(position.totalCollateralTokens)} {position.collateralToken.symbol} (${formatUSD(position.totalCollateral)})</li>
+                      </>
+                    )}
+                    <li>• Execute atomic smart contract transaction</li>
+                    <li>• Remove position from marketplace</li>
                   </ul>
                 </div>
               </div>

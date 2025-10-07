@@ -11,19 +11,36 @@ const TESTNET_COLLATERAL_TOKENS: Record<
     image?: string;
   }
 > = {
-  "744856057": {
+  "747010716": {
     symbol: "cCOMPXt",
     name: "Collateralized COMPX Testnet",
     decimals: 6,
     image: "/COMPXt.svg",
   },
-  "744855936": {
+  "747010778": {
     symbol: "cxUSDt",
     name: "Collateralized xUSDt Testnet",
     decimals: 6,
-    image: "/xUSDt.svg",
+    image: "/cxUSDt.svg",
   },
-  // Add more testnet tokens as needed
+  "747010840": {
+    symbol: "cUSDCt",
+    name: "Collateralized USDCt Testnet",
+    decimals: 6,
+    image: "/cUSDCt.svg",
+  },
+  "747010926": {
+    symbol: "cgoBTCt",
+    name: "Collateralized goBTCt Testnet",
+    decimals: 8,
+    image: "/cgoBTCt.svg",
+  },
+  "747010543": {
+    symbol: "cALGO",
+    name: "Collateralized ALGO Testnet",
+    decimals: 6,
+    image: "/cAlgo.svg",
+  },
 };
 
 // Network configuration is now handled by constants

@@ -2,10 +2,11 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Droplets, Loader2 } from "lucide-react";
+import { X, Droplets } from "lucide-react";
 import { useToast } from "../../context/toastContext";
 import { getTestTokens } from "../../contracts/faucet/user";
 import { useWallet } from "@txnlab/use-wallet-react";
+import MomentumSpinner from "../MomentumSpinner";
 
 interface Token {
   id: string;
@@ -40,6 +41,22 @@ const TESTNET_TOKENS: Token[] = [
     image: "/COMPXt.svg",
     description: "CompX Token Testnet",
   },
+  {
+    id: "747008852",
+    faucetId: 747009258,
+    name: "USDC Token Testnet",
+    symbol: "USDCt",
+    image: "/USDCt-logo.svg",
+    description: "USDC Token Testnet",
+  },
+  {
+    id: "747008871",
+    faucetId: 747009380,
+    name: "goBTC Token Testnet",
+    symbol: "goBTCt",
+    image: "/goBTCt-logo.svg",
+    description: "goBTC Token Testnet",
+  },
 ];
 
 const FaucetModal: React.FC<FaucetModalProps> = ({
@@ -47,7 +64,9 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
   onClose,
   walletAddress,
 }) => {
-  const [requestingTokens, setRequestingTokens] = useState<Set<string>>(new Set());
+  const [requestingTokens, setRequestingTokens] = useState<Set<string>>(
+    new Set()
+  );
 
   const { activeAddress, signTransactions } = useWallet();
   const { openToast } = useToast();
@@ -55,7 +74,7 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
   const handleTokenRequest = async (token: Token) => {
     if (requestingTokens.has(token.id)) return;
 
-    setRequestingTokens(prev => new Set(prev).add(token.id));
+    setRequestingTokens((prev) => new Set(prev).add(token.id));
 
     try {
       openToast({
@@ -63,23 +82,29 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
         message: "Requesting resources...",
         description: `Requesting ${token.symbol} from Resource Station`,
       });
-      
-      await getTestTokens(activeAddress!, signTransactions, token.faucetId).then(() => {
+
+      await getTestTokens(
+        activeAddress!,
+        signTransactions,
+        token.faucetId
+      ).then(() => {
         openToast({
           type: "success",
           message: "Resources acquired successfully",
           description: `${token.symbol} resources have been transferred to your wallet`,
         });
-      })
+      });
     } catch (error: any) {
       console.error(`Failed to request ${token.symbol}:`, error);
       openToast({
         type: "error",
         message: "Failed to acquire resources",
-        description: error?.message || "An error occurred while requesting resources from Resource Station",
+        description:
+          error?.message ||
+          "An error occurred while requesting resources from Resource Station",
       });
     } finally {
-      setRequestingTokens(prev => {
+      setRequestingTokens((prev) => {
         const newSet = new Set(prev);
         newSet.delete(token.id);
         return newSet;
@@ -99,7 +124,7 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
       case "requesting":
         return (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <MomentumSpinner size="16" speed="1.1" color="white" />
             <span>Requesting...</span>
           </>
         );
@@ -176,8 +201,12 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
               {walletAddress && (
                 <div className="px-4 md:px-6 py-3 bg-slate-800/50 border-b border-slate-600">
                   <p className="text-sm text-slate-300 font-mono">
-                    <span className="text-cyan-400 font-medium uppercase tracking-wide">Wallet:</span>{" "}
-                    <span className="text-white">{walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}</span>
+                    <span className="text-cyan-400 font-medium uppercase tracking-wide">
+                      Wallet:
+                    </span>{" "}
+                    <span className="text-white">
+                      {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
+                    </span>
                   </p>
                 </div>
               )}
@@ -204,7 +233,8 @@ const FaucetModal: React.FC<FaucetModalProps> = ({
                               className="w-6 h-6 object-contain"
                               onError={(e) => {
                                 // Fallback to a generic token icon if image fails to load
-                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
                               }}
                             />
                           </div>

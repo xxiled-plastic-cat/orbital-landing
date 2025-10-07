@@ -19,6 +19,7 @@ export interface LendingMarket {
   baseTokenId: string; // Base token asset ID
   lstTokenId: string; // LST token asset ID
   oracleAppId: number; // Oracle application ID
+  buyoutTokenId: number; // Buyout token asset ID
   baseTokenPrice: number; // Base token price
   circulatingLST: number; // Circulating LST tokens
   borrowIndexWad?: bigint; // Borrow index for interest calculations
@@ -30,6 +31,8 @@ export interface LendingMarket {
   slope2Bps?: number; // Slope after kink in basis points
   maxAprBps?: number; // Maximum APR cap in basis points
   rateModelType?: number; // Rate model type (0=kinked, 1=linear, etc.)
+  originationFeeBps?: number; // Origination fee in basis points
+  contractState: number; // Contract state (0=inactive, 1=active, 2=migrating)
 }
 
 // User position interface
@@ -109,9 +112,13 @@ export interface DebtPosition {
   totalDebtUSD: number; // Debt value in USD
   totalCollateral: number; // Collateral value in USD
   totalCollateralTokens: number; // Collateral amount in tokens
-  healthRatio: number; // Higher is better (>1.5 healthy, 1.2-1.5 warning, <1.2 liquidation)
+  healthRatio: number; // Higher is better (>liquidationThreshold*1.5 healthy, liquidationThreshold*1.2-1.5 warning, <liquidationThreshold liquidation)
   liquidationThreshold: number;
-  buyoutCost: number;
+  buyoutCost: number; // Total cost (debt repayment + premium)
+  buyoutDebtRepayment: number; // Just the debt repayment portion in USD
+  buyoutDebtRepaymentTokens: number; // Debt repayment in debt token units
+  buyoutPremium: number; // Just the premium portion in USD
+  buyoutPremiumTokens: number; // Premium in buyout token units (typically xUSD)
   liquidationBonus: number; // Percentage discount for liquidators
   marketId: string;
   lastUpdated: Date;
