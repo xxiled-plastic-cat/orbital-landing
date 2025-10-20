@@ -75,7 +75,7 @@ const DocsPage: React.FC = () => {
   ];
 
   return (
-    <AppLayout title="Orbital Documentation - Mission Briefing">
+    <AppLayout title="Orbital Documentation">
       <div className="container-section py-4 md:py-8">
         {/* Navigation Link */}
         <div className="mb-4 md:mb-4">
