@@ -79,7 +79,7 @@ const AppFooter = () => {
 
   return (
     <motion.footer
-      className="relative mt-12 md:mt-20 mb-4 w-full overflow-hidden"
+      className="relative mt-12 md:mt-20 mb-4 w-full overflow-hidden px-4 md:px-0"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
@@ -126,7 +126,7 @@ const AppFooter = () => {
             <h3 className="text-sm font-mono font-semibold text-white uppercase tracking-wide mb-2">
               Navigation
             </h3>
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               <button
                 onClick={() => navigate('/app/markets')}
                 className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
@@ -156,7 +156,7 @@ const AppFooter = () => {
               </a>
               <button
                 onClick={() => navigate('/app/docs')}
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
+                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left col-span-2"
               >
                 Documentation
               </button>

@@ -32,33 +32,33 @@ const DocsPage: React.FC = () => {
   const sections = [
     {
       id: "overview",
-      title: "Mission Overview",
+      title: "Overview",
       icon: Radio,
       description: "Understanding Orbital Lending Protocol",
     },
     {
       id: "lending",
-      title: "Orbital Markets",
+      title: "Supply",
       icon: Coins,
       description: "Supply assets and earn interest",
     },
     {
       id: "borrowing",
-      title: "Launch Positions",
+      title: "Borrow",
       icon: TrendingUp,
       description: "Borrow against your collateral",
     },
     {
       id: "marketplace",
-      title: "Mercury Trading Post",
+      title: "Trade",
       icon: ShoppingCart,
       description: "Trade tokenized debt positions",
     },
     {
       id: "portfolio",
-      title: "Command Center",
+      title: "Logbook",
       icon: Wallet,
-      description: "Monitor your positions and health",
+      description: "Monitor your positions and history",
     },
     {
       id: "faucet",
@@ -68,7 +68,7 @@ const DocsPage: React.FC = () => {
     },
     {
       id: "governance",
-      title: "Governance Hub",
+      title: "Governance",
       icon: Vote,
       description: "Participate in protocol governance",
     },
@@ -77,50 +77,63 @@ const DocsPage: React.FC = () => {
   return (
     <AppLayout title="Orbital Documentation - Mission Briefing">
       <div className="container-section py-4 md:py-8">
+        {/* Navigation Link */}
+        <div className="mb-4 md:mb-4">
+          <Link 
+            to="/app"
+            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-xs sm:text-sm md:text-base group"
+          >
+            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-150" />
+            <span className="uppercase tracking-wide">Back to Home</span>
+          </Link>
+        </div>
+
         {/* Mission Control Header */}
         <motion.div
-          className="mb-6 md:mb-8"
+          className="mb-5 md:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           {/* Enhanced Mission Control Strip */}
-          <div className="relative mb-6 md:mb-8">
+          <div className="relative mb-5 md:mb-8">
             <div className="text-slate-600 cut-corners-lg p-4 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                  <div className="flex items-center gap-2 md:gap-3 justify-between w-full">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
-                      <span className="text-base md:text-lg font-mono font-semibold text-slate-300 uppercase tracking-wide">
-                        MISSION BRIEFING
-                      </span>
-                    </div>
-                    <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset">
-                      <span className="text-amber-400 text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                        TESTNET
-                      </span>
-                    </div>
+              <div className="flex flex-col gap-3 md:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-0">
+                {/* Top section: Title and Status badges */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <BookOpen className="w-4 h-4 md:w-6 md:h-6 text-cyan-400" />
+                    <span className="text-xs sm:text-base md:text-lg font-mono font-semibold text-slate-300 uppercase tracking-wide">
+                      MISSION BRIEFING
+                    </span>
+                  </div>
+                  {/* Status badges */}
+                  <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset shrink-0">
+                    <span className="text-amber-400 text-[10px] sm:text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
+                      TESTNET
+                    </span>
                   </div>
                 </div>
 
+                {/* Divider */}
                 <div className="hidden lg:block h-8 w-px bg-slate-600 mx-6"></div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-6 lg:gap-8 text-sm lg:flex lg:items-center">
-                  <div className="flex flex-col sm:block">
-                    <span className="text-slate-400 uppercase tracking-wide text-xs md:text-sm">
+                {/* Stats section */}
+                <div className="grid grid-cols-2 gap-2 md:gap-6 lg:gap-8 lg:flex lg:items-center">
+                  <div className="flex flex-col">
+                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5">
                       Protocol Status:
                     </span>
-                    <span className="font-mono font-bold text-cyan-400 tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3 flex items-center gap-2">
-                      <Zap className="w-4 h-4" />
+                    <span className="font-mono font-bold text-cyan-400 tabular-nums text-sm sm:text-base md:text-lg flex items-center gap-2">
+                      <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
                       ONLINE
                     </span>
                   </div>
-                  <div className="flex flex-col sm:block">
-                    <span className="text-slate-400 uppercase tracking-wide text-xs md:text-sm">
+                  <div className="flex flex-col">
+                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5">
                       Network:
                     </span>
-                    <span className="font-mono font-bold text-white tabular-nums text-base md:text-lg sm:ml-2 lg:ml-3">
+                    <span className="font-mono font-bold text-white tabular-nums text-sm sm:text-base md:text-lg">
                       ALGORAND
                     </span>
                   </div>
@@ -129,28 +142,17 @@ const DocsPage: React.FC = () => {
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-mono font-bold mb-4 md:mb-6 text-white tracking-tight">
+          <h1 className="text-xl sm:text-3xl md:text-5xl lg:text-6xl font-mono font-bold mb-3 sm:mb-4 md:mb-6 text-white tracking-tight">
             ORBITAL <span className="text-cyan-400">DOCUMENTATION</span>
           </h1>
-          <p className="text-sm sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed mb-6 md:mb-8">
+          <p className="text-xs sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed mb-5 sm:mb-6 md:mb-8">
             Complete guide to Orbital Lending Protocol • Learn to
             navigate the system • Master DeFi lending
           </p>
-
-          {/* Navigation Link */}
-          <div className="flex items-center gap-4">
-            <Link 
-              to="/app"
-              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-sm md:text-base group"
-            >
-              <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-150" />
-              <span className="uppercase tracking-wide">Back to Mission Control</span>
-            </Link>
-          </div>
         </motion.div>
 
         {/* Main Documentation Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
           {/* Navigation Sidebar */}
           <motion.div
             className="lg:col-span-1"

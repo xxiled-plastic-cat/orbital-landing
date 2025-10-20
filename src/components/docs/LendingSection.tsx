@@ -8,7 +8,7 @@ const LendingSection: React.FC = () => {
       <div className="flex items-center gap-3 mb-6">
         <Coins className="w-6 h-6 text-cyan-400" />
         <h2 className="text-2xl md:text-3xl font-mono font-bold text-white uppercase tracking-wide">
-          Orbital Markets
+          Supply
         </h2>
       </div>
 
@@ -21,7 +21,7 @@ const LendingSection: React.FC = () => {
         <div className="text-slate-300 font-mono leading-relaxed space-y-4">
           <p>
             <strong className="text-cyan-400">
-              Orbital Markets
+              Supply
             </strong>{" "}
             allow you to supply assets and earn interest. Supply your tokens 
             to lending pools and earn yield from borrower interest payments.

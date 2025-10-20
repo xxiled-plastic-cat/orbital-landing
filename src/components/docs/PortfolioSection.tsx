@@ -8,7 +8,7 @@ const PortfolioSection: React.FC = () => {
       <div className="flex items-center gap-3 mb-6">
         <Wallet className="w-6 h-6 text-cyan-400" />
         <h2 className="text-2xl md:text-3xl font-mono font-bold text-white uppercase tracking-wide">
-          Command Center
+          Logbook
         </h2>
       </div>
 
