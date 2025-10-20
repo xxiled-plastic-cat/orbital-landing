@@ -11,7 +11,7 @@ const TESTNET_COLLATERAL_TOKENS: Record<
     image?: string;
   }
 > = {
-  "747010716": {
+  "747086548": {
     symbol: "cCOMPXt",
     name: "Collateralized COMPX Testnet",
     decimals: 6,

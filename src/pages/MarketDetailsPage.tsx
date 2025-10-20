@@ -249,7 +249,67 @@ const MarketDetailsPage = () => {
           depositAssetId: Number(market?.baseTokenId),
           lstAssetId: Number(market?.lstTokenId),
           signer: transactionSigner,
-        });
+        })
+          .then((txId) => {
+            // Apply optimistic updates only after transaction success
+            applyOptimisticBalanceUpdate(
+              baseTokenId,
+              `-${depositAmountMicrounits}`
+            );
+            if (lstTokenId) {
+              applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
+            }
+
+            // Confirm the updates immediately since transaction was successful
+            confirmOptimisticUpdate(baseTokenId);
+            if (lstTokenId) {
+              confirmOptimisticUpdate(lstTokenId);
+            }
+
+            // Immediately refetch market data to reflect changes in market overview and interest rates
+            refetchMarkets();
+
+            // Refetch user debt data
+            refetchUserDebt();
+
+            // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            const lstMinted = calculateLSTDue(
+              BigInt(Number(amount) * 10 ** 6),
+              BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
+              BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+            );
+
+            recordUserAction({
+              address: activeAddress as string,
+              marketId: Number(market?.id),
+              action: "deposit",
+              tokensOut: Number(lstMinted), //LST returned
+              tokensIn: Number(amount), //Base token deposited
+              timestamp: Date.now(),
+              txnId: txId,
+              tokenInId: Number(market?.baseTokenId),
+              tokenOutId: Number(market?.lstTokenId),
+            });
+
+            openToast({
+              type: "success",
+              message: "Deposit successful",
+              description: `You have deposited ${amount} ${getBaseTokenSymbol(
+                market?.symbol
+              )} and received ${amount} ${getLSTTokenSymbol(market?.symbol)}!`,
+            });
+          })
+          .catch((error) => {
+            console.error(error);
+            openToast({
+              type: "error",
+              message: "Deposit failed",
+              description: `Unable to deposit ${amount} ${getBaseTokenSymbol(
+                market?.symbol
+              )}`,
+            });
+          });
+        setTransactionLoading(false);
       }
     } catch (error) {
       console.error(error);
@@ -696,11 +756,11 @@ const MarketDetailsPage = () => {
             transition={{ duration: 0.6 }}
           >
             <div className="text-slate-600 cut-corners-lg p-8">
-              <MomentumSpinner 
-                size="48" 
-                speed="1.1" 
-                color="#06b6d4" 
-                className="mx-auto mb-4" 
+              <MomentumSpinner
+                size="48"
+                speed="1.1"
+                color="#06b6d4"
+                className="mx-auto mb-4"
               />
               <div className="text-slate-400 font-mono mb-4">
                 LOADING ORBITAL MARKET...

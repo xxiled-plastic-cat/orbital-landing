@@ -116,9 +116,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
             <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums tracking-tight">
               {market.supplyApr.toFixed(2)}%
             </div>
-            <div className="text-xs text-slate-500 mt-2 font-mono">
-              Kink at 50% of cap; rates rise faster beyond.
-            </div>
+            
           </div>
           <div className="inset-panel cut-corners-sm p-5">
             <div className="flex items-center gap-2 mb-3">
@@ -130,9 +128,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
             <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums tracking-tight">
               {calculateRealTimeBorrowAPR(market).toFixed(2)}%
             </div>
-            <div className="text-xs text-slate-500 mt-2 font-mono">
-              Kink at 50% of cap; rates rise faster beyond.
-            </div>
+           
           </div>
           
         </div>

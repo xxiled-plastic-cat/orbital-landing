@@ -4,13 +4,14 @@ import {
   TrendingUp,
   TrendingDown,
   PieChart,
-  Coins
+  Shield,
 } from 'lucide-react';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { useMarkets } from '../../hooks/useMarkets';
 import { useAssetMetadata } from '../../hooks/useAssets';
 import { WalletContext } from '../../context/wallet';
 import { useLoanRecords } from '../../hooks/useLoanRecords';
+import { useUserDeposits } from '../../hooks/useUserDeposits';
 import MomentumSpinner from '../MomentumSpinner';
 
 const ActivePositionsSection: React.FC = () => {
@@ -18,6 +19,7 @@ const ActivePositionsSection: React.FC = () => {
   const { data: markets } = useMarkets();
   const { userAssets, algoBalance, isLoadingAssets } = useContext(WalletContext);
   const { data: loanRecords, isLoading: isLoadingLoanRecords } = useLoanRecords();
+  const { deposits: userDeposits, isLoading: isLoadingDeposits } = useUserDeposits();
 
   // Get relevant token IDs from markets (base tokens and LST tokens)
   const relevantTokenIds = useMemo(() => {
@@ -87,16 +89,76 @@ const ActivePositionsSection: React.FC = () => {
     return tokenImages[symbol] || '/orbital-icon.svg';
   };
 
-  // Calculate user positions (deposits and borrowing)
+  // Calculate user positions (deposits, collateral, and borrowing)
   const userPositions = useMemo(() => {
     if (!markets || !activeAccount?.address) {
-      return { deposits: [], borrows: [], totalDepositValue: 0, totalBorrowValue: 0 };
+      return { deposits: [], collateralDeposits: [], borrows: [], totalDepositValue: 0, totalCollateralValue: 0, totalBorrowValue: 0 };
     }
 
-    // Calculate deposits from LST tokens
+    // Calculate actual deposits from database transactions
     const deposits = markets
       .map(market => {
+        if (!userDeposits) return null;
+        
+        // Find all deposit/redeem transactions for this market
+        const marketTransactions = userDeposits.filter(tx => tx.marketId === market.id);
+        if (marketTransactions.length === 0) return null;
+        
+        // Calculate net deposits (deposits - redeems)
+        let totalDeposited = 0;
+        let totalRedeemed = 0;
+        let lastDepositTimestamp: Date | undefined;
+        
+        marketTransactions.forEach(tx => {
+          if (tx.action === 'deposit') {
+            totalDeposited += tx.tokensIn; // Base tokens deposited
+            const txDate = new Date(parseInt(tx.timestamp));
+            if (!lastDepositTimestamp || txDate > lastDepositTimestamp) {
+              lastDepositTimestamp = txDate;
+            }
+          } else if (tx.action === 'redeem') {
+            totalRedeemed += tx.tokensOut; // Base tokens redeemed
+          }
+        });
+        
+        const netDeposited = totalDeposited - totalRedeemed;
+        if (netDeposited <= 0) return null;
+        
+        const valueUSD = netDeposited * market.baseTokenPrice;
+        
+        return {
+          marketId: market.id,
+          marketName: market.name,
+          tokenId: market.baseTokenId,
+          tokenSymbol: market.symbol || 'UNK',
+          tokenName: market.name,
+          balance: netDeposited.toString(),
+          formattedBalance: netDeposited.toLocaleString(undefined, { 
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3 
+          }),
+          underlyingValue: netDeposited,
+          valueUSD,
+          apy: market.supplyApr,
+          decimals: 6,
+          totalDeposited,
+          totalRedeemed,
+          lastDepositTimestamp
+        };
+      })
+      .filter(deposit => deposit !== null);
+
+    // Calculate collateral deposits from LST tokens ONLY if they're being used as collateral in active loans
+    const collateralDeposits = markets
+      .map(market => {
         if (!market.lstTokenId || market.lstTokenId === '0') return null;
+        
+        // Check if this LST token is actually being used as collateral in any active loans
+        const isUsedAsCollateral = loanRecords?.some(record => 
+          record.collateralTokenId.toString() === market.lstTokenId
+        );
+        
+        if (!isUsedAsCollateral) return null; // Only show if actually used as collateral
         
         const lstBalance = getTokenBalance(market.lstTokenId);
         const lstBalanceNum = parseFloat(lstBalance);
@@ -121,7 +183,7 @@ const ActivePositionsSection: React.FC = () => {
           formattedBalance,
           underlyingValue,
           valueUSD,
-          apy: market.supplyApr,
+          apy: 0, // Collateral doesn't earn APY directly
           decimals: metadata?.decimals || 6
         };
       })
@@ -156,13 +218,14 @@ const ActivePositionsSection: React.FC = () => {
     }).filter(borrow => borrow !== null) || [];
 
     const totalDepositValue = deposits.reduce((sum, deposit) => sum + deposit.valueUSD, 0);
+    const totalCollateralValue = collateralDeposits.reduce((sum, deposit) => sum + deposit.valueUSD, 0);
     const totalBorrowValue = borrows.reduce((sum, borrow) => sum + borrow.borrowValueUSD, 0);
 
-    return { deposits, borrows, totalDepositValue, totalBorrowValue };
-  }, [markets, activeAccount?.address, loanRecords, assetMetadata, getTokenBalance, formatTokenBalance]);
+    return { deposits, collateralDeposits, borrows, totalDepositValue, totalCollateralValue, totalBorrowValue };
+  }, [markets, activeAccount?.address, loanRecords, userDeposits, assetMetadata, getTokenBalance, formatTokenBalance]);
 
   // Loading state
-  if ((isLoadingLoanRecords || isLoadingAssets) && activeAccount?.address) {
+  if ((isLoadingLoanRecords || isLoadingAssets || isLoadingDeposits) && activeAccount?.address) {
     return (
       <motion.div
         className="mb-6 md:mb-8"
@@ -214,7 +277,7 @@ const ActivePositionsSection: React.FC = () => {
               ACTIVE POSITIONS
             </h2>
             <div className="text-xs md:text-sm text-slate-400 font-mono">
-              Net Position: ${(userPositions.totalDepositValue - userPositions.totalBorrowValue).toLocaleString(undefined, { 
+              Net Position: ${(userPositions.totalDepositValue + userPositions.totalCollateralValue - userPositions.totalBorrowValue).toLocaleString(undefined, { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
               })}
@@ -227,15 +290,15 @@ const ActivePositionsSection: React.FC = () => {
 
         {/* Positions Content */}
         <div className="p-4 md:p-6">
-          {(userPositions.deposits.length > 0 || userPositions.borrows.length > 0) ? (
+          {(userPositions.deposits.length > 0 || userPositions.collateralDeposits.length > 0 || userPositions.borrows.length > 0) ? (
             <div className="space-y-6">
-              {/* Deposits Section */}
+              {/* Lending Deposits Section */}
               {userPositions.deposits.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-4 h-4 text-green-400" />
                     <span className="text-sm md:text-base font-mono font-semibold text-green-400 uppercase tracking-wide">
-                      Deposits ({userPositions.deposits.length})
+                      Lending Deposits ({userPositions.deposits.length})
                     </span>
                     <span className="text-xs text-slate-500 font-mono">
                       Total: ${userPositions.totalDepositValue.toLocaleString(undefined, { 
@@ -283,7 +346,7 @@ const ActivePositionsSection: React.FC = () => {
                                     {deposit.tokenSymbol}
                                   </span>
                                   <span className="bg-green-900/50 text-green-300 border border-green-700/50 px-2 py-0.5 text-xs font-mono font-semibold uppercase tracking-wider">
-                                    SUPPLY
+                                    LENDING
                                   </span>
                                 </div>
                                 <div className="text-xs text-slate-400 font-mono truncate mb-1">
@@ -314,6 +377,105 @@ const ActivePositionsSection: React.FC = () => {
                             <div className="flex justify-between items-center">
                               <span className="text-xs text-slate-400 font-mono uppercase tracking-wider">Value:</span>
                               <span className="font-mono font-bold text-sm text-green-400 tabular-nums">
+                                ${deposit.valueUSD.toLocaleString(undefined, { 
+                                  minimumFractionDigits: 2, 
+                                  maximumFractionDigits: 2 
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Collateral Deposits Section */}
+              {userPositions.collateralDeposits.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm md:text-base font-mono font-semibold text-blue-400 uppercase tracking-wide">
+                      Collateral Deposits ({userPositions.collateralDeposits.length})
+                    </span>
+                    <span className="text-xs text-slate-500 font-mono">
+                      Total: ${userPositions.totalCollateralValue.toLocaleString(undefined, { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                      })}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                    {userPositions.collateralDeposits.map((deposit) => (
+                      <motion.div
+                        key={deposit.marketId}
+                        className="relative p-4 md:p-5 bg-noise-dark border-2 border-blue-700/50 hover:border-blue-600/70 transition-all duration-200 shadow-lg hover:shadow-blue-900/20"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {/* Gradient overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-950/30 via-transparent to-blue-900/10"></div>
+                        {/* Glowing accent */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        <div className="relative">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {/* Enhanced Token Icon */}
+                              <div className="relative w-8 h-8 flex-shrink-0">
+                                <div className="w-full h-full bg-gradient-to-br from-blue-600/20 to-blue-800/40 border border-blue-600/50 flex items-center justify-center">
+                                  <img
+                                    src={getTokenImage(deposit.tokenSymbol)}
+                                    alt={`${deposit.tokenSymbol} icon`}
+                                    className="w-5 h-5 object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                  <Shield className="w-4 h-4 text-blue-400 hidden" />
+                                </div>
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 border border-blue-400 opacity-75"></div>
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-mono font-bold text-sm md:text-base text-white truncate">
+                                    {deposit.tokenSymbol}
+                                  </span>
+                                  <span className="bg-blue-900/50 text-blue-300 border border-blue-700/50 px-2 py-0.5 text-xs font-mono font-semibold uppercase tracking-wider">
+                                    COLLATERAL
+                                  </span>
+                                </div>
+                                <div className="text-xs text-slate-400 font-mono truncate mb-1">
+                                  {deposit.marketName}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="text-right flex-shrink-0">
+                              <div className="bg-blue-900/30 border border-blue-700/30 px-2 py-1">
+                                <div className="text-xs text-blue-400 font-mono font-bold">
+                                  LOCKED
+                                </div>
+                                <div className="text-xs text-blue-500/70 font-mono uppercase tracking-wider">
+                                  STATUS
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 pt-2 border-t border-blue-800/30">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-400 font-mono uppercase tracking-wider">Balance:</span>
+                              <span className="font-mono font-bold text-sm text-white tabular-nums">
+                                {deposit.formattedBalance}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-slate-400 font-mono uppercase tracking-wider">Value:</span>
+                              <span className="font-mono font-bold text-sm text-blue-400 tabular-nums">
                                 ${deposit.valueUSD.toLocaleString(undefined, { 
                                   minimumFractionDigits: 2, 
                                   maximumFractionDigits: 2 

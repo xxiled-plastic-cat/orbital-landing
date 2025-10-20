@@ -12,7 +12,7 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({
   children,
   showBackButton = true,
-  title = "Orbital Lending Testnet",
+  title = "Orbital Lending",
 }) => {
   return (
     <div className="min-h-screen text-white font-inter relative ">
