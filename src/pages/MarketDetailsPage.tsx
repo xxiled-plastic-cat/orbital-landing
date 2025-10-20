@@ -18,6 +18,7 @@ import CollateralRelationships from "../components/CollateralRelationships";
 import ActionDrawer from "../components/app/ActionDrawer";
 import PositionHeader from "../components/app/PositionHeader";
 import MomentumSpinner from "../components/MomentumSpinner";
+import Tooltip from "../components/Tooltip";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
@@ -879,26 +880,35 @@ const MarketDetailsPage = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                <div className="text-cyan-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-cyan-500 shadow-inset">
-                  <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
-                    LTV {market.ltv}%
-                  </span>
-                </div>
-                <div className="text-amber-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-500 shadow-inset">
-                  <span className="text-amber-400 text-xs font-mono font-semibold uppercase tracking-wide">
-                    LT {market.liquidationThreshold}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 md:gap-2 text-cyan-400">
-                  <Radio className="w-4 h-4 md:w-5 md:h-5" />
-                  <span className="text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                    {market.contractState === 1
-                      ? "ACTIVE"
-                      : market.contractState === 2
-                      ? "MIGRATING"
-                      : "INACTIVE"}
-                  </span>
-                </div>
+                <Tooltip content="Loan-to-Value: Max % of collateral value you can borrow" position="bottom">
+                  <div className="text-cyan-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-cyan-500 shadow-inset">
+                    <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
+                      LTV {market.ltv}%
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip content="Liquidation Threshold: Position liquidated if debt exceeds this %" position="bottom">
+                  <div className="text-amber-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-500 shadow-inset">
+                    <span className="text-amber-400 text-xs font-mono font-semibold uppercase tracking-wide">
+                      LT {market.liquidationThreshold}%
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip 
+                  content={market.contractState === 1 ? "Market is active and accepting transactions" : market.contractState === 2 ? "Market is migrating to new version" : "Market is currently inactive"} 
+                  position="bottom"
+                >
+                  <div className="flex items-center gap-1 md:gap-2 text-cyan-400">
+                    <Radio className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
+                      {market.contractState === 1
+                        ? "ACTIVE"
+                        : market.contractState === 2
+                        ? "MIGRATING"
+                        : "INACTIVE"}
+                    </span>
+                  </div>
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -930,8 +940,11 @@ const MarketDetailsPage = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
                 <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
                     Total Supply
+                    <Tooltip content="Total value of all assets deposited in this market" position="top">
+                      <Info className="w-3 h-3 cursor-help" />
+                    </Tooltip>
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-white tabular-nums">
                     ${market.totalDepositsUSD.toLocaleString()}
@@ -942,8 +955,11 @@ const MarketDetailsPage = () => {
                 </div>
 
                 <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
                     Deposit APR
+                    <Tooltip content="Annual rate earned by suppliers. Varies with utilization." position="top">
+                      <Info className="w-3 h-3 cursor-help" />
+                    </Tooltip>
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-cyan-400 tabular-nums">
                     {market.supplyApr.toFixed(2)}%
@@ -951,8 +967,11 @@ const MarketDetailsPage = () => {
                 </div>
 
                 <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
                     Borrow APR
+                    <Tooltip content="Annual rate charged to borrowers. Increases with utilization." position="top">
+                      <Info className="w-3 h-3 cursor-help" />
+                    </Tooltip>
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-amber-400 tabular-nums">
                     {calculateRealTimeBorrowAPR(market).toFixed(2)}%
@@ -963,8 +982,11 @@ const MarketDetailsPage = () => {
               {/* Utilization Track */}
               <div className="mb-4 md:mb-6">
                 <div className="flex justify-between items-center mb-3 md:mb-4">
-                  <span className="text-slate-400 text-xs md:text-sm font-mono uppercase tracking-wider">
+                  <span className="text-slate-400 text-xs md:text-sm font-mono uppercase tracking-wider flex items-center gap-1">
                     Market Utilization
+                    <Tooltip content="% of supplied assets currently borrowed. Higher utilization = higher rates" position="top">
+                      <Info className="w-3 h-3 cursor-help" />
+                    </Tooltip>
                   </span>
                   <span className="text-white text-xs md:text-sm font-mono font-semibold tabular-nums">
                     {market.utilizationRate.toFixed(1)}% of Cap
@@ -984,13 +1006,21 @@ const MarketDetailsPage = () => {
                       }}
                     />
                   </div>
-                  <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
-                  <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
+                  <Tooltip content="Interest rates accelerate after kink to incentivize supply" position="top">
+                    <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
+                  </Tooltip>
+                  <Tooltip content="Max utilization threshold. No further borrowing at 100%" position="top">
+                    <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
+                  </Tooltip>
                 </div>
                 <div className="flex justify-between text-xs font-mono text-slate-500 mt-2">
                   <span>0%</span>
-                  <span className="text-yellow-400">Kink: 50%</span>
-                  <span className="text-red-400">Cap: 100%</span>
+                  <Tooltip content="Kink point: where interest rate slope increases sharply" position="top">
+                    <span className="text-yellow-400">Kink: 50%</span>
+                  </Tooltip>
+                  <Tooltip content="Utilization cap: maximum % that can be borrowed" position="top">
+                    <span className="text-red-400">Cap: 100%</span>
+                  </Tooltip>
                 </div>
               </div>
             </motion.div>
@@ -1021,8 +1051,11 @@ const MarketDetailsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
                       Token ID
+                      <Tooltip content="Unique identifier for this market's smart contract" position="right">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-white text-sm">
@@ -1042,15 +1075,21 @@ const MarketDetailsPage = () => {
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
                       Decimals
+                      <Tooltip content="Token precision: 6 decimals = divide by 1,000,000" position="right">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <span className="font-mono text-white text-sm">6</span>
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
                       Oracle Price
+                      <Tooltip content="Real-time price from oracle used for collateral calculations" position="right">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <span className="font-mono text-white text-sm">
                       ${market?.baseTokenPrice.toLocaleString()}
@@ -1069,8 +1108,11 @@ const MarketDetailsPage = () => {
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
+                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
                       Market Type
+                      <Tooltip content="LST Pool: Depositors receive cTokens for their share + interest" position="left">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <span className="font-mono text-white text-sm">
                       LST Pool

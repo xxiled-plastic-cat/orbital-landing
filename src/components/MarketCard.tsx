@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, Radio, AlertCircle } from "lucide-react";
 import { LendingMarket } from "../types/lending";
 import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
+import Tooltip from "./Tooltip";
 
 interface MarketCardProps {
   market: LendingMarket;
@@ -43,22 +44,28 @@ const MarketCard: React.FC<MarketCardProps> = ({
         {/* Market Status Indicator */}
         <div className="pb-3 w-fit">
           {isMarketActive && (
-            <div className="flex items-center gap-1 px-2 py-1.5 border border-green-500/60 cut-corners-sm text-[10px] font-mono text-green-400 uppercase tracking-wide">
-              <Radio className="w-2.5 h-2.5" />
-              <span>ACTIVE</span>
-            </div>
+            <Tooltip content="Market is active and accepting all transactions" position="right">
+              <div className="flex items-center gap-1 px-2 py-1.5 border border-green-500/60 cut-corners-sm text-[10px] font-mono text-green-400 uppercase tracking-wide">
+                <Radio className="w-2.5 h-2.5" />
+                <span>ACTIVE</span>
+              </div>
+            </Tooltip>
           )}
           {isMarketMigrating && (
-            <div className="flex items-center gap-1 px-2 py-1.5 border border-amber-500/60 cut-corners-sm text-[10px] font-mono text-amber-400 uppercase tracking-wide">
-              <Radio className="w-2.5 h-2.5" />
-              <span>MIGRATING</span>
-            </div>
+            <Tooltip content="Market is migrating to a new version" position="right">
+              <div className="flex items-center gap-1 px-2 py-1.5 border border-amber-500/60 cut-corners-sm text-[10px] font-mono text-amber-400 uppercase tracking-wide">
+                <Radio className="w-2.5 h-2.5" />
+                <span>MIGRATING</span>
+              </div>
+            </Tooltip>
           )}
           {isMarketInactive && (
-            <div className="flex items-center gap-1 px-2 py-1.5 border border-red-500/60 cut-corners-sm text-[10px] font-mono text-red-400 uppercase tracking-wide">
-              <AlertCircle className="w-2.5 h-2.5" />
-              <span>INACTIVE</span>
-            </div>
+            <Tooltip content="Market is inactive - transactions are paused" position="right">
+              <div className="flex items-center gap-1 px-2 py-1.5 border border-red-500/60 cut-corners-sm text-[10px] font-mono text-red-400 uppercase tracking-wide">
+                <AlertCircle className="w-2.5 h-2.5" />
+                <span>INACTIVE</span>
+              </div>
+            </Tooltip>
           )}
         </div>
 
@@ -91,16 +98,20 @@ const MarketCard: React.FC<MarketCardProps> = ({
 
           {/* Enhanced Orbital Parameters */}
           <div className="flex flex-col items-end gap-3">
-            <div className="text-cyan-500 cut-corners-sm px-4 py-2 border border-cyan-500 shadow-inset">
-              <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
-                LTV {market.ltv}%
-              </span>
-            </div>
-            <div className="text-amber-500 cut-corners-sm px-4 py-2 border border-amber-500 shadow-inset">
-              <span className="text-amber-400 text-xs font-mono font-semibold uppercase tracking-wide">
-                LT {market.liquidationThreshold}%
-              </span>
-            </div>
+            <Tooltip content="Loan-to-Value: Max % of collateral value you can borrow" position="left">
+              <div className="text-cyan-500 cut-corners-sm px-4 py-2 border border-cyan-500 shadow-inset">
+                <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
+                  LTV {market.ltv}%
+                </span>
+              </div>
+            </Tooltip>
+            <Tooltip content="Liquidation Threshold: Position liquidated if debt exceeds this %" position="left">
+              <div className="text-amber-500 cut-corners-sm px-4 py-2 border border-amber-500 shadow-inset">
+                <span className="text-amber-400 text-xs font-mono font-semibold uppercase tracking-wide">
+                  LT {market.liquidationThreshold}%
+                </span>
+              </div>
+            </Tooltip>
           </div>
         </div>
 

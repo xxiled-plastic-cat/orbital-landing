@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { DollarSign, AlertCircle, ChevronDown } from "lucide-react";
+import { DollarSign, AlertCircle, ChevronDown, Info } from "lucide-react";
 import {
   calculateAssetDue,
   calculateLSTDue,
@@ -1419,10 +1419,22 @@ const ActionPanel = ({
               // Original transaction details for deposit/redeem
               <>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="font-mono text-slate-400">
-                    {activeAction === "deposit" && "Deposit APR"}
-                    {activeAction === "redeem" && "Current Supply APR"}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-slate-400">
+                      {activeAction === "deposit" && "Deposit APR"}
+                      {activeAction === "redeem" && "Current Supply APR"}
+                    </span>
+                    <Tooltip 
+                      content={activeAction === "deposit" 
+                        ? "Annual rate you'll earn by depositing" 
+                        : "Current annual rate earned on your deposits"
+                      }
+                      textColor="text-slate-300"
+                      position="left"
+                    >
+                      <Info className="w-3 h-3 text-slate-500 cursor-help" />
+                    </Tooltip>
+                  </div>
                   <span
                     className={`font-mono font-bold ${
                       activeAction === "deposit"
@@ -1438,10 +1450,22 @@ const ActionPanel = ({
                 </div>
 
                 <div className="flex justify-between items-center text-sm">
-                  <span className="font-mono text-slate-400">
-                    {activeAction === "deposit" && "Wallet Balance"}
-                    {activeAction === "redeem" && "Your LST Balance"}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-slate-400">
+                      {activeAction === "deposit" && "Wallet Balance"}
+                      {activeAction === "redeem" && "Your LST Balance"}
+                    </span>
+                    <Tooltip 
+                      content={activeAction === "deposit" 
+                        ? "Your current balance available to deposit" 
+                        : "Your LST token balance available to redeem"
+                      }
+                      textColor="text-slate-300"
+                      position="left"
+                    >
+                      <Info className="w-3 h-3 text-slate-500 cursor-help" />
+                    </Tooltip>
+                  </div>
                   <span className="font-mono text-white">
                     {isLoadingAssets ? (
                       <span className="text-slate-500">Loading...</span>
@@ -1461,10 +1485,22 @@ const ActionPanel = ({
                 </div>
 
                 <div className="flex justify-between items-center text-sm">
-                  <span className="font-mono text-slate-400">
-                    {activeAction === "deposit" && "You Will Receive"}
-                    {activeAction === "redeem" && "You Will Receive"}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-slate-400">
+                      {activeAction === "deposit" && "You Will Receive"}
+                      {activeAction === "redeem" && "You Will Receive"}
+                    </span>
+                    <Tooltip 
+                      content={activeAction === "deposit" 
+                        ? "Amount of LST tokens you'll receive for your deposit" 
+                        : "Amount of base tokens you'll receive when redeeming"
+                      }
+                      textColor="text-slate-300"
+                      position="left"
+                    >
+                      <Info className="w-3 h-3 text-slate-500 cursor-help" />
+                    </Tooltip>
+                  </div>
                   <span className="font-mono text-white">
                     {activeAction === "deposit" &&
                       `${

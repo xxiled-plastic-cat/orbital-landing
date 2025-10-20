@@ -2,6 +2,7 @@ import {  Wallet, Target } from "lucide-react";
 import { motion } from "framer-motion";
 import { LendingMarket } from "../../types/lending";
 import { getLoanRecordReturnType } from "../../contracts/lending/interface";
+import Tooltip from "../Tooltip";
 
 interface PositionHeaderProps {
   market: LendingMarket;
@@ -89,19 +90,21 @@ const PositionHeader = ({ market, userAssets, userDebt }: PositionHeaderProps) =
     >
       <div className="flex items-center justify-between">
         {/* Left: Supplied Position */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg flex items-center justify-center">
-            <Wallet className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
-              Supplied
+        <Tooltip content="Your deposited assets earning interest in this market" position="bottom">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-white" />
             </div>
-            <div className="font-mono text-lg font-bold text-white">
-              {lstBalance.toFixed(2)} {getLSTTokenSymbol(market.symbol)}
+            <div>
+              <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
+                Supplied
+              </div>
+              <div className="font-mono text-lg font-bold text-white">
+                {lstBalance.toFixed(2)} {getLSTTokenSymbol(market.symbol)}
+              </div>
             </div>
           </div>
-        </div>
+        </Tooltip>
 
         {/* Center: Health Factor (if borrowing) */}
         {/* {healthFactor !== null && (
@@ -122,19 +125,21 @@ const PositionHeader = ({ market, userAssets, userDebt }: PositionHeaderProps) =
 
         {/* Right: Borrowed Position */}
         {totalDebt > 0 && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-              <Target className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
-                Borrowed
+          <Tooltip content="Total debt including accrued interest that must be repaid" position="bottom">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                <Target className="w-4 h-4 text-white" />
               </div>
-              <div className="font-mono text-lg font-bold text-white">
-                {totalDebt.toFixed(2)} {getBaseTokenSymbol(market.symbol)}
+              <div>
+                <div className="font-mono text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  Borrowed
+                </div>
+                <div className="font-mono text-lg font-bold text-white">
+                  {totalDebt.toFixed(2)} {getBaseTokenSymbol(market.symbol)}
+                </div>
               </div>
             </div>
-          </div>
+          </Tooltip>
         )}
       </div>
     </motion.div>

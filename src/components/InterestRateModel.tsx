@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Info } from "lucide-react";
 import { LendingMarket } from "../types/lending";
 import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
+import Tooltip from "./Tooltip";
 
 interface InterestRateModelProps {
   market: LendingMarket;
@@ -63,11 +64,13 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
         <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
           Interest Rate Model
         </h2>
-        <div className="text-cyan-500 cut-corners-sm px-3 py-1 border border-cyan-500 shadow-inset">
-          <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
-            {rateModelType === 0 ? "Kink Model" : "Fixed Rate"}
-          </span>
-        </div>
+        <Tooltip content={rateModelType === 0 ? "Rate accelerates after kink to maintain liquidity" : "Fixed interest rate model"} position="bottom">
+          <div className="text-cyan-500 cut-corners-sm px-3 py-1 border border-cyan-500 shadow-inset">
+            <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">
+              {rateModelType === 0 ? "Kink Model" : "Fixed Rate"}
+            </span>
+          </div>
+        </Tooltip>
       </div>
 
       {/* Interest Rate Chart */}
@@ -175,38 +178,61 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
           Rate Formula
         </h3>
         <div className="space-y-2 text-sm font-mono text-slate-300">
-          <div>
+          <div className="flex items-center gap-1">
             Base Rate: <span className="text-cyan-400">{(baseBps / 100).toFixed(2)}%</span>
+            <Tooltip content="Minimum interest rate when utilization is 0%" position="right">
+              <Info className="w-3 h-3 text-slate-500 cursor-help" />
+            </Tooltip>
           </div>
-          <div>
+          <div className="flex items-center gap-1">
             Utilization Cap:{" "}
             <span className="text-red-400">{(utilCapBps / 100).toFixed(0)}%</span>
+            <Tooltip content="Maximum % of funds that can be borrowed" position="right">
+              <Info className="w-3 h-3 text-slate-500 cursor-help" />
+            </Tooltip>
           </div>
-          <div>
+          <div className="flex items-center gap-1">
             Kink Point:{" "}
             <span className="text-yellow-400">{kinkUtilization.toFixed(1)}%</span>
+            <Tooltip content="Utilization threshold where rate slope increases sharply" position="right">
+              <Info className="w-3 h-3 text-slate-500 cursor-help" />
+            </Tooltip>
           </div>
-          <div>
+          <div className="flex items-center gap-1">
             Pre-Kink Slope:{" "}
             <span className="text-cyan-400">{(slope1Bps / 100).toFixed(1)}% per full utilization</span>
+            <Tooltip content="Rate of interest increase before the kink point" position="right">
+              <Info className="w-3 h-3 text-slate-500 cursor-help" />
+            </Tooltip>
           </div>
-          <div>
+          <div className="flex items-center gap-1">
             Post-Kink Slope:{" "}
             <span className="text-amber-400">
               {(slope2Bps / 100).toFixed(1)}% per full utilization
             </span>
+            <Tooltip content="Rate of interest increase after kink (usually steeper)" position="right">
+              <Info className="w-3 h-3 text-slate-500 cursor-help" />
+            </Tooltip>
           </div>
           {maxAprBps > 0 && (
-            <div>
+            <div className="flex items-center gap-1">
               Max APR Cap:{" "}
               <span className="text-red-400">{(maxAprBps / 100).toFixed(0)}%</span>
+              <Tooltip content="Maximum interest rate cap regardless of utilization" position="right">
+                <Info className="w-3 h-3 text-slate-500 cursor-help" />
+              </Tooltip>
             </div>
           )}
           <div className="pt-2 border-t border-slate-700">
-            Current Rate:{" "}
-            <span className="text-white font-bold">
-              {calculateRealTimeBorrowAPR(market).toFixed(2)}%
-            </span>
+            <div className="flex items-center gap-1">
+              Current Rate:{" "}
+              <span className="text-white font-bold">
+                {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+              </span>
+              <Tooltip content="Current borrow rate based on market utilization" position="right">
+                <Info className="w-3 h-3 text-slate-500 cursor-help" />
+              </Tooltip>
+            </div>
           </div>
         </div>
       </div>

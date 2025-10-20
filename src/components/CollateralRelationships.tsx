@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { motion } from "framer-motion";
-import { Wallet } from "lucide-react";
+import { Wallet, Info } from "lucide-react";
 import { LendingMarket } from "../types/lending";
 import { useCollateralTokens } from "../hooks/useCollateralTokens";
+import Tooltip from "./Tooltip";
 
 interface CollateralRelationshipsProps {
   market: LendingMarket;
@@ -28,6 +29,9 @@ const CollateralRelationships = ({ market, acceptedCollateral }: CollateralRelat
         <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
           Accepted Collateral
         </h2>
+        <Tooltip content="LST tokens from these markets can be used as collateral to borrow" position="bottom">
+          <Info className="w-5 h-5 text-slate-500 hover:text-cyan-400 transition-colors cursor-help" />
+        </Tooltip>
       </div>
 
       <div className="inset-panel cut-corners-sm p-5">

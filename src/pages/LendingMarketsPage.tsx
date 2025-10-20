@@ -8,12 +8,14 @@ import {
   ArrowLeft,
   Grid3x3,
   List,
+  Info,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import MarketCard from "../components/MarketCard";
 import MomentumSpinner from "../components/MomentumSpinner";
 import { useMarkets } from "../hooks/useMarkets";
 import { Link, useNavigate } from "react-router-dom";
+import Tooltip from "../components/Tooltip";
 
 const LendingMarketsPage = () => {
   const navigate = useNavigate();
@@ -96,11 +98,13 @@ const LendingMarketsPage = () => {
                     </span>
                   </div>
                   {/* Status badges */}
-                  <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset shrink-0">
-                    <span className="text-amber-400 text-[10px] sm:text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                      TESTNET
-                    </span>
-                  </div>
+                  <Tooltip content="Running on Algorand Testnet - Use test tokens only" position="bottom">
+                    <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset shrink-0">
+                      <span className="text-amber-400 text-[10px] sm:text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
+                        TESTNET
+                      </span>
+                    </div>
+                  </Tooltip>
                 </div>
 
                 {/* Divider */}
@@ -109,8 +113,11 @@ const LendingMarketsPage = () => {
                 {/* Stats section */}
                 <div className="grid grid-cols-3 gap-2 md:gap-6 lg:gap-8 lg:flex lg:items-center">
                   <div className="flex flex-col">
-                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5">
+                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5 flex items-center gap-1">
                       TVL:
+                      <Tooltip content="Total Value Locked: Sum of all assets deposited across markets" position="bottom">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <span className="font-mono font-bold text-white tabular-nums text-sm sm:text-base md:text-lg">
                       {isLoading
@@ -123,8 +130,11 @@ const LendingMarketsPage = () => {
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5">
+                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5 flex items-center gap-1">
                       Borrowed:
+                      <Tooltip content="Total amount borrowed across all markets" position="bottom">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <span className="font-mono font-bold text-white tabular-nums text-sm sm:text-base md:text-lg">
                       {isLoading
@@ -137,8 +147,11 @@ const LendingMarketsPage = () => {
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5">
+                    <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5 flex items-center gap-1">
                       Avg Util:
+                      <Tooltip content="Average utilization rate across all markets" position="bottom">
+                        <Info className="w-3 h-3 cursor-help" />
+                      </Tooltip>
                     </span>
                     <span className="font-mono font-bold text-cyan-400 tabular-nums text-sm sm:text-base md:text-lg">
                       {isLoading
@@ -190,28 +203,32 @@ const LendingMarketsPage = () => {
           <div className="flex gap-2 md:gap-3 justify-end">
             {/* View Mode Toggle */}
             <div className="flex border border-slate-600 bg-slate-800">
-              <button
-                onClick={() => setViewMode("cards")}
-                className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
-                  viewMode === "cards"
-                    ? "bg-cyan-500 text-white"
-                    : "text-slate-400 hover:text-slate-300"
-                }`}
-                aria-label="Card view"
-              >
-                <Grid3x3 className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode("table")}
-                className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
-                  viewMode === "table"
-                    ? "bg-cyan-500 text-white"
-                    : "text-slate-400 hover:text-slate-300"
-                }`}
-                aria-label="Table view"
-              >
-                <List className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
+              <Tooltip content="Card view - Show markets as detailed cards" position="bottom">
+                <button
+                  onClick={() => setViewMode("cards")}
+                  className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
+                    viewMode === "cards"
+                      ? "bg-cyan-500 text-white"
+                      : "text-slate-400 hover:text-slate-300"
+                  }`}
+                  aria-label="Card view"
+                >
+                  <Grid3x3 className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </Tooltip>
+              <Tooltip content="Table view - Show markets in compact table format" position="bottom">
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
+                    viewMode === "table"
+                      ? "bg-cyan-500 text-white"
+                      : "text-slate-400 hover:text-slate-300"
+                  }`}
+                  aria-label="Table view"
+                >
+                  <List className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </Tooltip>
             </div>
 
             {/* Status Filter Dropdown */}
@@ -227,9 +244,11 @@ const LendingMarketsPage = () => {
               </select>
               <Filter className="absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 w-3 h-3 md:w-4 md:h-4 text-slate-400 pointer-events-none" />
             </div>
-            <button className="px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600 hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
-              SORT: APR
-            </button>
+            <Tooltip content="Sort markets by Annual Percentage Rate" position="bottom">
+              <button className="px-3 md:px-4 py-2.5 md:py-3 bg-slate-800 border border-slate-600 hover:border-slate-500 hover:bg-slate-700 transition-all duration-150 text-slate-300 font-mono text-xs md:text-sm">
+                SORT: APR
+              </button>
+            </Tooltip>
           </div>
         </motion.div>
 
@@ -308,23 +327,53 @@ const LendingMarketsPage = () => {
                         Market
                       </th>
                       <th className="px-3 md:px-4 py-3 md:py-4 text-[10px] sm:text-xs md:text-sm font-mono text-slate-400 uppercase tracking-wider text-right">
-                        Supply APR
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          Supply APR
+                          <Tooltip content="Annual rate earned by depositing assets" position="top">
+                            <Info className="w-3 h-3 cursor-help" />
+                          </Tooltip>
+                        </span>
                       </th>
                       <th className="px-3 md:px-4 py-3 md:py-4 text-[10px] sm:text-xs md:text-sm font-mono text-slate-400 uppercase tracking-wider text-right">
-                        Borrow APR
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          Borrow APR
+                          <Tooltip content="Annual rate charged on borrowed assets" position="top">
+                            <Info className="w-3 h-3 cursor-help" />
+                          </Tooltip>
+                        </span>
                       </th>
                       <th className="hidden md:table-cell px-3 md:px-4 py-3 md:py-4 text-[10px] sm:text-xs md:text-sm font-mono text-slate-400 uppercase tracking-wider text-right">
-                        Utilization
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          Utilization
+                          <Tooltip content="% of supplied assets currently borrowed" position="top">
+                            <Info className="w-3 h-3 cursor-help" />
+                          </Tooltip>
+                        </span>
                       </th>
                       <th className="px-3 md:px-4 py-3 md:py-4 text-[10px] sm:text-xs md:text-sm font-mono text-slate-400 uppercase tracking-wider text-right">
-                        <span className="hidden sm:inline">TVL</span>
-                        <span className="sm:hidden">TVL/Avail</span>
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          <span className="hidden sm:inline">TVL</span>
+                          <span className="sm:hidden">TVL/Avail</span>
+                          <Tooltip content="Total value of assets deposited in this market" position="top">
+                            <Info className="w-3 h-3 cursor-help" />
+                          </Tooltip>
+                        </span>
                       </th>
                       <th className="hidden md:table-cell px-3 md:px-4 py-3 md:py-4 text-[10px] sm:text-xs md:text-sm font-mono text-slate-400 uppercase tracking-wider text-right">
-                        Available
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          Available
+                          <Tooltip content="Amount available to borrow from this market" position="top">
+                            <Info className="w-3 h-3 cursor-help" />
+                          </Tooltip>
+                        </span>
                       </th>
                       <th className="hidden lg:table-cell px-3 md:px-4 py-3 md:py-4 text-[10px] sm:text-xs md:text-sm font-mono text-slate-400 uppercase tracking-wider text-center">
-                        Status
+                        <span className="inline-flex items-center gap-1 justify-center">
+                          Status
+                          <Tooltip content="Current operational status of the market" position="top">
+                            <Info className="w-3 h-3 cursor-help" />
+                          </Tooltip>
+                        </span>
                       </th>
                     </tr>
                   </thead>
@@ -387,22 +436,28 @@ const LendingMarketsPage = () => {
                         </td>
                         <td className="hidden lg:table-cell px-3 md:px-4 py-3 md:py-4 text-center">
                           {market.contractState === 1 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 border border-green-500/60 text-[10px] font-mono text-green-400 uppercase">
-                              <Radio className="w-2.5 h-2.5" />
-                              Active
-                            </span>
+                            <Tooltip content="Market is active and accepting all transactions" position="left">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 border border-green-500/60 text-[10px] font-mono text-green-400 uppercase">
+                                <Radio className="w-2.5 h-2.5" />
+                                Active
+                              </span>
+                            </Tooltip>
                           )}
                           {market.contractState === 2 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 border border-amber-500/60 text-[10px] font-mono text-amber-400 uppercase">
-                              <Radio className="w-2.5 h-2.5" />
-                              Migrating
-                            </span>
+                            <Tooltip content="Market is migrating to a new version" position="left">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 border border-amber-500/60 text-[10px] font-mono text-amber-400 uppercase">
+                                <Radio className="w-2.5 h-2.5" />
+                                Migrating
+                              </span>
+                            </Tooltip>
                           )}
                           {market.contractState === 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 border border-red-500/60 text-[10px] font-mono text-red-400 uppercase">
-                              <AlertCircle className="w-2.5 h-2.5" />
-                              Inactive
-                            </span>
+                            <Tooltip content="Market is inactive - transactions are paused" position="left">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 border border-red-500/60 text-[10px] font-mono text-red-400 uppercase">
+                                <AlertCircle className="w-2.5 h-2.5" />
+                                Inactive
+                              </span>
+                            </Tooltip>
                           )}
                         </td>
                       </tr>
