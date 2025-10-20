@@ -18,11 +18,22 @@ const PortfolioPage: React.FC = () => {
   const { activeAccount } = useWallet();
 
   return (
-    <AppLayout title="Logbook - Transaction History">
+    <AppLayout title="Logbook">
       <div className="container-section py-4 md:py-8">
+        {/* Navigation Link */}
+        <div className="mb-4 md:mb-4">
+          <Link 
+            to="/app"
+            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-xs sm:text-sm md:text-base group"
+          >
+            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-150" />
+            <span className="uppercase tracking-wide">Back to Home</span>
+          </Link>
+        </div>
+
         {/* Mission Control Header */}
         <motion.div
-          className="mb-6 md:mb-8"
+          className="mb-5 md:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -36,7 +47,7 @@ const PortfolioPage: React.FC = () => {
                     <div className="flex items-center gap-2 md:gap-3">
                       <History className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
                       <span className="text-base md:text-lg font-mono font-semibold text-slate-300 uppercase tracking-wide">
-                        LOG BOOK
+                        MISSION CONTROL
                       </span>
                     </div>
                     <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset">
@@ -66,24 +77,13 @@ const PortfolioPage: React.FC = () => {
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-mono font-bold mb-4 md:mb-6 text-white tracking-tight">
+          <h1 className="text-xl sm:text-3xl md:text-5xl lg:text-6xl font-mono font-bold mb-3 sm:mb-4 md:mb-6 text-white tracking-tight">
             ORBITAL <span className="text-cyan-400">LOG BOOK</span>
           </h1>
-          <p className="text-sm sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed mb-6 md:mb-8">
+          <p className="text-xs sm:text-base md:text-xl text-slate-300 max-w-4xl font-mono leading-relaxed mb-5 sm:mb-6 md:mb-8">
             Track your complete transaction history across all Orbital lending markets. 
             Monitor deposits, borrows, repayments, and redemptions with detailed blockchain records.
           </p>
-
-          {/* Navigation Link */}
-          <div className="flex items-center gap-4">
-            <Link 
-              to="/app"
-              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-sm md:text-base group"
-            >
-              <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-150" />
-              <span className="uppercase tracking-wide">Back to Home</span>
-            </Link>
-          </div>
         </motion.div>
 
         {/* Active Positions Section */}
