@@ -3,6 +3,20 @@ import React, { useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet, Shield } from "lucide-react";
 import { WalletContext } from "../../context/wallet";
+import { useNetwork } from "../../context/networkContext";
+
+// Helper component for wallet connection message
+const WalletConnectionMessage: React.FC<{ isCheckingEligibility: boolean }> = ({ isCheckingEligibility }) => {
+  const { isTestnet } = useNetwork();
+  return (
+    <p className="text-sm text-slate-300 font-mono">
+      {isCheckingEligibility ? 
+        `Checking ${isTestnet ? 'testnet' : 'mainnet'} eligibility...` : 
+        `Connect your wallet to interact with Orbital Lending on Algorand ${isTestnet ? 'testnet' : 'mainnet'}`
+      }
+    </p>
+  );
+};
 
 export const WalletConnectionModal: React.FC = () => {
   const { wallets } = useWallet();
@@ -86,12 +100,7 @@ export const WalletConnectionModal: React.FC = () => {
               {/* Security notice / Eligibility status */}
               <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-slate-800/50 border border-slate-600">
                 <Shield className={`w-5 h-5 text-cyan-400 flex-shrink-0 ${isCheckingEligibility ? 'animate-pulse' : ''}`} />
-                <p className="text-sm text-slate-300 font-mono">
-                  {isCheckingEligibility ? 
-                    "Checking testnet eligibility..." : 
-                    "Connect your wallet to interact with Orbital Lending on Algorand testnet"
-                  }
-                </p>
+                <WalletConnectionMessage isCheckingEligibility={isCheckingEligibility} />
               </div>
 
               {/* Wallet options */}

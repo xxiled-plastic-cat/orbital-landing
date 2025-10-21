@@ -7,6 +7,7 @@ import {
 import AppLayout from '../components/app/AppLayout';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { Link } from 'react-router-dom';
+import NetworkBadge from '../components/app/NetworkBadge';
 import { 
   ActivePositionsSection, 
   WalletBalancesSection, 
@@ -50,11 +51,7 @@ const PortfolioPage: React.FC = () => {
                         MISSION CONTROL
                       </span>
                     </div>
-                    <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset">
-                      <span className="text-amber-400 text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                        TESTNET
-                      </span>
-                    </div>
+                    <NetworkBadge />
                   </div>
                 </div>
 

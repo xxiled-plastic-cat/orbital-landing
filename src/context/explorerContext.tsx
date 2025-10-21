@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState } from 'react';
+import { useNetwork } from './networkContext';
 
 export type ExplorerType = 'lora' | 'pera' | 'allo' | 'surf';
 
 export interface Explorer {
   id: ExplorerType;
   name: string;
-  baseUrl: string;
+  mainnetUrl: string;
+  testnetUrl: string;
   logo: string;
   bgColor: string;
 }
@@ -14,28 +16,32 @@ export const EXPLORERS: Record<ExplorerType, Explorer> = {
   lora: {
     id: 'lora',
     name: 'Lora',
-    baseUrl: 'https://lora.algokit.io/mainnet',
+    mainnetUrl: 'https://lora.algokit.io/mainnet',
+    testnetUrl: 'https://lora.algokit.io/testnet',
     logo: '/lora-logo.svg',
     bgColor: '#001424',
   },
   pera: {
     id: 'pera',
     name: 'Pera',
-    baseUrl: 'https://explorer.perawallet.app',
+    mainnetUrl: 'https://explorer.perawallet.app',
+    testnetUrl: 'https://explorer.perawallet.app/testnet',
     logo: '/pera-logo.svg',
     bgColor: '#FFEE55',
   },
   allo: {
     id: 'allo',
     name: 'Allo',
-    baseUrl: 'https://allo.info',
+    mainnetUrl: 'https://allo.info',
+    testnetUrl: 'https://testnet.allo.info',
     logo: '/allo-logo.svg',
     bgColor: '#1D3163',
   },
   surf: {
     id: 'surf',
     name: 'Surf',
-    baseUrl: 'https://algo.surf',
+    mainnetUrl: 'https://algo.surf',
+    testnetUrl: 'https://testnet.algo.surf',
     logo: '/surf-logo.svg',
     bgColor: '#6366f1',
   },
@@ -64,8 +70,10 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const getExplorerUrl = (type: 'application' | 'transaction' | 'address', id: string | number) => {
+    const { isTestnet } = useNetwork();
     const explorer = EXPLORERS[selectedExplorer];
-    return `${explorer.baseUrl}/${type}/${id}`;
+    const baseUrl = isTestnet ? explorer.testnetUrl : explorer.mainnetUrl;
+    return `${baseUrl}/${type}/${id}`;
   };
 
   return (

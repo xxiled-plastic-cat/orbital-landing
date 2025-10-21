@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import { Link } from "react-router-dom";
+import NetworkBadge from "../components/app/NetworkBadge";
 import {
   OverviewSection,
   LendingSection,
@@ -108,11 +109,7 @@ const DocsPage: React.FC = () => {
                     </span>
                   </div>
                   {/* Status badges */}
-                  <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset shrink-0">
-                    <span className="text-amber-400 text-[10px] sm:text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                      TESTNET
-                    </span>
-                  </div>
+                  <NetworkBadge />
                 </div>
 
                 {/* Divider */}

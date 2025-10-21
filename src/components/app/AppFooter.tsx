@@ -1,6 +1,22 @@
 import { motion } from "framer-motion";
 import { ExternalLink, Shield, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useNetwork } from "../../context/networkContext";
+
+// Helper component for network environment badge
+const NetworkEnvironmentBadge = () => {
+  const { isTestnet } = useNetwork();
+  return (
+    <div className={`flex items-center gap-2 flex-wrap ${
+      isTestnet ? 'text-amber-400' : 'text-cyan-400'
+    }`}>
+      <Shield className="w-4 h-4 flex-shrink-0" />
+      <span className="text-xs font-mono uppercase tracking-wide break-words">
+        {isTestnet ? 'TESTNET' : 'MAINNET'} ENVIRONMENT
+      </span>
+    </div>
+  );
+};
 
 const AppFooter = () => {
   const currentYear = new Date().getFullYear();
@@ -107,12 +123,7 @@ const AppFooter = () => {
               Decentralized lending protocol on Algorand. Supply assets, borrow
               funds, and trade debt positions.
             </p>
-            <div className="flex items-center gap-2 text-amber-400 flex-wrap">
-              <Shield className="w-4 h-4 flex-shrink-0" />
-              <span className="text-xs font-mono uppercase tracking-wide break-words">
-                TESTNET ENVIRONMENT
-              </span>
-            </div>
+            <NetworkEnvironmentBadge />
             <div className="flex items-center gap-2 text-compx-pink flex-wrap">
               <Zap className="w-4 h-4 flex-shrink-0" />
               <span className="text-xs font-mono uppercase tracking-wide text-compx-pink break-words">

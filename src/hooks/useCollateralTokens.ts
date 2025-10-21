@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
-import { IS_TESTNET } from "../constants/constants";
+import type { NetworkType } from "../context/networkContext";
+
+// Get the current network from localStorage
+function getCurrentNetwork(): NetworkType {
+  const stored = localStorage.getItem('orbital-preferred-network');
+  return (stored as NetworkType) || 'testnet';
+}
+
+function isTestnet(): boolean {
+  return getCurrentNetwork() === 'testnet';
+}
 
 // Testnet hardcoded collateral token data
 const TESTNET_COLLATERAL_TOKENS: Record<
@@ -67,7 +77,7 @@ export const useCollateralTokens = (
     setError(null);
 
     try {
-      if (IS_TESTNET) {
+      if (isTestnet()) {
         // Use hardcoded testnet data
         const tokens: Record<string, CollateralTokenInfo> = {};
         assetIds.forEach((assetId) => {

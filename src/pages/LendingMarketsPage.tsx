@@ -16,6 +16,7 @@ import MomentumSpinner from "../components/MomentumSpinner";
 import { useMarkets } from "../hooks/useMarkets";
 import { Link, useNavigate } from "react-router-dom";
 import Tooltip from "../components/Tooltip";
+import NetworkBadge from "../components/app/NetworkBadge";
 
 const LendingMarketsPage = () => {
   const navigate = useNavigate();
@@ -98,13 +99,7 @@ const LendingMarketsPage = () => {
                     </span>
                   </div>
                   {/* Status badges */}
-                  <Tooltip content="Running on Algorand Testnet - Use test tokens only" position="bottom">
-                    <div className="text-amber-400 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-amber-400 shadow-inset shrink-0">
-                      <span className="text-amber-400 text-[10px] sm:text-xs md:text-sm font-mono font-semibold uppercase tracking-wide">
-                        TESTNET
-                      </span>
-                    </div>
-                  </Tooltip>
+                  <NetworkBadge />
                 </div>
 
                 {/* Divider */}

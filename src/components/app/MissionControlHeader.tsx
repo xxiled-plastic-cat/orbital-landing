@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Zap } from 'lucide-react';
+import { useNetwork } from '../../context/networkContext';
 
 const MissionControlHeader: React.FC = () => {
+  const { isTestnet } = useNetwork();
+  
   return (
     <motion.div 
       className="mb-6 md:mb-12"
@@ -29,8 +32,16 @@ const MissionControlHeader: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center shrink-0">
-              <div className="bg-amber-500 bg-opacity-20 border border-amber-500 border-opacity-30 px-2 md:px-3 py-1">
-                <span className="text-amber-400 text-[10px] sm:text-xs md:text-sm font-mono">TESTNET</span>
+              <div className={`bg-opacity-20 border border-opacity-30 px-2 md:px-3 py-1 ${
+                isTestnet 
+                  ? 'bg-amber-500 border-amber-500' 
+                  : 'bg-cyan-500 border-cyan-500'
+              }`}>
+                <span className={`text-[10px] sm:text-xs md:text-sm font-mono ${
+                  isTestnet ? 'text-amber-400' : 'text-cyan-400'
+                }`}>
+                  {isTestnet ? 'TESTNET' : 'MAINNET'}
+                </span>
               </div>
             </div>
           </div>
@@ -43,18 +54,29 @@ const MissionControlHeader: React.FC = () => {
           ORBITAL <span className="text-cyan-400">LENDING</span>
         </h2>
         <p className="text-xs sm:text-base md:text-xl text-slate-300 max-w-3xl mx-auto mb-2 md:mb-8 font-mono leading-relaxed">
-          Decentralized lending protocol on Algorand testnet.
+          Decentralized lending protocol on Algorand {isTestnet ? 'testnet' : 'mainnet'}.
         </p>
         <p className="text-xs sm:text-base md:text-xl text-slate-300 max-w-3xl mx-auto mb-3 md:mb-8 font-mono leading-relaxed">
           Supply assets, borrow funds, trade debt positions.
         </p>
         
-        {/* Testnet Notice */}
-        <div className="bg-amber-500 bg-opacity-10 border border-amber-500 border-opacity-30 p-2 md:p-4 max-w-2xl mx-auto">
+        {/* Network Notice */}
+        <div className={`bg-opacity-10 border border-opacity-30 p-2 md:p-4 max-w-2xl mx-auto ${
+          isTestnet 
+            ? 'bg-amber-500 border-amber-500' 
+            : 'bg-cyan-500 border-cyan-500'
+        }`}>
           <div className="flex items-center justify-center gap-2 md:gap-3">
-            <Zap className="w-3 h-3 md:w-5 md:h-5 text-amber-400 shrink-0" />
-            <p className="text-amber-400 font-mono text-[10px] sm:text-xs md:text-sm text-center leading-relaxed">
-              TESTNET ENVIRONMENT - All transactions use test tokens with no real value
+            <Zap className={`w-3 h-3 md:w-5 md:h-5 shrink-0 ${
+              isTestnet ? 'text-amber-400' : 'text-cyan-400'
+            }`} />
+            <p className={`font-mono text-[10px] sm:text-xs md:text-sm text-center leading-relaxed ${
+              isTestnet ? 'text-amber-400' : 'text-cyan-400'
+            }`}>
+              {isTestnet 
+                ? 'TESTNET ENVIRONMENT - All transactions use test tokens with no real value'
+                : 'MAINNET ENVIRONMENT - All transactions use real assets with real value'
+              }
             </p>
           </div>
         </div>

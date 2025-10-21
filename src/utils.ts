@@ -1,9 +1,19 @@
 import * as algokit from "@algorandfoundation/algokit-utils";
-import { IS_TESTNET, NETWORK_TOKEN } from "./constants/constants";
+import { NETWORK_TOKEN } from "./constants/constants";
+import type { NetworkType } from "./context/networkContext";
 
-export function getAlgod() {
+// Get the current network from localStorage
+function getCurrentNetwork(): NetworkType {
+  const stored = localStorage.getItem('orbital-preferred-network');
+  return (stored as NetworkType) || 'testnet';
+}
+
+export function getAlgod(network?: NetworkType) {
+  const currentNetwork = network || getCurrentNetwork();
+  const isTestnet = currentNetwork === 'testnet';
+  
   let algorand;
-  if(IS_TESTNET) {
+  if(isTestnet) {
     algorand = algokit.AlgorandClient.fromConfig({
       algodConfig: {
         server: "https://testnet-api.4160.nodely.dev",

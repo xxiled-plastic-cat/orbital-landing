@@ -6,15 +6,14 @@ import {
   fetchUserAssetInfo 
 } from '../services/markets'
 import { AssetMetadata, UserAssetSummary, UserAssetInfo } from '../types/lending'
-import { IS_TESTNET } from '../constants/constants'
-
-const NETWORK_PREFIX = IS_TESTNET ? 'testnet' : 'mainnet'
-const ASSETS_QUERY_KEY = [NETWORK_PREFIX, 'assets'] as const
-const USER_ASSETS_QUERY_KEY = [NETWORK_PREFIX, 'user-assets'] as const
-const MARKET_ASSET_IDS_QUERY_KEY = [NETWORK_PREFIX, 'market-asset-ids'] as const
+import { useNetwork } from '../context/networkContext'
 
 // Hook to get all asset IDs from markets
 export function useMarketAssetIds() {
+  const { selectedNetwork } = useNetwork()
+  const MARKET_ASSET_IDS_QUERY_KEY = [selectedNetwork, 'market-asset-ids'] as const
+
+  
   return useQuery({
     queryKey: MARKET_ASSET_IDS_QUERY_KEY,
     queryFn: async () => {
@@ -31,6 +30,9 @@ export function useMarketAssetIds() {
 
 // Hook to get asset metadata for given asset IDs
 export function useAssetMetadata(assetIds: string[]) {
+  const { selectedNetwork } = useNetwork()
+  const ASSETS_QUERY_KEY = [selectedNetwork, 'assets'] as const
+  
   return useQuery({
     queryKey: [...ASSETS_QUERY_KEY, 'metadata', assetIds.sort()],
     queryFn: async () => {
@@ -52,6 +54,8 @@ export function useAssetMetadata(assetIds: string[]) {
 // Hook to get user's asset information (balances and opt-in status)
 export function useUserAssetInfo(assetIds?: string[]) {
   const { activeAddress } = useWallet()
+  const { selectedNetwork } = useNetwork()
+  const USER_ASSETS_QUERY_KEY = [selectedNetwork, 'user-assets'] as const
   
   return useQuery({
     queryKey: [...USER_ASSETS_QUERY_KEY, activeAddress, assetIds?.sort()],

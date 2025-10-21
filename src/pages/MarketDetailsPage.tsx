@@ -40,8 +40,19 @@ import {
   getAcceptedCollateral,
 } from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
+import { useNetwork } from "../context/networkContext";
 import { ExplorerLinks } from "../components/app/explorerlinks";
 import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
+
+// Helper component to display network name
+const NetworkDisplay = () => {
+  const { isTestnet } = useNetwork();
+  return (
+    <span className="font-mono text-white text-sm">
+      Algorand {isTestnet ? 'Testnet' : 'Mainnet'}
+    </span>
+  );
+};
 
 const MarketDetailsPage = () => {
   const [searchParams] = useSearchParams();
@@ -1100,9 +1111,7 @@ const MarketDetailsPage = () => {
                     <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
                       Network
                     </span>
-                    <span className="font-mono text-white text-sm">
-                      Algorand Testnet
-                    </span>
+                    <NetworkDisplay />
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-700">

@@ -1,16 +1,26 @@
 import { TransactionSigner } from "algosdk";
 import { OrbitalLendingClient } from "./orbital-lendingClient";
 import * as algokit from "@algorandfoundation/algokit-utils";
-import { IS_TESTNET, NETWORK_TOKEN } from "../../constants/constants";
+import { NETWORK_TOKEN } from "../../constants/constants";
 import { OrbitalLendingAsaClient } from "./orbital-lending-asaClient";
+import type { NetworkType } from "../../context/networkContext";
+
+// Get the current network from localStorage
+function getCurrentNetwork(): NetworkType {
+  const stored = localStorage.getItem('orbital-preferred-network');
+  return (stored as NetworkType) || 'testnet';
+}
 
 export async function getExistingClient(
   signer: TransactionSigner,
   activeAddress: string,
   appId: number
 ): Promise<OrbitalLendingClient> {
+  const network = getCurrentNetwork();
+  const isTestnet = network === 'testnet';
+  
   let algorand;
-  if (IS_TESTNET) {
+  if (isTestnet) {
     algorand = algokit.AlgorandClient.fromConfig({
       algodConfig: {
         server: "https://testnet-api.4160.nodely.dev",
@@ -42,8 +52,11 @@ export async function getExistingClientAsa(
   activeAddress: string,
   appId: number
 ): Promise<OrbitalLendingAsaClient> {
+  const network = getCurrentNetwork();
+  const isTestnet = network === 'testnet';
+  
   let algorand;
-  if (IS_TESTNET) {
+  if (isTestnet) {
     algorand = algokit.AlgorandClient.fromConfig({
       algodConfig: {
         server: "https://testnet-api.4160.nodely.dev",

@@ -134,7 +134,7 @@ const AppPage = () => {
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Testnet Faucet ✓</span>
+                      <span>Resource Faucet ✓</span>
                     </li>
                   </ul>
                 </div>

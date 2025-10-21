@@ -10,7 +10,18 @@ import {
 } from "../types/lending";
 import { currentAprBps, getAlgod, utilNormBps } from "../utils";
 import { getPricing } from "../contracts/oracle/pricing";
-import { GENERAL_BACKEND_URL, IS_TESTNET } from "../constants/constants";
+import { GENERAL_BACKEND_URL } from "../constants/constants";
+import type { NetworkType } from "../context/networkContext";
+
+// Get the current network from localStorage
+function getCurrentNetwork(): NetworkType {
+  const stored = localStorage.getItem('orbital-preferred-network');
+  return (stored as NetworkType) || 'testnet';
+}
+
+function isTestnet(): boolean {
+  return getCurrentNetwork() === 'testnet';
+}
 
 // Backend response interface
 interface BackendMarket {
@@ -290,7 +301,7 @@ export async function fetchAssetMetadata(
   assetIds: string[]
 ): Promise<AssetMetadata[]> {
   try {
-    if (IS_TESTNET) {
+    if (isTestnet()) {
       // Use hardcoded testnet data
       const metadataArray: AssetMetadata[] = [];
       assetIds.forEach((assetId) => {
@@ -343,7 +354,7 @@ export async function fetchAssetMetadata(
   } catch (error) {
     console.error("Failed to fetch asset metadata:", error);
     
-    if (IS_TESTNET) {
+    if (isTestnet()) {
       // For testnet, return fallback data instead of throwing
       const fallbackArray: AssetMetadata[] = [];
       assetIds.forEach((assetId) => {
@@ -366,7 +377,7 @@ export async function fetchAssetMetadata(
 // Get all unique asset IDs from markets (base tokens and LST tokens)
 export async function getMarketAssetIds(): Promise<string[]> {
   try {
-    if (IS_TESTNET) {
+    if (isTestnet()) {
       // Return hardcoded testnet asset IDs
       return [...TESTNET_MARKET_ASSET_IDS];
     }
@@ -390,7 +401,7 @@ export async function getMarketAssetIds(): Promise<string[]> {
   } catch (error) {
     console.error("Failed to fetch market asset IDs:", error);
     
-    if (IS_TESTNET) {
+    if (isTestnet()) {
       // For testnet, return fallback data instead of throwing
       return [...TESTNET_MARKET_ASSET_IDS];
     }

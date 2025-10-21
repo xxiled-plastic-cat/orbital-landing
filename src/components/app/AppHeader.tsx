@@ -2,6 +2,24 @@ import React, { useState } from "react";
 import { BookOpen, Menu, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import WalletButton from "./WalletButton";
+import { useNetwork } from "../../context/networkContext";
+
+// Helper component for mobile title display
+const MobileTitle: React.FC<{ title: string }> = ({ title }) => {
+  const { isTestnet } = useNetwork();
+  
+  // If title contains "Testnet", show network-aware title
+  if (title.includes("Testnet") || title.toLowerCase().includes("testnet")) {
+    return (
+      <span className="sm:hidden">
+        {`ORBITAL ${isTestnet ? 'TESTNET' : 'MAINNET'}`}
+      </span>
+    );
+  }
+  
+  // Otherwise show normal title
+  return <span className="sm:hidden">{title.toUpperCase()}</span>;
+};
 
 interface AppHeaderProps {
   showBackButton?: boolean;
@@ -40,11 +58,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 <span className="hidden sm:inline">
                   {title.toUpperCase()}
                 </span>
-                <span className="sm:hidden">
-                  {title.includes("Testnet")
-                    ? "ORBITAL TESTNET"
-                    : title.toUpperCase()}
-                </span>
+                <MobileTitle title={title} />
               </h1>
             </div>
 

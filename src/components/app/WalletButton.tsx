@@ -8,12 +8,16 @@ import {
   Copy,
   Droplets,
   Check,
+  Globe,
+  FlaskConical,
 } from "lucide-react";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { WalletContext } from "../../context/wallet";
 import FaucetModal from "./FaucetModal";
 import ExplorerSelectModal from "./ExplorerSelectModal";
+import NetworkSelectModal from "./NetworkSelectModal";
 import { useExplorer, EXPLORERS } from "../../context/explorerContext";
+import { useNetwork } from "../../context/networkContext";
 
 const WalletButton: React.FC = () => {
   const { activeAccount, activeWallet } = useWallet();
@@ -22,6 +26,7 @@ const WalletButton: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isFaucetModalOpen, setIsFaucetModalOpen] = useState(false);
   const [isExplorerModalOpen, setIsExplorerModalOpen] = useState(false);
+  const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({
     top: 0,
     right: 0,
@@ -29,6 +34,7 @@ const WalletButton: React.FC = () => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { selectedExplorer } = useExplorer();
+  const { isTestnet } = useNetwork();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -99,6 +105,11 @@ const WalletButton: React.FC = () => {
 
   const handleExplorerSelect = () => {
     setIsExplorerModalOpen(true);
+    setIsDropdownOpen(false);
+  };
+
+  const handleNetworkSelect = () => {
+    setIsNetworkModalOpen(true);
     setIsDropdownOpen(false);
   };
 
@@ -243,23 +254,53 @@ const WalletButton: React.FC = () => {
 
                 {/* Action buttons */}
                 <div className="space-y-4">
-                  {/* Faucet button */}
+                  {/* Network Select button */}
                   <button
-                    onClick={handleFaucet}
-                    className="w-full h-12 px-4 bg-purple-600 border-2 border-purple-500 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-purple-500 hover:border-purple-400 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                    onClick={handleNetworkSelect}
+                    className="w-full h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                   >
-                    <div className="w-6 h-6 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center border border-purple-500">
-                      <Droplets className="w-3 h-3 text-purple-200" />
+                    <div className={`w-6 h-6 flex items-center justify-center border ${
+                      isTestnet 
+                        ? 'bg-purple-600 border-purple-500' 
+                        : 'bg-cyan-600 border-cyan-500'
+                    }`}>
+                      {isTestnet ? (
+                        <FlaskConical className="w-3 h-3 text-white" />
+                      ) : (
+                        <Globe className="w-3 h-3 text-white" />
+                      )}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
-                        Resource Station
+                        Switch Network
                       </p>
-                      <p className="text-xs text-purple-200 font-mono">
-                        Request testnet resources
+                      <p className={`text-xs font-mono ${
+                        isTestnet ? 'text-purple-200' : 'text-cyan-200'
+                      }`}>
+                        Current: {isTestnet ? 'Testnet' : 'Mainnet'}
                       </p>
                     </div>
                   </button>
+
+                  {/* Faucet button - Only show on testnet */}
+                  {isTestnet && (
+                    <button
+                      onClick={handleFaucet}
+                      className="w-full h-12 px-4 bg-purple-600 border-2 border-purple-500 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-purple-500 hover:border-purple-400 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                    >
+                      <div className="w-6 h-6 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center border border-purple-500">
+                        <Droplets className="w-3 h-3 text-purple-200" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
+                          Resource Station
+                        </p>
+                        <p className="text-xs text-purple-200 font-mono">
+                          Request testnet resources
+                        </p>
+                      </div>
+                    </button>
+                  )}
 
                   {/* Explorer Select button */}
                   <button
@@ -319,6 +360,12 @@ const WalletButton: React.FC = () => {
       <ExplorerSelectModal
         isOpen={isExplorerModalOpen}
         onClose={() => setIsExplorerModalOpen(false)}
+      />
+
+      {/* Network Select Modal */}
+      <NetworkSelectModal
+        isOpen={isNetworkModalOpen}
+        onClose={() => setIsNetworkModalOpen(false)}
       />
     </>
   );
