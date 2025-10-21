@@ -12,6 +12,8 @@ import {
 import { useWallet } from "@txnlab/use-wallet-react";
 import { WalletContext } from "../../context/wallet";
 import FaucetModal from "./FaucetModal";
+import ExplorerSelectModal from "./ExplorerSelectModal";
+import { useExplorer, EXPLORERS } from "../../context/explorerContext";
 
 const WalletButton: React.FC = () => {
   const { activeAccount, activeWallet } = useWallet();
@@ -19,12 +21,14 @@ const WalletButton: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFaucetModalOpen, setIsFaucetModalOpen] = useState(false);
+  const [isExplorerModalOpen, setIsExplorerModalOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({
     top: 0,
     right: 0,
   });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { selectedExplorer } = useExplorer();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,6 +94,11 @@ const WalletButton: React.FC = () => {
 
   const handleFaucet = () => {
     setIsFaucetModalOpen(true);
+    setIsDropdownOpen(false);
+  };
+
+  const handleExplorerSelect = () => {
+    setIsExplorerModalOpen(true);
     setIsDropdownOpen(false);
   };
 
@@ -252,6 +261,28 @@ const WalletButton: React.FC = () => {
                     </div>
                   </button>
 
+                  {/* Explorer Select button */}
+                  <button
+                    onClick={handleExplorerSelect}
+                    className="w-full h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                  >
+                    <div className="w-6 h-6 flex items-center justify-center border border-slate-500" style={{ backgroundColor: EXPLORERS[selectedExplorer].bgColor }}>
+                      <img 
+                        src={EXPLORERS[selectedExplorer].logo} 
+                        alt={EXPLORERS[selectedExplorer].name}
+                        className="w-4 h-4 object-contain"
+                      />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
+                        Select Explorer
+                      </p>
+                      <p className="text-xs text-slate-300 font-mono">
+                        Current: {EXPLORERS[selectedExplorer].name}
+                      </p>
+                    </div>
+                  </button>
+
                   {/* Disconnect button */}
                   <button
                     onClick={handleDisconnect}
@@ -282,6 +313,12 @@ const WalletButton: React.FC = () => {
         isOpen={isFaucetModalOpen}
         onClose={() => setIsFaucetModalOpen(false)}
         walletAddress={activeAccount?.address}
+      />
+
+      {/* Explorer Select Modal */}
+      <ExplorerSelectModal
+        isOpen={isExplorerModalOpen}
+        onClose={() => setIsExplorerModalOpen(false)}
       />
     </>
   );

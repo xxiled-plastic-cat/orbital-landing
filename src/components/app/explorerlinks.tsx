@@ -1,46 +1,26 @@
+import { useExplorer, EXPLORERS } from '../../context/explorerContext';
+
 interface ExplorerLinksProps {
   appId: number;
 }
 
 export const ExplorerLinks: React.FC<ExplorerLinksProps> = ({ appId }) => {
+  const { getExplorerUrl, selectedExplorer } = useExplorer();
+  const explorer = EXPLORERS[selectedExplorer];
+
   return (
-    <div className="flex space-x-2">
-      <a
-        href={`https://explorer.perawallet.app/application/${appId}`}
-        target="_blank"
-        rel="noreferrer "
-        className="hover:scale-105"
-      >
-        <img
-          src={"/pera-logo.svg"}
-          alt={"Pera Explorer"}
-          className="w-7 h-7 p-1 bg-[#FFEE55] rounded-md "
-        />
-      </a>
-      <a
-        href={`https://lora.algokit.io/mainnet/application/${appId}`}
-        target="_blank"
-        rel="noreferrer"
-        className="hover:scale-105"
-      >
-        <img
-          src={"/lora-logo.svg"}
-          alt={"Lora Explorer"}
-          className="w-7 h-7 p-1 bg-[#001424] rounded-md "
-        />
-      </a>
-      <a
-        href={`https://allo.info/application/${appId}`}
-        target="_blank"
-        rel="noreferrer"
-        className="hover:scale-105"
-      >
-        <img
-          src={"/allo-logo.svg"}
-          alt={"Allo Explorer"}
-          className="w-7 h-7 p-1 bg-[#1D3163] rounded-md "
-        />
-      </a>
-    </div>
+    <a
+      href={getExplorerUrl('application', appId)}
+      target="_blank"
+      rel="noreferrer"
+      className="hover:scale-105 transition-transform"
+    >
+      <img
+        src={explorer.logo}
+        alt={`${explorer.name} Explorer`}
+        className="w-7 h-7 p-1"
+        style={{ backgroundColor: explorer.bgColor }}
+      />
+    </a>
   );
 };

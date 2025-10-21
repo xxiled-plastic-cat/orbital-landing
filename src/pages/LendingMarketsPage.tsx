@@ -203,32 +203,28 @@ const LendingMarketsPage = () => {
           <div className="flex gap-2 md:gap-3 justify-end">
             {/* View Mode Toggle */}
             <div className="flex border border-slate-600 bg-slate-800">
-              <Tooltip content="Card view - Show markets as detailed cards" position="bottom">
-                <button
-                  onClick={() => setViewMode("cards")}
-                  className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
-                    viewMode === "cards"
-                      ? "bg-cyan-500 text-white"
-                      : "text-slate-400 hover:text-slate-300"
-                  }`}
-                  aria-label="Card view"
-                >
-                  <Grid3x3 className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
-              </Tooltip>
-              <Tooltip content="Table view - Show markets in compact table format" position="bottom">
-                <button
-                  onClick={() => setViewMode("table")}
-                  className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
-                    viewMode === "table"
-                      ? "bg-cyan-500 text-white"
-                      : "text-slate-400 hover:text-slate-300"
-                  }`}
-                  aria-label="Table view"
-                >
-                  <List className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
-              </Tooltip>
+              <button
+                onClick={() => setViewMode("cards")}
+                className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
+                  viewMode === "cards"
+                    ? "bg-cyan-500 text-white"
+                    : "text-slate-400 hover:text-slate-300"
+                }`}
+                aria-label="Card view"
+              >
+                <Grid3x3 className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={`px-2 md:px-3 py-2.5 md:py-3 transition-all duration-150 ${
+                  viewMode === "table"
+                    ? "bg-cyan-500 text-white"
+                    : "text-slate-400 hover:text-slate-300"
+                }`}
+                aria-label="Table view"
+              >
+                <List className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
             </div>
 
             {/* Status Filter Dropdown */}

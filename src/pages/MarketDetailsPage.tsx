@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useContext, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -842,15 +842,13 @@ const MarketDetailsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <button
-            onClick={() => navigate("/app/markets")}
-            className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6 text-slate-400 hover:text-white transition-colors duration-150 px-1"
+          <Link 
+            to="/app/markets"
+            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-xs sm:text-sm md:text-base group mb-4 md:mb-6"
           >
-            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="font-mono text-xs md:text-sm uppercase tracking-wide">
-              Back to Markets
-            </span>
-          </button>
+            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-150" />
+            <span className="uppercase tracking-wide">Back to Markets</span>
+          </Link>
 
           {/* Market Header */}
           <div className="text-slate-600 cut-corners-lg p-4 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial">
