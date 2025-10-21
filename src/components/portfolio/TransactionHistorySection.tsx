@@ -8,7 +8,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  DollarSign
 } from 'lucide-react';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { GENERAL_BACKEND_URL } from '../../constants/constants';
@@ -19,7 +20,7 @@ import MomentumSpinner from '../MomentumSpinner';
 interface Transaction {
   address: string;
   marketId: string;
-  action: 'deposit' | 'borrow' | 'repay' | 'redeem';
+  action: 'deposit' | 'borrow' | 'repay' | 'redeem' | 'buyout';
   tokenInId: string;
   tokenOutId: string;
   tokensOut: number;
@@ -147,6 +148,8 @@ const TransactionHistorySection: React.FC = () => {
         return <ArrowDownLeft className="w-4 h-4 text-amber-400" />;
       case 'redeem':
         return <ArrowUpRight className="w-4 h-4 text-cyan-400" />;
+      case 'buyout':
+        return <DollarSign className="w-4 h-4 text-orange-400" />;
       default:
         return <Radio className="w-4 h-4 text-slate-400" />;
     }
@@ -162,6 +165,8 @@ const TransactionHistorySection: React.FC = () => {
         return 'text-amber-400';
       case 'redeem':
         return 'text-cyan-400';
+      case 'buyout':
+        return 'text-orange-400';
       default:
         return 'text-slate-400';
     }

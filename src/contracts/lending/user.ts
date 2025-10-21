@@ -465,6 +465,12 @@ export async function buyoutSplitASA({
     const upscaledPremiumAmount = premiumAmount * 10 ** 6;
     const upscaledDebtRepayAmount = debtRepayAmount * 10 ** 6;
 
+    const collateralOptInTxn = await appClient.algorand.createTransaction.assetOptIn({
+      assetId: BigInt(collateralTokenId),
+      sender: buyerAddress,
+      maxFee: AlgoAmount.MicroAlgos(250_000),
+    });
+
     // Create premium transfer transaction (xUSD)
     const premiumAxferTxn = appClient.algorand.createTransaction.assetTransfer({
       sender: buyerAddress,
@@ -488,6 +494,7 @@ export async function buyoutSplitASA({
     // Execute the buyout
     const result = await appClient
       .newGroup()
+      .addTransaction(collateralOptInTxn)
       .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
       .buyoutSplitAsa({
         args: [

@@ -33,7 +33,7 @@ const TESTNET_COLLATERAL_TOKENS: Record<
     decimals: 6,
     image: "/cxUSDt.svg",
   },
-  "747010840": {
+  "748119416": {
     symbol: "cUSDCt",
     name: "Collateralized USDCt Testnet",
     decimals: 6,

@@ -96,12 +96,12 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
     verified: true,
     frozen: false,
   },
-  "747010840": {
-    id: "747010840",
+  "748119416": {
+    id: "748119416",
     name: "Collateralized USDCt Testnet",
     symbol: "cUSDCt",
     decimals: 6,
-    image: "/cUSDCt-logo.svg",
+    image: "/cUSDCt.svg",
     verified: true,
     frozen: false,
   },
@@ -125,7 +125,7 @@ const TESTNET_MARKET_ASSET_IDS = [
   "747086548", // cCOMPXt (collateral token)
   "747010778", // cxUSDt (collateral token)
   "747010543", // cALGO (collateral token)
-  "747010840", // cUSDCt (collateral token)
+  "748119416", // cUSDCt (collateral token) - NEW CONTRACT
   "747010926", // cgoBTCt (collateral token)
 ];
 

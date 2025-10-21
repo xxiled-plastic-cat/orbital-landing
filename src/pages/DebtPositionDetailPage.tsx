@@ -9,7 +9,7 @@ import {
   DollarSign,
   Target,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import AppLayout from "../components/app/AppLayout";
 import { useOptimizedDebtPosition } from "../hooks/useOptimizedLoanRecords";
 import { useNFD } from "../hooks/useNFD";
@@ -24,6 +24,7 @@ const DebtPositionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { activeAddress, transactionSigner } = useWallet();
   const { openToast } = useToast();
+  const navigate = useNavigate();
   const [isExecutingBuyout, setIsExecutingBuyout] = useState(false);
 
   // Use optimized pricing system with fixed LST market lookup
@@ -186,6 +187,11 @@ const DebtPositionDetailPage: React.FC = () => {
   // Use the actual liquidation threshold from the position data, not hardcoded 1.2
   const isLiquidationZone = position.healthRatio <= position.liquidationThreshold;
 
+  // Calculate buffered amounts for display (5% buffer to account for debt changes)
+  const bufferedPremiumTokens = position.buyoutPremiumTokens * 1.05;
+  const bufferedPremiumUSD = position.buyoutPremium * 1.05;
+  const bufferedTotalCost = position.buyoutDebtRepayment + bufferedPremiumUSD;
+
   const handleLiquidate = () => {
     console.log("Execute liquidation for position:", position.id);
     // TODO: Implement liquidation logic
@@ -261,6 +267,10 @@ const DebtPositionDetailPage: React.FC = () => {
         // Continue with lstAppId = 0, the transaction might still work
       }
       
+      // Add 5% buffer to premium to account for potential debt changes at buyout time
+      // Any excess will be returned to the buyer
+      const bufferedPremiumAmount = Math.ceil(position.buyoutPremiumTokens * 1.05);
+      
       let txId: string;
       
       if (isAlgoDebt) {
@@ -270,7 +280,7 @@ const DebtPositionDetailPage: React.FC = () => {
           buyerAddress: activeAddress,
           debtorAddress: position.userAddress,
           appId: marketAppId,
-          premiumAmount: position.buyoutPremiumTokens,
+          premiumAmount: bufferedPremiumAmount,
           debtRepayAmount: position.buyoutDebtRepaymentTokens * 1e6, // Convert to microAlgos
           xUSDAssetId: buyoutTokenId,
           collateralTokenId: parseInt(position.collateralToken.id),
@@ -285,7 +295,7 @@ const DebtPositionDetailPage: React.FC = () => {
           buyerAddress: activeAddress,
           debtorAddress: position.userAddress,
           appId: marketAppId,
-          premiumAmount: position.buyoutPremiumTokens,
+          premiumAmount: bufferedPremiumAmount,
           debtRepayAmount: position.buyoutDebtRepaymentTokens,
           xUSDAssetId: buyoutTokenId,
           baseTokenAssetId: parseInt(position.debtToken.id),
@@ -302,6 +312,11 @@ const DebtPositionDetailPage: React.FC = () => {
         description: null,
       });
       console.log("Buyout transaction completed:", txId);
+      
+      // Navigate back to marketplace after successful buyout
+      setTimeout(() => {
+        navigate("/app/marketplace");
+      }, 1500); // Small delay to allow user to see success message
       
     } catch (error) {
       console.error("Buyout failed:", error);
@@ -658,27 +673,28 @@ const DebtPositionDetailPage: React.FC = () => {
                           }}
                         />
                         <div className="font-mono font-bold text-lg text-amber-400">
-                          {formatNumber(position.buyoutPremiumTokens)} xUSDt
+                          {formatNumber(bufferedPremiumTokens)} xUSDt
                         </div>
                       </div>
                       <div className="font-mono font-semibold text-slate-300">
-                        ${formatUSD(position.buyoutPremium)}
+                        ${formatUSD(bufferedPremiumUSD)}
                       </div>
                       <div className="text-slate-400 text-sm mb-2">
-                        Buyout Premium
+                        Buyout Premium (with 5% buffer)
                       </div>
-                      <div className="text-slate-500 text-xs">
-                        50% goes to borrower, 50% to protocol
+                      <div className="text-slate-500 text-xs space-y-1">
+                        <div>Base: {formatNumber(position.buyoutPremiumTokens)} xUSDt (50% to borrower, 50% to protocol)</div>
+                        <div className="text-cyan-400">+5% buffer for debt fluctuations - excess returned to you</div>
                       </div>
                     </div>
                     
                     {/* Total */}
                     <div className="bg-slate-600 rounded-lg p-4 border border-cyan-500/30">
                       <div className="font-mono font-bold text-2xl text-cyan-400">
-                        ${formatUSD(position.buyoutCost)}
+                        ${formatUSD(bufferedTotalCost)}
                       </div>
                       <div className="text-slate-300 text-sm font-semibold">
-                        Total Buyout Cost
+                        Total Buyout Cost (maximum with buffer)
                       </div>
                     </div>
                   </div>
@@ -725,7 +741,9 @@ const DebtPositionDetailPage: React.FC = () => {
                       <>
                         <li>• Buyout debt position</li>
                         <li>• Repay debt: {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol} (${formatUSD(position.buyoutDebtRepayment)})</li>
-                        <li>• Pay premium: {formatNumber(position.buyoutPremiumTokens)} xUSDt (${formatUSD(position.buyoutPremium)})</li>
+                        <li>• Pay premium: {formatNumber(bufferedPremiumTokens)} xUSDt (${formatUSD(bufferedPremiumUSD)})</li>
+                        <li className="text-cyan-400 text-xs pl-4">↳ Includes 5% buffer for debt fluctuations</li>
+                        <li className="text-cyan-400 text-xs pl-4">↳ Excess premium will be returned to you</li>
                         <li>• Receive collateral: {formatNumber(position.totalCollateralTokens)} {position.collateralToken.symbol} (${formatUSD(position.totalCollateral)})</li>
                       </>
                     )}

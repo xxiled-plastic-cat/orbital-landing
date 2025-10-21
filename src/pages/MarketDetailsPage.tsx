@@ -104,7 +104,7 @@ const MarketDetailsPage = () => {
 
   useEffect(() => {
     if (!isLoading && !market && marketId) {
-      navigate("/markets");
+      navigate("/app/markets");
     }
   }, [market, navigate, isLoading, marketId]);
 
@@ -807,7 +807,7 @@ const MarketDetailsPage = () => {
                 {error?.message || "The requested market could not be found"}
               </div>
               <button
-                onClick={() => navigate("/markets")}
+                onClick={() => navigate("/app/markets")}  
                 className="text-cyan-500 cut-corners-sm px-6 py-2 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
               >
                 <span className="text-white">RETURN TO MARKETS</span>

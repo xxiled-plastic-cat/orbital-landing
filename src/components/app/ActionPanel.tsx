@@ -296,6 +296,56 @@ const ActionPanel = ({
   };
 
   // Get the maximum available balance based on the active action
+  // Get user's actual balance (for display purposes)
+  const getUserBalance = (): string => {
+    if (!market || isLoadingAssets) return "0";
+
+    switch (activeAction) {
+      case "deposit": {
+        // For deposit, use the base token balance (the token being deposited)
+        if (market.baseTokenId === "0" || !market.baseTokenId) {
+          // If base token is ALGO
+          return algoBalance || "0";
+        } else {
+          // Find the base token in user assets
+          const baseAsset = userAssets?.assets.find(
+            (asset) => asset.assetId === market.baseTokenId && asset.isOptedIn
+          );
+          return baseAsset?.balance || "0";
+        }
+      }
+
+      case "redeem": {
+        // For redeem display, show the actual LST token balance (not constrained)
+        if (!market.lstTokenId) return "0";
+        const lstAsset = userAssets?.assets.find(
+          (asset) => asset.assetId === market.lstTokenId && asset.isOptedIn
+        );
+        return lstAsset?.balance || "0";
+      }
+
+      case "open":
+        return (market.availableToBorrow * Math.pow(10, 6)).toString();
+
+      case "repay": {
+        if (!userDebt || !userDebt.principal) return "0";
+        return userDebt.principal.toString();
+      }
+
+      case "withdraw": {
+        if (!withdrawCollateralAssetId) return "0";
+        const collateralAsset = userAssets?.assets.find(
+          (asset) => asset.assetId === withdrawCollateralAssetId && asset.isOptedIn
+        );
+        return collateralAsset?.balance || "0";
+      }
+
+      default:
+        return "0";
+    }
+  };
+
+  // Get maximum balance that can be used for action (respects liquidity constraints)
   const getMaxBalance = (): string => {
     if (!market || isLoadingAssets) return "0";
 
@@ -315,12 +365,37 @@ const ActionPanel = ({
       }
 
       case "redeem": {
-        // For redeem, use the LST token balance (the market token)
+        // For redeem MAX button, need to consider available liquidity constraint
         if (!market.lstTokenId) return "0";
         const lstAsset = userAssets?.assets.find(
           (asset) => asset.assetId === market.lstTokenId && asset.isOptedIn
         );
-        return lstAsset?.balance || "0";
+        const lstBalance = BigInt(lstAsset?.balance || "0");
+        
+        if (lstBalance === 0n) return "0";
+        
+        // Calculate available liquidity in the pool (in microunits)
+        const totalDepositsMicro = BigInt(Math.floor(market.totalDeposits * 10 ** 6));
+        const totalBorrowsMicro = BigInt(Math.floor(market.totalBorrows * 10 ** 6));
+        const availableLiquidity = totalDepositsMicro - totalBorrowsMicro;
+        
+        // Calculate what user's full LST balance is worth (in microunits)
+        const circulatingLSTMicro = BigInt(Math.floor(market.circulatingLST * 10 ** 6));
+        const fullRedeemValue = circulatingLSTMicro > 0n 
+          ? (lstBalance * totalDepositsMicro) / circulatingLSTMicro
+          : 0n;
+        
+        // Maximum redeemable is limited by available liquidity
+        const maxRedeemableValue = fullRedeemValue < availableLiquidity 
+          ? fullRedeemValue 
+          : availableLiquidity;
+        
+        // Convert back to LST tokens (how many LST tokens can be redeemed)
+        const maxLSTRedeemable = totalDepositsMicro > 0n
+          ? (maxRedeemableValue * circulatingLSTMicro) / totalDepositsMicro
+          : 0n;
+        
+        return maxLSTRedeemable.toString();
       }
 
       case "open":
@@ -387,6 +462,46 @@ const ActionPanel = ({
     if (content.length > 35) return "text-[9px] md:text-[11px]";
     if (content.length > 25) return "text-[10px] md:text-xs";
     return "text-xs md:text-sm";
+  };
+
+  // Check if liquidity is constrained for redeem action
+  const getRedeemLiquidityInfo = () => {
+    if (!market || !market.lstTokenId || activeAction !== "redeem") {
+      return { isConstrained: false, availableLiquidity: 0, maxRedeemable: 0 };
+    }
+
+    const lstAsset = userAssets?.assets.find(
+      (asset) => asset.assetId === market.lstTokenId && asset.isOptedIn
+    );
+    const lstBalance = BigInt(lstAsset?.balance || "0");
+
+    if (lstBalance === 0n) {
+      return { isConstrained: false, availableLiquidity: 0, maxRedeemable: 0 };
+    }
+
+    // Calculate available liquidity in the pool
+    const totalDepositsMicro = BigInt(Math.floor(market.totalDeposits * 10 ** 6));
+    const totalBorrowsMicro = BigInt(Math.floor(market.totalBorrows * 10 ** 6));
+    const availableLiquidity = totalDepositsMicro - totalBorrowsMicro;
+
+    // Calculate what user's full LST balance is worth
+    const circulatingLSTMicro = BigInt(Math.floor(market.circulatingLST * 10 ** 6));
+    const fullRedeemValue = circulatingLSTMicro > 0n
+      ? (lstBalance * totalDepositsMicro) / circulatingLSTMicro
+      : 0n;
+
+    // Check if constrained
+    const isConstrained = fullRedeemValue > availableLiquidity;
+    const availableLiquidityDisplay = Number(availableLiquidity) / 10 ** 6;
+    const maxRedeemableDisplay = Number(
+      isConstrained ? availableLiquidity : fullRedeemValue
+    ) / 10 ** 6;
+
+    return {
+      isConstrained,
+      availableLiquidity: availableLiquidityDisplay,
+      maxRedeemable: maxRedeemableDisplay,
+    };
   };
 
   // Handle MAX button click
@@ -1458,7 +1573,7 @@ const ActionPanel = ({
                     <Tooltip 
                       content={activeAction === "deposit" 
                         ? "Your current balance available to deposit" 
-                        : "Your LST token balance available to redeem"
+                        : "Your total LST token balance (redemption may be limited by available liquidity)"
                       }
                       textColor="text-slate-300"
                       position="left"
@@ -1472,17 +1587,39 @@ const ActionPanel = ({
                     ) : (
                       <>
                         {activeAction === "deposit" &&
-                          `${formatBalance(getMaxBalance())} ${
+                          `${formatBalance(getUserBalance())} ${
                             getBaseTokenSymbol(market?.symbol) || "tokens"
                           }`}
                         {activeAction === "redeem" &&
-                          `${formatBalance(getMaxBalance())} ${
+                          `${formatBalance(getUserBalance())} ${
                             getLSTTokenSymbol(market?.symbol) || "LST"
                           }`}
                       </>
                     )}
                   </span>
                 </div>
+
+                {/* Show available liquidity for redeem action */}
+                {activeAction === "redeem" && (() => {
+                  const availableLiquidity = market.totalDeposits - market.totalBorrows;
+                  return (
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-slate-400">Available Liquidity</span>
+                        <Tooltip 
+                          content="Total funds available in the pool for redemption (deposits minus active borrows)"
+                          textColor="text-slate-300"
+                          position="left"
+                        >
+                          <Info className="w-3 h-3 text-slate-500 cursor-help" />
+                        </Tooltip>
+                      </div>
+                      <span className="font-mono text-white">
+                        {formatTokenAmount(availableLiquidity)} {getBaseTokenSymbol(market?.symbol)}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 <div className="flex justify-between items-center text-sm">
                   <div className="flex items-center gap-1">
@@ -1528,6 +1665,27 @@ const ActionPanel = ({
                       } ${getBaseTokenSymbol(market?.symbol)}`}
                   </span>
                 </div>
+
+                {/* Liquidity constraint warning for redeem */}
+                {activeAction === "redeem" && (() => {
+                  const liquidityInfo = getRedeemLiquidityInfo();
+                  if (liquidityInfo.isConstrained) {
+                    return (
+                      <div className="text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2 rounded">
+                        <div className="flex items-start gap-2">
+                          <span className="flex-shrink-0 mt-0.5">⚠</span>
+                          <div>
+                            <div className="font-bold mb-1">Limited Liquidity Available</div>
+                            <div className="text-amber-300/90">
+                              Some funds are currently borrowed. Available to redeem: {formatTokenAmount(liquidityInfo.availableLiquidity)} {getBaseTokenSymbol(market?.symbol)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </>
             )}
           </div>

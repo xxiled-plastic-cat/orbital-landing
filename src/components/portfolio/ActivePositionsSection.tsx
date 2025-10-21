@@ -116,8 +116,8 @@ const ActivePositionsSection: React.FC = () => {
             if (!lastDepositTimestamp || txDate > lastDepositTimestamp) {
               lastDepositTimestamp = txDate;
             }
-          } else if (tx.action === 'redeem') {
-            totalRedeemed += tx.tokensOut; // Base tokens redeemed
+          } else if (tx.action === 'redeem' || tx.action === 'buyout') {
+            totalRedeemed += tx.tokensOut; // Base tokens redeemed or bought out
           }
         });
         
