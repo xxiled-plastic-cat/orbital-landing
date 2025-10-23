@@ -2,7 +2,8 @@ import app from './app.js';
 import { testConnection } from './config/database.js';
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
+// Always bind to 0.0.0.0 in production for container deployments
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : (process.env.HOST || '0.0.0.0');
 
 const startServer = async () => {
   try {
@@ -16,19 +17,27 @@ const startServer = async () => {
     // Note: Database schema is managed by migrations
     // Run 'npm run migrate:up' to create/update tables
 
-    // Start server
-    app.listen(PORT, HOST, () => {
+    // Start server - bind to HOST
+    const server = app.listen(PORT, HOST, () => {
+      const addr = server.address();
       console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
 ║   🚀 Orbital Lending API Server                      ║
 ║                                                       ║
 ║   Environment: ${process.env.NODE_ENV || 'development'}                             ║
-║   Server:      http://${HOST}:${PORT}                ║
-║   Health:      http://${HOST}:${PORT}/api/health     ║
+║   Binding:     ${HOST}:${PORT}                         ║
+║   Address:     ${addr.address}:${addr.port}            ║
+║   Health:      http://0.0.0.0:${PORT}/api/health     ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
       `);
+    });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      console.error('Server error:', error);
+      process.exit(1);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
