@@ -2,7 +2,7 @@ import app from './app.js';
 import { testConnection } from './config/database.js';
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || 'localhost';
+const HOST = process.env.HOST || '0.0.0.0';
 
 const startServer = async () => {
   try {
