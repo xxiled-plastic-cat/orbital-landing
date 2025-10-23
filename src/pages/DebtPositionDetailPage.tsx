@@ -15,7 +15,7 @@ import { useOptimizedDebtPosition } from "../hooks/useOptimizedLoanRecords";
 import { useNFD } from "../hooks/useNFD";
 import { useMarket } from "../hooks/useMarkets";
 import MomentumSpinner from "../components/MomentumSpinner";
-import { buyoutSplitASA, buyoutSplitAlgo } from "../contracts/lending/user";
+import { buyoutSplitASA, buyoutSplitAlgo, liquidatePartialAlgo, liquidatePartialASA } from "../contracts/lending/user";
 import { getAcceptedCollateral } from "../contracts/lending/state";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { useToast } from "../context/toastContext";
@@ -192,9 +192,162 @@ const DebtPositionDetailPage: React.FC = () => {
   const bufferedPremiumUSD = position.buyoutPremium * 1.05;
   const bufferedTotalCost = position.buyoutDebtRepayment + bufferedPremiumUSD;
 
-  const handleLiquidate = () => {
-    console.log("Execute liquidation for position:", position.id);
-    // TODO: Implement liquidation logic
+  // Liquidation calculations
+  const liveDebt = position.totalDebt; // Current debt after interest
+  const liveDebtUSD = position.totalDebtUSD;
+  const closeFactorCap = liveDebt / 2; // 50% close factor
+  const closeFactorCapUSD = liveDebtUSD / 2;
+  
+  // Calculate effective repay limit based on collateral
+  const liquidationBonusBps = market?.liqBonusBps || position.liquidationBonus * 100;
+  const liquidationBonusMultiplier = 1 + liquidationBonusBps / 10000;
+  
+  // Maximum USD value we can seize (all collateral)
+  const maxSeizableUSD = position.totalCollateral;
+  // USD we'd need to repay to seize all collateral (accounting for bonus)
+  const maxRepayLimitedByCollateralUSD = maxSeizableUSD / liquidationBonusMultiplier;
+  const maxRepayLimitedByCollateral = maxRepayLimitedByCollateralUSD / (position.totalDebtUSD / position.totalDebt); // Convert to tokens
+  
+  // Effective cap is the minimum of close factor and collateral-based limit
+  const effectiveRepayCapTokens = Math.min(closeFactorCap, maxRepayLimitedByCollateral, liveDebt);
+  const effectiveRepayCapUSD = Math.min(closeFactorCapUSD, maxRepayLimitedByCollateralUSD, liveDebtUSD);
+  
+  // Is collateral limiting the repayment (not the close factor)?
+  const isCollateralConstrained = maxRepayLimitedByCollateral < closeFactorCap;
+  
+  // Expected collateral to seize with effective cap
+  const expectedSeizeUSD = effectiveRepayCapUSD * liquidationBonusMultiplier;
+  const expectedSeizeTokens = expectedSeizeUSD / (position.currentCollateralPrice || 1);
+
+  const handleLiquidate = async () => {
+    if (!transactionSigner || !activeAddress) {
+      openToast({
+        type: "error",
+        message: "Please connect your wallet to execute liquidation",
+        description: null,
+      });
+      return;
+    }
+
+    if (!position) {
+      openToast({
+        type: "error",
+        message: "Position data not available",
+        description: null,
+      });
+      return;
+    }
+
+    if (!market) {
+      openToast({
+        type: "error",
+        message: "Market data not available",
+        description: null,
+      });
+      return;
+    }
+
+    setIsExecutingBuyout(true); // Reusing the same loading state
+
+    try {
+      console.log("Execute liquidation for position:", position.id);
+      
+      // Check if debt token is ALGO (baseTokenId = 0) or ASA
+      const isAlgoDebt = position.debtToken.id === "0";
+      
+      // Get IDs from market data
+      const marketAppId = parseInt(position.marketId);
+      const oracleAppId = market.oracleAppId;
+      
+      // Get LST app ID from accepted collateral data
+      let lstAppId = 0;
+      
+      try {
+        // Get accepted collateral data to find the LST app ID (originatingAppId)
+        const acceptedCollaterals = await getAcceptedCollateral(
+          activeAddress,
+          marketAppId,
+          transactionSigner
+        );
+        
+        // Find the collateral that matches our position's collateral token
+        const collateralTokenId = BigInt(position.collateralToken.id);
+        for (const [, collateral] of acceptedCollaterals.entries()) {
+          if (collateral.assetId === collateralTokenId) {
+            lstAppId = Number(collateral.originatingAppId);
+            console.log("Found LST app ID:", lstAppId, "for collateral token:", collateralTokenId);
+            break;
+          }
+        }
+        
+        if (lstAppId === 0) {
+          console.warn("Could not find LST app ID for collateral token:", collateralTokenId);
+        }
+      } catch (error) {
+        console.warn("Failed to get accepted collateral data:", error);
+        // Continue with lstAppId = 0, the transaction might still work
+      }
+      
+      // Use the effective repay cap (considers both close factor and collateral constraints)
+      // Contract will refund any excess
+      const maxLiquidationAmount = effectiveRepayCapTokens;
+      
+      let txId: string;
+      
+      if (isAlgoDebt) {
+        console.log("Executing ALGO liquidation method");
+        
+        // For ALGO, amount should be in microAlgos
+        const liquidationAmountMicroAlgos = Math.floor(maxLiquidationAmount * 1e6);
+        
+        txId = await liquidatePartialAlgo({
+          liquidatorAddress: activeAddress,
+          debtorAddress: position.userAddress,
+          appId: marketAppId,
+          repayAmount: liquidationAmountMicroAlgos,
+          collateralTokenId: parseInt(position.collateralToken.id),
+          lstAppId,
+          oracleAppId,
+          signer: transactionSigner,
+        });
+      } else {
+        console.log("Executing ASA liquidation method");
+        
+        txId = await liquidatePartialASA({
+          liquidatorAddress: activeAddress,
+          debtorAddress: position.userAddress,
+          appId: marketAppId,
+          repayAmount: maxLiquidationAmount, // This will be scaled to micro units in the function
+          baseTokenAssetId: parseInt(position.debtToken.id),
+          collateralTokenId: parseInt(position.collateralToken.id),
+          lstAppId,
+          oracleAppId,
+          signer: transactionSigner,
+        });
+      }
+      
+      openToast({
+        type: "success",
+        message: "Liquidation successful! Transaction ID: " + txId,
+        description: null,
+      });
+      console.log("Liquidation transaction completed:", txId);
+      
+      // Navigate back to marketplace after successful liquidation
+      setTimeout(() => {
+        navigate("/app/marketplace");
+      }, 1500); // Small delay to allow user to see success message
+      
+    } catch (error) {
+      console.error("Liquidation failed:", error);
+      openToast({
+        type: "error",
+        message: "Liquidation failed: " + (error instanceof Error ? error.message : 'Unknown error'),
+        description: null,
+      });
+    } finally {
+      setIsExecutingBuyout(false);
+    }
   };
 
   const handleBUYOUT = async () => {
@@ -617,18 +770,129 @@ const DebtPositionDetailPage: React.FC = () => {
               <div className="p-4 md:p-6 space-y-6">
                 {/* Cost/Bonus Display */}
                 {isLiquidationZone ? (
-                  <div>
-                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-3">
-                      Liquidation Bonus
+                  <div className="space-y-4">
+                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-1">
+                      Liquidation Breakdown
                     </h3>
-                    <div className="bg-slate-700 rounded-lg p-4">
-                      <div className="font-mono font-bold text-2xl text-white">
-                        {market?.liqBonusBps 
-                          ? formatNumber(market.liqBonusBps / 100, 1) 
-                          : formatNumber(position.liquidationBonus, 1)}%
+                    
+                    {/* Live Debt (hard ceiling) */}
+                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-slate-400 text-xs uppercase tracking-wide">Current Live Debt</span>
+                        <span className="text-slate-500 text-xs">(Maximum Repayment)</span>
                       </div>
-                      <div className="text-slate-400 text-sm">
-                        Liquidation Discount
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={getTokenImage(position.debtToken.symbol)}
+                          alt={position.debtToken.symbol}
+                          className="w-5 h-5 rounded-full flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="font-mono font-bold text-white">
+                          {formatNumber(liveDebt)} {position.debtToken.symbol}
+                        </div>
+                        <span className="text-slate-400 text-sm">≈ ${formatUSD(liveDebtUSD)}</span>
+                      </div>
+                    </div>
+
+                    {/* Close Factor Cap */}
+                    <div className="bg-slate-700 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-slate-400 text-xs uppercase tracking-wide">Close Factor Cap</span>
+                        <span className="text-amber-400 text-xs font-mono">50% of Debt</span>
+                      </div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <img
+                          src={getTokenImage(position.debtToken.symbol)}
+                          alt={position.debtToken.symbol}
+                          className="w-6 h-6 rounded-full flex-shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="font-mono font-bold text-lg text-amber-400">
+                          {formatNumber(closeFactorCap)} {position.debtToken.symbol}
+                        </div>
+                      </div>
+                      <div className="font-mono font-semibold text-slate-300">
+                        ${formatUSD(closeFactorCapUSD)}
+                      </div>
+                      <div className="text-slate-500 text-xs mt-2">
+                        Standard liquidations are capped at 50% of debt per transaction
+                      </div>
+                    </div>
+                    
+                    {/* Effective Repay Limit - highlighted if different from close factor */}
+                    {isCollateralConstrained && (
+                      <div className="bg-orange-900/20 border border-orange-500/50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle className="w-4 h-4 text-orange-400" />
+                          <span className="text-orange-400 text-xs uppercase tracking-wide font-semibold">
+                            Collateral Constrained
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <img
+                            src={getTokenImage(position.debtToken.symbol)}
+                            alt={position.debtToken.symbol}
+                            className="w-6 h-6 rounded-full flex-shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                          <div className="font-mono font-bold text-lg text-orange-300">
+                            {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol}
+                          </div>
+                        </div>
+                        <div className="font-mono font-semibold text-slate-300">
+                          ${formatUSD(effectiveRepayCapUSD)}
+                        </div>
+                        <div className="text-orange-200 text-xs mt-2">
+                          ⚠️ Effective limit based on available collateral - repaying more will be refunded
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Liquidation Bonus */}
+                    <div className="bg-slate-700 rounded-lg p-4">
+                      <div className="font-mono font-bold text-2xl text-green-400">
+                        {formatNumber(liquidationBonusBps / 100, 1)}%
+                      </div>
+                      <div className="text-slate-400 text-sm mb-2">
+                        Liquidation Bonus
+                      </div>
+                      <div className="text-slate-500 text-xs">
+                        You receive collateral worth {formatNumber(liquidationBonusBps / 100, 1)}% more than your repayment
+                      </div>
+                    </div>
+                    
+                    {/* Expected Collateral Seized */}
+                    <div className="bg-slate-600 rounded-lg p-4 border border-green-500/30">
+                      <div className="font-mono font-bold text-2xl text-green-400">
+                        ≈{formatNumber(expectedSeizeTokens)} {position.collateralToken.symbol}
+                      </div>
+                      <div className="font-mono font-semibold text-slate-300 mt-1">
+                        ≈${formatUSD(expectedSeizeUSD)}
+                      </div>
+                      <div className="text-slate-300 text-sm font-semibold mb-2">
+                        Expected Collateral Seized
+                      </div>
+                      <div className="text-slate-500 text-xs">
+                        Based on {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol} repayment + {formatNumber(liquidationBonusBps / 100, 1)}% bonus
+                      </div>
+                    </div>
+
+                    {/* Refund Notice */}
+                    <div className="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <div className="text-cyan-400 text-xs">💡</div>
+                        <div className="text-cyan-300 text-xs leading-relaxed">
+                          <strong>Auto-Refund:</strong> You can submit up to {formatNumber(liveDebt)} {position.debtToken.symbol}, 
+                          but the contract will only consume {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol} and 
+                          automatically refund any excess. This ensures you can clear positions when collateral is nearly exhausted.
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -733,9 +997,14 @@ const DebtPositionDetailPage: React.FC = () => {
                   <ul className="space-y-1 text-slate-300">
                     {isLiquidationZone ? (
                       <>
-                        <li>• Liquidate debt position</li>
-                        <li>• Repay full debt amount</li>
-                        <li>• Claim collateral at discount</li>
+                        <li>• Liquidate undercollateralized position</li>
+                        <li>• Repay up to: {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol} (${formatUSD(effectiveRepayCapUSD)})</li>
+                        {isCollateralConstrained && (
+                          <li className="text-orange-400 text-xs pl-4">↳ Limited by available collateral (not standard 50% cap)</li>
+                        )}
+                        <li className="text-green-400">• Receive ≈{formatNumber(expectedSeizeTokens)} {position.collateralToken.symbol} with {formatNumber(liquidationBonusBps / 100, 1)}% bonus</li>
+                        <li className="text-cyan-400 text-xs pl-4">↳ Worth ≈${formatUSD(expectedSeizeUSD)}</li>
+                        <li className="text-cyan-400 text-xs pl-4">↳ Any excess repayment automatically refunded</li>
                       </>
                     ) : (
                       <>

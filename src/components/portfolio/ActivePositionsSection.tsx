@@ -12,6 +12,7 @@ import { useAssetMetadata } from '../../hooks/useAssets';
 import { WalletContext } from '../../context/wallet';
 import { useLoanRecords } from '../../hooks/useLoanRecords';
 import { useUserDeposits } from '../../hooks/useUserDeposits';
+import { useDepositRecords } from '../../hooks/useDepositRecords';
 import MomentumSpinner from '../MomentumSpinner';
 
 const ActivePositionsSection: React.FC = () => {
@@ -20,6 +21,7 @@ const ActivePositionsSection: React.FC = () => {
   const { userAssets, algoBalance, isLoadingAssets } = useContext(WalletContext);
   const { data: loanRecords, isLoading: isLoadingLoanRecords } = useLoanRecords();
   const { deposits: userDeposits, isLoading: isLoadingDeposits } = useUserDeposits();
+  const { records: depositRecords, isLoading: isLoadingDepositRecords } = useDepositRecords();
 
   // Get relevant token IDs from markets (base tokens and LST tokens)
   const relevantTokenIds = useMemo(() => {
@@ -95,36 +97,36 @@ const ActivePositionsSection: React.FC = () => {
       return { deposits: [], collateralDeposits: [], borrows: [], totalDepositValue: 0, totalCollateralValue: 0, totalBorrowValue: 0 };
     }
 
-    // Calculate actual deposits from database transactions
+    // Calculate actual deposits from on-chain deposit records
     const deposits = markets
       .map(market => {
-        if (!userDeposits) return null;
+        // Find the deposit record for this market
+        const depositRecord = depositRecords?.find(record => record.marketId === market.id);
         
-        // Find all deposit/redeem transactions for this market
-        const marketTransactions = userDeposits.filter(tx => tx.marketId === market.id);
-        if (marketTransactions.length === 0) return null;
+        if (!depositRecord || depositRecord.depositAmountFormatted <= 0) return null;
         
-        // Calculate net deposits (deposits - redeems)
+        const netDeposited = depositRecord.depositAmountFormatted;
+        const valueUSD = netDeposited * market.baseTokenPrice;
+        
+        // Get transaction history for additional info (optional)
         let totalDeposited = 0;
         let totalRedeemed = 0;
         let lastDepositTimestamp: Date | undefined;
         
-        marketTransactions.forEach(tx => {
-          if (tx.action === 'deposit') {
-            totalDeposited += tx.tokensIn; // Base tokens deposited
-            const txDate = new Date(parseInt(tx.timestamp));
-            if (!lastDepositTimestamp || txDate > lastDepositTimestamp) {
-              lastDepositTimestamp = txDate;
+        if (userDeposits) {
+          const marketTransactions = userDeposits.filter(tx => tx.marketId === market.id);
+          marketTransactions.forEach(tx => {
+            if (tx.action === 'deposit') {
+              totalDeposited += tx.tokensIn;
+              const txDate = new Date(parseInt(tx.timestamp));
+              if (!lastDepositTimestamp || txDate > lastDepositTimestamp) {
+                lastDepositTimestamp = txDate;
+              }
+            } else if (tx.action === 'redeem' || tx.action === 'buyout' || tx.action === 'liquidation') {
+              totalRedeemed += tx.tokensOut;
             }
-          } else if (tx.action === 'redeem' || tx.action === 'buyout') {
-            totalRedeemed += tx.tokensOut; // Base tokens redeemed or bought out
-          }
-        });
-        
-        const netDeposited = totalDeposited - totalRedeemed;
-        if (netDeposited <= 0) return null;
-        
-        const valueUSD = netDeposited * market.baseTokenPrice;
+          });
+        }
         
         return {
           marketId: market.id,
@@ -222,10 +224,10 @@ const ActivePositionsSection: React.FC = () => {
     const totalBorrowValue = borrows.reduce((sum, borrow) => sum + borrow.borrowValueUSD, 0);
 
     return { deposits, collateralDeposits, borrows, totalDepositValue, totalCollateralValue, totalBorrowValue };
-  }, [markets, activeAccount?.address, loanRecords, userDeposits, assetMetadata, getTokenBalance, formatTokenBalance]);
+  }, [markets, activeAccount?.address, loanRecords, userDeposits, depositRecords, assetMetadata, algoBalance, userAssets?.assets]);
 
   // Loading state
-  if ((isLoadingLoanRecords || isLoadingAssets || isLoadingDeposits) && activeAccount?.address) {
+  if ((isLoadingLoanRecords || isLoadingAssets || isLoadingDeposits || isLoadingDepositRecords) && activeAccount?.address) {
     return (
       <motion.div
         className="mb-6 md:mb-8"

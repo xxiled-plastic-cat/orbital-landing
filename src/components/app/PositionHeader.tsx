@@ -6,24 +6,18 @@ import Tooltip from "../Tooltip";
 
 interface PositionHeaderProps {
   market: LendingMarket;
-  userAssets?: {
-    assets: Array<{
-      assetId: string;
-      balance: string;
-      isOptedIn: boolean;
-    }>;
-  };
+  userDepositRecord?: {
+    assetId: bigint;
+    depositAmount: bigint;
+  } | null;
   userDebt?: getLoanRecordReturnType;
 }
 
-const PositionHeader = ({ market, userAssets, userDebt }: PositionHeaderProps) => {
-  // Helper function to calculate user's LST balance for this market
-  const getUserLSTBalance = () => {
-    if (!userAssets?.assets || !market.lstTokenId) return 0;
-    const lstAsset = userAssets.assets.find(
-      (asset) => asset.assetId === market.lstTokenId && asset.isOptedIn
-    );
-    return lstAsset ? parseFloat(lstAsset.balance) / Math.pow(10, 6) : 0;
+const PositionHeader = ({ market, userDepositRecord, userDebt }: PositionHeaderProps) => {
+  // Helper function to calculate user's deposit amount for this market
+  const getUserDepositAmount = () => {
+    if (!userDepositRecord || !userDepositRecord.depositAmount) return 0;
+    return Number(userDepositRecord.depositAmount) / Math.pow(10, 6); // Convert from microunits
   };
 
   // Helper function to calculate total debt from bigint
@@ -66,18 +60,12 @@ const PositionHeader = ({ market, userAssets, userDebt }: PositionHeaderProps) =
     return symbol.startsWith("c") ? symbol.substring(1) : symbol;
   };
 
-  // Helper function to get LST token symbol (adds 'c' prefix if not already there)
-  const getLSTTokenSymbol = (symbol?: string): string => {
-    if (!symbol) return "";
-    return symbol.startsWith("c") ? symbol : `c${symbol}`;
-  };
-
-  const lstBalance = getUserLSTBalance();
+  const depositAmount = getUserDepositAmount();
   const totalDebt = getTotalDebt();
   //const healthFactor = getHealthFactor();
 
   // Don't render if no position
-  if (lstBalance === 0 && totalDebt === 0) {
+  if (depositAmount === 0 && totalDebt === 0) {
     return null;
   }
 
@@ -100,7 +88,7 @@ const PositionHeader = ({ market, userAssets, userDebt }: PositionHeaderProps) =
                 Supplied
               </div>
               <div className="font-mono text-lg font-bold text-white">
-                {lstBalance.toFixed(2)} {getLSTTokenSymbol(market.symbol)}
+                {depositAmount.toFixed(2)} {getBaseTokenSymbol(market.symbol)}
               </div>
             </div>
           </div>

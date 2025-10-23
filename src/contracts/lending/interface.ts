@@ -113,3 +113,26 @@ export interface RepayDebtAlgoParams {
   lstTokenId: number;
   signer: TransactionSigner;
 }
+
+export interface LiquidateAlgoParams {
+  liquidatorAddress: string;
+  debtorAddress: string;
+  appId: number;
+  repayAmount: number; // Amount to repay in microAlgos (up to 50% of debt)
+  collateralTokenId: number;
+  lstAppId: number;
+  oracleAppId: number;
+  signer: TransactionSigner;
+}
+
+export interface LiquidateAsaParams {
+  liquidatorAddress: string;
+  debtorAddress: string;
+  appId: number;
+  repayAmount: number; // Amount to repay in base ASA tokens (up to 50% of debt)
+  baseTokenAssetId: number;
+  collateralTokenId: number;
+  lstAppId: number;
+  oracleAppId: number;
+  signer: TransactionSigner;
+}

@@ -20,7 +20,7 @@ import MomentumSpinner from '../MomentumSpinner';
 interface Transaction {
   address: string;
   marketId: string;
-  action: 'deposit' | 'borrow' | 'repay' | 'redeem' | 'buyout';
+  action: 'deposit' | 'borrow' | 'repay' | 'redeem' | 'buyout' | 'liquidation';
   tokenInId: string;
   tokenOutId: string;
   tokensOut: number;
@@ -150,6 +150,8 @@ const TransactionHistorySection: React.FC = () => {
         return <ArrowUpRight className="w-4 h-4 text-cyan-400" />;
       case 'buyout':
         return <DollarSign className="w-4 h-4 text-orange-400" />;
+      case 'liquidation':
+        return <AlertTriangle className="w-4 h-4 text-red-400" />;
       default:
         return <Radio className="w-4 h-4 text-slate-400" />;
     }
@@ -167,6 +169,8 @@ const TransactionHistorySection: React.FC = () => {
         return 'text-cyan-400';
       case 'buyout':
         return 'text-orange-400';
+      case 'liquidation':
+        return 'text-red-400';
       default:
         return 'text-slate-400';
     }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import algosdk, { TransactionSigner } from "algosdk";
 import { getExistingClient } from "./getClient";
 import { getBoxValueReturnType } from "./interface";
@@ -6,7 +7,7 @@ import { OrbitalLendingClient } from "./orbital-lendingClient";
 export async function getContractState(
   address: string,
   appId: number,
-  signer: TransactionSigner,
+  signer: TransactionSigner
 ) {
   const appClient = await getExistingClient(signer, address, appId);
   appClient.algorand.setDefaultSigner(signer);
@@ -18,7 +19,7 @@ export async function getContractState(
 export async function getAcceptedCollateral(
   address: string,
   appId: number,
-  signer: TransactionSigner,
+  signer: TransactionSigner
 ) {
   const appClient = await getExistingClient(signer, address, appId);
 
@@ -76,6 +77,37 @@ export function calculateAssetDue(
   return assetDue / 10n ** 6n;
 }
 
+export async function getDepositBoxValue(
+  userAddress: string,
+  appClient: any, // Accepts both OrbitalLendingClient and OrbitalLendingAsaClient
+  assetInQuestion: bigint
+) {
+  const depositKeyType = new algosdk.ABITupleType([
+    new algosdk.ABIAddressType(),
+    new algosdk.ABIUintType(64), // assetId
+  ]);
+  const depositRecordType = new algosdk.ABITupleType([
+    new algosdk.ABIUintType(64), // assetId
+    new algosdk.ABIUintType(64), // depositAmount
+  ]);
+  const prefix = new TextEncoder().encode("deposit_record"); // Replace with your actual prefix
+
+  const encodedKey = depositKeyType.encode([
+    algosdk.decodeAddress(userAddress).publicKey,
+    assetInQuestion,
+  ]);
+  const boxName = new Uint8Array([...prefix, ...encodedKey]);
+  const boxValue = await appClient.appClient.getBoxValueFromABIType(
+    boxName,
+    depositRecordType
+  );
+  const [depositAmount, assetId] = boxValue as bigint[];
+  return {
+    assetId: assetId,
+    depositAmount: depositAmount,
+  };
+}
+
 export async function getCollateralBoxValue(
   index: bigint,
   appClient: OrbitalLendingClient,
@@ -103,7 +135,13 @@ export async function getCollateralBoxValue(
     boxName,
     acceptedCollateralType
   );
-  const [assetId, baseAssetId, marketBaseAssetId, totalCollateral, originatingAppId] = collateral as bigint[];
+  const [
+    assetId,
+    baseAssetId,
+    marketBaseAssetId,
+    totalCollateral,
+    originatingAppId,
+  ] = collateral as bigint[];
   return {
     assetId,
     baseAssetId,

@@ -38,6 +38,7 @@ import {
   calculateAssetDue,
   calculateLSTDue,
   getAcceptedCollateral,
+  getDepositBoxValue,
 } from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
 import { useNetwork } from "../context/networkContext";
@@ -69,6 +70,12 @@ const MarketDetailsPage = () => {
     undefined
   );
 
+  // User deposit record state management
+  const [userDepositRecord, setUserDepositRecord] = useState<{
+    assetId: bigint;
+    depositAmount: bigint;
+  } | null>(null);
+
   // Ref to track the last fetched collateral combination to prevent unnecessary calls
   const lastFetchedRef = useRef<string | null>(null);
 
@@ -98,6 +105,30 @@ const MarketDetailsPage = () => {
       } catch (error) {
         console.log("No debt record found for user:", error);
         setUserDebt(undefined);
+      }
+    }
+  };
+
+  // Function to refetch user deposit record
+  const refetchUserDepositRecord = async () => {
+    if (market && activeAddress && transactionSigner) {
+      try {
+        const { getExistingClient, getExistingClientAsa } = await import("../contracts/lending/getClient");
+        
+        const appClient = market.baseTokenId === "0"
+          ? await getExistingClient(transactionSigner, activeAddress, Number(market.id))
+          : await getExistingClientAsa(transactionSigner, activeAddress, Number(market.id));
+        
+        const depositRecord = await getDepositBoxValue(
+          activeAddress,
+          appClient as any, // Type assertion needed as getDepositBoxValue expects OrbitalLendingClient
+          BigInt(market.baseTokenId)
+        );
+        console.log("Deposit record:", depositRecord);
+        setUserDepositRecord(depositRecord);
+      } catch (error) {
+        console.log("No deposit record found for user:", error);
+        setUserDepositRecord(null);
       }
     }
   };
@@ -167,6 +198,36 @@ const MarketDetailsPage = () => {
     fetchUserDebt();
   }, [market, activeAddress]);
 
+  // Fetch user deposit record information
+  useEffect(() => {
+    const fetchUserDepositRecord = async () => {
+      if (market && activeAddress && transactionSigner) {
+        try {
+          const { getExistingClient, getExistingClientAsa } = await import("../contracts/lending/getClient");
+          
+          const appClient = market.baseTokenId === "0"
+            ? await getExistingClient(transactionSigner, activeAddress, Number(market.id))
+            : await getExistingClientAsa(transactionSigner, activeAddress, Number(market.id));
+          
+          const depositRecord = await getDepositBoxValue(
+            activeAddress,
+            appClient as any, // Type assertion needed as getDepositBoxValue expects OrbitalLendingClient
+            BigInt(market.baseTokenId)
+          );
+          console.log("Deposit record:", depositRecord);
+          setUserDepositRecord(depositRecord);
+        } catch (error) {
+          console.log("No deposit record found for user:", error);
+          setUserDepositRecord(null);
+        }
+      } else {
+        setUserDepositRecord(null);
+      }
+    };
+
+    fetchUserDepositRecord();
+  }, [market, activeAddress]);
+
   const handleDeposit = async (amount: string) => {
     try {
       setTransactionLoading(true);
@@ -212,8 +273,9 @@ const MarketDetailsPage = () => {
             // Immediately refetch market data to reflect changes in market overview and interest rates
             refetchMarkets();
 
-            // Refetch user debt data
+            // Refetch user debt and deposit data
             refetchUserDebt();
+            refetchUserDepositRecord();
 
             // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
             const lstMinted = calculateLSTDue(
@@ -281,8 +343,9 @@ const MarketDetailsPage = () => {
             // Immediately refetch market data to reflect changes in market overview and interest rates
             refetchMarkets();
 
-            // Refetch user debt data
+            // Refetch user debt and deposit data
             refetchUserDebt();
+            refetchUserDepositRecord();
 
             // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
             const lstMinted = calculateLSTDue(
@@ -372,8 +435,9 @@ const MarketDetailsPage = () => {
           // Immediately refetch market data to reflect changes in market overview and interest rates
           refetchMarkets();
 
-          // Refetch user debt data
+          // Refetch user debt and deposit data
           refetchUserDebt();
+          refetchUserDepositRecord();
 
           const asaDue = calculateAssetDue(
             BigInt(Number(amount) * 10 ** 6),
@@ -926,7 +990,7 @@ const MarketDetailsPage = () => {
         {/* Position Header */}
         <PositionHeader
           market={market}
-          userAssets={userAssets || undefined}
+          userDepositRecord={userDepositRecord}
           userDebt={userDebt}
         />
 

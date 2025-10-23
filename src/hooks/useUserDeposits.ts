@@ -5,7 +5,7 @@ import { GENERAL_BACKEND_URL } from '../constants/constants';
 export interface UserDeposit {
   address: string;
   marketId: string;
-  action: 'deposit' | 'redeem' | 'buyout';
+  action: 'deposit' | 'redeem' | 'buyout' | 'liquidation';
   tokenInId: string;
   tokenOutId: string;
   tokensOut: number;
@@ -60,9 +60,9 @@ export const useUserDeposits = () => {
       const data: ApiResponse = await response.json();
       
       if (data.success) {
-        // Filter for deposit, redeem, and buyout actions only
+        // Filter for deposit, redeem, buyout, and liquidation actions only
         const depositTransactions = data.data.filter(tx => 
-          tx.action === 'deposit' || tx.action === 'redeem' || tx.action === 'buyout'
+          tx.action === 'deposit' || tx.action === 'redeem' || tx.action === 'buyout' || tx.action === 'liquidation'
         );
         setDeposits(depositTransactions);
       } else {
