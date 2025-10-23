@@ -10,8 +10,9 @@ import {
 } from "../types/lending";
 import { currentAprBps, getAlgod, utilNormBps } from "../utils";
 import { getPricing } from "../contracts/oracle/pricing";
-import { GENERAL_BACKEND_URL } from "../constants/constants";
+import { ORBITAL_BACKEND_URL } from "../constants/constants";
 import type { NetworkType } from "../context/networkContext";
+import { getOrbitalLendingMarkets } from "./orbitalApi";
 
 // Get the current network from localStorage
 function getCurrentNetwork(): NetworkType {
@@ -151,9 +152,21 @@ export async function fetchMarkets(
   address: string
 ): Promise<LendingMarket[]> {
   try {
-    // 1. Fetch market list from backend
-    const response = await axios.get(`${GENERAL_BACKEND_URL}/orbital/markets`);
-    const backendMarkets: BackendMarket[] = response.data;
+    // 1. Fetch market list from Orbital backend
+    let backendMarkets: BackendMarket[] = [];
+    
+    try {
+      const markets = await getOrbitalLendingMarkets();
+      backendMarkets = markets.map((m) => ({
+        appId: m.appId.toString(),
+        baseTokenId: m.baseTokenId.toString(),
+        lstTokenId: m.lstTokenId.toString(),
+      }));
+    } catch (error) {
+      console.warn('Failed to fetch from Orbital backend, using fallback:', error);
+      // Fallback to empty array - will fetch from on-chain only
+      backendMarkets = [];
+    }
 
     const marketStates: LendingMarket[] = [];
 
@@ -324,7 +337,9 @@ export async function fetchAssetMetadata(
     }
 
     // Fetch from backend for mainnet
-    const response = await axios.post(`${GENERAL_BACKEND_URL}/assets`, {
+    // Note: This endpoint isn't implemented in Orbital backend yet
+    // You may want to add an /assets endpoint or use Algorand indexer
+    const response = await axios.post(`${ORBITAL_BACKEND_URL}/assets`, {
       assetIds,
     });
 
@@ -383,8 +398,12 @@ export async function getMarketAssetIds(): Promise<string[]> {
     }
 
     // Fetch from backend for mainnet
-    const response = await axios.get(`${GENERAL_BACKEND_URL}/orbital/markets`);
-    const backendMarkets: BackendMarket[] = response.data;
+    const markets = await getOrbitalLendingMarkets();
+    const backendMarkets: BackendMarket[] = markets.map((m) => ({
+      appId: m.appId.toString(),
+      baseTokenId: m.baseTokenId.toString(),
+      lstTokenId: m.lstTokenId.toString(),
+    }));
 
     const assetIds = new Set<string>();
 
