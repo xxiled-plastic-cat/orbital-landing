@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router } from 'express';
 import {
   createUserRecord,
   getRecordsByMarket,
@@ -7,7 +7,7 @@ import {
   getUserStats
 } from '../controllers/userRecordController.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // POST /api/orbital/records - Create new user record
 router.post('/', createUserRecord);

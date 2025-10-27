@@ -1,11 +1,11 @@
-import express from 'express';
+import express, { Router } from 'express';
 import {
   getAllMarkets,
   getMarketById,
   createMarket
 } from '../controllers/marketController.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // GET /api/orbital/markets - Get all markets
 router.get('/', getAllMarkets);
@@ -17,3 +17,4 @@ router.get('/:id', getMarketById);
 router.post('/', createMarket);
 
 export default router;
+

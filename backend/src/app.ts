@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -11,7 +11,7 @@ import { apiLimiter } from './middleware/rateLimiter.js';
 
 dotenv.config();
 
-const app = express();
+const app: Express = express();
 
 // Security middleware
 app.use(helmet());
@@ -45,7 +45,7 @@ app.use('/api', apiLimiter);
 app.use('/api', routes);
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.json({
     success: true,
     message: 'Welcome to Orbital Lending API',

@@ -1,6 +1,7 @@
+import { Request, Response } from 'express';
 import * as marketService from '../services/marketService.js';
 
-export const getAllMarkets = async (req, res) => {
+export const getAllMarkets = async (req: Request, res: Response): Promise<void> => {
   try {
     const markets = await marketService.getOrbitalLendingMarkets();
     res.json(markets);
@@ -9,12 +10,12 @@ export const getAllMarkets = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch markets',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const getMarketById = async (req, res) => {
+export const getMarketById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const market = await marketService.getOrbitalLendingMarketById(id);
@@ -24,12 +25,12 @@ export const getMarketById = async (req, res) => {
     res.status(404).json({
       success: false,
       error: 'Market not found',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const createMarket = async (req, res) => {
+export const createMarket = async (req: Request, res: Response): Promise<void> => {
   try {
     const { appId, baseTokenId, lstTokenId } = req.body;
     const market = await marketService.addOrbitalLendingMarket(
@@ -43,7 +44,8 @@ export const createMarket = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create market',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
+

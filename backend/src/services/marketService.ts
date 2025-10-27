@@ -10,7 +10,7 @@ export async function getOrbitalLendingMarkets() {
   }
 }
 
-export async function getOrbitalLendingMarketById(id) {
+export async function getOrbitalLendingMarketById(id: string | number) {
   try {
     const market = await OrbitalLendingMarket.findByPk(id);
     if (!market) {
@@ -23,7 +23,11 @@ export async function getOrbitalLendingMarketById(id) {
   }
 }
 
-export async function addOrbitalLendingMarket(appId, baseTokenId, lstTokenId) {
+export async function addOrbitalLendingMarket(
+  appId: number,
+  baseTokenId: number,
+  lstTokenId: number
+) {
   try {
     const marketData = {
       appId,

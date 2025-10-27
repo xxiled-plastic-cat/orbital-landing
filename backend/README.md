@@ -6,13 +6,17 @@ A dedicated Node.js backend API for the Orbital Lending Protocol on Algorand, bu
 
 This backend provides REST API endpoints for Orbital Lending markets and user transaction records, matching the legacy general backend API structure.
 
+It also includes an **Oracle Price Update Service** that runs as a standalone cron job to fetch and update asset prices from multiple DEX sources (CompX, Vestige).
+
 ## Tech Stack
 
 - **Runtime:** Node.js (ES Modules)
+- **Language:** TypeScript (for oracle services) + JavaScript
 - **Framework:** Express.js
 - **ORM:** Sequelize
 - **Database:** PostgreSQL (Supabase)
 - **Security:** Helmet, CORS, Express Rate Limit
+- **Cron:** node-cron (for oracle price updates)
 
 ## Project Structure
 
@@ -97,15 +101,35 @@ npm run migrate:up
 
 ### 4. Start Server
 
+#### API Server
+
 ```bash
 # Development (with auto-reload)
 npm run dev
 
-# Production
+# Production (builds TypeScript, runs migrations, starts server)
 npm start
+
+# Or just start the server (without migrations)
+npm run start:server
 ```
 
 Server will start on `http://localhost:3000`
+
+#### Oracle Cron Service
+
+The oracle service runs independently to update prices:
+
+```bash
+# Development (with auto-reload)
+npm run dev:cron
+
+# Production (builds TypeScript, runs cron)
+npm run build
+npm run start:cron
+```
+
+See [ORACLE_README.md](./ORACLE_README.md) for detailed oracle documentation.
 
 ## API Endpoints
 
@@ -237,6 +261,34 @@ All endpoints return consistent JSON responses:
   "message": "Detailed error"
 }
 ```
+
+## TypeScript Support
+
+The backend is now **fully written in TypeScript**, providing end-to-end type safety across the entire application.
+
+### File Organization
+
+- **TypeScript Files**: All files in `src/` (app, server, routes, controllers, services, models, utils, middleware, config)
+- **JavaScript Files**: Only `src/migrations/**/*.js` (database migrations, kept as JS for compatibility)
+
+### Build Process
+
+```bash
+# Build TypeScript to JavaScript
+npm run build
+
+# Output goes to dist/ directory
+```
+
+### Development with TypeScript
+
+Use `tsx` for development (no build step needed):
+
+```bash
+npm run dev:cron  # Runs TypeScript directly with hot reload
+```
+
+For full details, see [TYPESCRIPT_MIGRATION.md](./TYPESCRIPT_MIGRATION.md)
 
 ## Security Features
 

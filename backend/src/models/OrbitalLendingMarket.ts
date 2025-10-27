@@ -1,7 +1,16 @@
-import { DataTypes } from 'sequelize';
+import { DataTypes, Model, InferAttributes, InferCreationAttributes } from 'sequelize';
 import sequelize from '../config/database.js';
 
-const OrbitalLendingMarket = sequelize.define('orbital_lending_markets', {
+class OrbitalLendingMarket extends Model<
+  InferAttributes<OrbitalLendingMarket>,
+  InferCreationAttributes<OrbitalLendingMarket>
+> {
+  declare appId: number;
+  declare baseTokenId: number;
+  declare lstTokenId: number;
+}
+
+OrbitalLendingMarket.init({
   appId: {
     type: DataTypes.BIGINT,
     primaryKey: true,
@@ -16,6 +25,7 @@ const OrbitalLendingMarket = sequelize.define('orbital_lending_markets', {
     allowNull: false
   }
 }, {
+  sequelize,
   tableName: 'orbital_lending_markets',
   timestamps: false
 });

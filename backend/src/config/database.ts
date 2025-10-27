@@ -3,6 +3,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is not defined');
+}
+
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   dialectOptions: {
@@ -20,7 +24,7 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
   }
 });
 
-export const testConnection = async () => {
+export const testConnection = async (): Promise<boolean> => {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');

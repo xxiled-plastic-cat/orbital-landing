@@ -1,6 +1,7 @@
+import { Request, Response } from 'express';
 import * as userRecordService from '../services/userRecordService.js';
 
-export const createUserRecord = async (req, res) => {
+export const createUserRecord = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await userRecordService.addUserRecord(req.body);
     
@@ -14,12 +15,12 @@ export const createUserRecord = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create user record',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const getRecordsByMarket = async (req, res) => {
+export const getRecordsByMarket = async (req: Request, res: Response): Promise<void> => {
   try {
     const { marketId } = req.params;
     const result = await userRecordService.getUserRecordsByMarketId(
@@ -31,12 +32,12 @@ export const getRecordsByMarket = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch records',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const getRecordsByAddressAndMarket = async (req, res) => {
+export const getRecordsByAddressAndMarket = async (req: Request, res: Response): Promise<void> => {
   try {
     const { address, marketId } = req.params;
     const result = await userRecordService.getUserRecordsByAddressAndMarketId(
@@ -49,12 +50,12 @@ export const getRecordsByAddressAndMarket = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch records',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const getUserStatsForMarket = async (req, res) => {
+export const getUserStatsForMarket = async (req: Request, res: Response): Promise<void> => {
   try {
     const { address, marketId } = req.params;
     const { baseTokenId, lstTokenId, acceptedCollateralTokenIds } = req.body;
@@ -64,7 +65,7 @@ export const getUserStatsForMarket = async (req, res) => {
       parseInt(marketId),
       parseInt(baseTokenId),
       parseInt(lstTokenId),
-      acceptedCollateralTokenIds.map(id => parseInt(id))
+      acceptedCollateralTokenIds.map((id: string | number) => parseInt(String(id)))
     );
     res.json(result);
   } catch (error) {
@@ -72,12 +73,12 @@ export const getUserStatsForMarket = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch user stats',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };
 
-export const getUserStats = async (req, res) => {
+export const getUserStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const { address } = req.params;
     const result = await userRecordService.getUserStats(address);
@@ -87,7 +88,7 @@ export const getUserStats = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch user stats',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 };

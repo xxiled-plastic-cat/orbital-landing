@@ -1,11 +1,12 @@
 import app from './app.js';
 import { testConnection } from './config/database.js';
+import { AddressInfo } from 'net';
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 // Always bind to 0.0.0.0 in production for container deployments
 const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : (process.env.HOST || '0.0.0.0');
 
-const startServer = async () => {
+const startServer = async (): Promise<void> => {
   try {
     // Test database connection
     const isConnected = await testConnection();
@@ -19,7 +20,7 @@ const startServer = async () => {
 
     // Start server - bind to HOST
     const server = app.listen(PORT, HOST, () => {
-      const addr = server.address();
+      const addr = server.address() as AddressInfo;
       console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
@@ -35,7 +36,7 @@ const startServer = async () => {
     });
 
     // Handle server errors
-    server.on('error', (error) => {
+    server.on('error', (error: Error) => {
       console.error('Server error:', error);
       process.exit(1);
     });

@@ -1,6 +1,35 @@
 import { OrbitalLendingUserRecord } from '../models/index.js';
 
-export async function addUserRecord(body) {
+interface UserRecordData {
+  address: string;
+  marketId: number;
+  action: string;
+  tokensOut: number;
+  tokensIn: number;
+  timestamp: number;
+  txnId: string;
+  tokenInId: number;
+  tokenOutId: number;
+}
+
+interface ServiceResponse<T> {
+  success: boolean;
+  data: T | null;
+  error?: string;
+}
+
+interface TokenStats {
+  in: number;
+  out: number;
+}
+
+interface UserStatsData {
+  baseToken: TokenStats;
+  lstToken: TokenStats;
+  collateral: Record<number, TokenStats>;
+}
+
+export async function addUserRecord(body: UserRecordData): Promise<ServiceResponse<any>> {
   try {
     const {
       address,
@@ -35,12 +64,12 @@ export async function addUserRecord(body) {
     return {
       success: false,
       data: null,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
 
-export async function getUserRecordsByMarketId(marketId) {
+export async function getUserRecordsByMarketId(marketId: number): Promise<ServiceResponse<any[]>> {
   try {
     const records = await OrbitalLendingUserRecord.findAll({
       where: { marketId },
@@ -55,12 +84,15 @@ export async function getUserRecordsByMarketId(marketId) {
     return {
       success: false,
       data: null,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
 
-export async function getUserRecordsByAddressAndMarketId(address, marketId) {
+export async function getUserRecordsByAddressAndMarketId(
+  address: string,
+  marketId: number
+): Promise<ServiceResponse<any[]>> {
   try {
     const records = await OrbitalLendingUserRecord.findAll({
       where: { address, marketId },
@@ -75,18 +107,18 @@ export async function getUserRecordsByAddressAndMarketId(address, marketId) {
     return {
       success: false,
       data: null,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
 
 export async function getUserStatsForMarket(
-  address,
-  marketId,
-  baseTokenId,
-  lstTokenId,
-  acceptedCollateralTokenIds
-) {
+  address: string,
+  marketId: number,
+  baseTokenId: number,
+  lstTokenId: number,
+  acceptedCollateralTokenIds: number[]
+): Promise<ServiceResponse<UserStatsData>> {
   try {
     const records = await getUserRecordsByAddressAndMarketId(address, marketId);
     if (!records.success) throw new Error('Failed to fetch user records');
@@ -120,7 +152,7 @@ export async function getUserStatsForMarket(
         return acc;
       }, 0);
       
-      const collateralValues = {};
+      const collateralValues: Record<number, TokenStats> = {};
       for (const col of acceptedCollateralTokenIds) {
         let collateralTokenIn = records.data.reduce((acc, record) => {
           if (record.tokenInId === col) {
@@ -157,17 +189,23 @@ export async function getUserStatsForMarket(
         },
       };
     }
+
+    return {
+      success: false,
+      data: null,
+      error: 'No records found',
+    };
   } catch (error) {
     console.error('Error fetching user stats:', error);
     return {
       success: false,
       data: null,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
 
-export async function getUserStats(address) {
+export async function getUserStats(address: string): Promise<ServiceResponse<any[]>> {
   try {
     const records = await OrbitalLendingUserRecord.findAll({
       where: { address },
@@ -179,12 +217,18 @@ export async function getUserStats(address) {
         data: records,
       };
     }
+
+    return {
+      success: false,
+      data: null,
+      error: 'No records found',
+    };
   } catch (error) {
     console.error('Error fetching user stats:', error);
     return {
       success: false,
       data: null,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
