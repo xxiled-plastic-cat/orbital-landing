@@ -59,12 +59,14 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
   };
 
   const getHealthStatus = (healthRatio: number, liquidationThreshold: number) => {
-    // liquidationThreshold is already a decimal (e.g., 0.85 for 85%)
-    // healthRatio is collateralValueUSD / debtValueUSD
-    // Liquidation occurs when healthRatio <= liquidationThreshold
+    // liquidationThreshold represents the LTV liquidation ratio (e.g., 0.90 for 90%)
+    // This means liquidation occurs when debt/collateral >= 0.90
+    // Since healthRatio = collateral/debt, liquidation occurs when healthRatio <= 1/0.90 = 1.111
+    // We need to invert the threshold to compare with health ratio
+    const actualThreshold = liquidationThreshold > 0 ? 1 / liquidationThreshold : 1.2;
     
-    // Healthy: significantly above liquidation threshold (20% buffer)
-    if (healthRatio >= liquidationThreshold * 1.2) {
+    // Healthy: significantly above liquidation threshold (20%+ buffer above liquidation point)
+    if (healthRatio >= actualThreshold * 1.2) {
       return {
         color: 'text-green-400',
         bgColor: 'bg-green-400/10',
@@ -73,8 +75,8 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
         icon: Shield
       };
     } 
-    // Warning: close to liquidation threshold (within 10% buffer above threshold)
-    else if (healthRatio >= liquidationThreshold * 1.1) {
+    // Nearing liquidation: above liquidation point but not healthy (0-20% buffer)
+    else if (healthRatio > actualThreshold) {
       return {
         color: 'text-amber-400',
         bgColor: 'bg-amber-400/10',
@@ -83,7 +85,7 @@ const DebtPositionCard: React.FC<DebtPositionCardProps> = ({
         icon: AlertTriangle
       };
     } 
-    // Liquidation zone: at or below liquidation threshold
+    // Liquidation zone: at or below actual liquidation threshold (ACTUALLY LIQUIDATABLE)
     else {
       return {
         color: 'text-red-400',

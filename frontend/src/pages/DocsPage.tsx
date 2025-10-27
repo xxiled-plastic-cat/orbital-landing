@@ -13,6 +13,8 @@ import {
   Radio,
   Target,
   Vote,
+  AlertTriangle,
+  ShoppingBag,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import { Link } from "react-router-dom";
@@ -24,7 +26,9 @@ import {
   MarketplaceSection,
   PortfolioSection,
   FaucetSection,
-  GovernanceSection
+  GovernanceSection,
+  LiquidationsSection,
+  BuyoutsSection
 } from "../components/docs";
 
 const DocsPage: React.FC = () => {
@@ -66,6 +70,18 @@ const DocsPage: React.FC = () => {
       title: "Resource Station",
       icon: Droplets,
       description: "Get testnet tokens for testing",
+    },
+    {
+      id: "liquidations",
+      title: "Liquidations",
+      icon: AlertTriangle,
+      description: "Understand liquidation mechanics",
+    },
+    {
+      id: "buyouts",
+      title: "Buyouts",
+      icon: ShoppingBag,
+      description: "Trade healthy debt positions",
     },
     {
       id: "governance",
@@ -216,13 +232,19 @@ const DocsPage: React.FC = () => {
                 {activeSection === "borrowing" && <BorrowingSection />}
 
                 {/* Marketplace Section */}
-                {activeSection === "marketplace" && <MarketplaceSection />}
+                {activeSection === "marketplace" && <MarketplaceSection onNavigate={setActiveSection} />}
 
                 {/* Portfolio Section */}
                 {activeSection === "portfolio" && <PortfolioSection />}
 
                 {/* Faucet Section */}
                 {activeSection === "faucet" && <FaucetSection />}
+
+                {/* Liquidations Section */}
+                {activeSection === "liquidations" && <LiquidationsSection />}
+
+                {/* Buyouts Section */}
+                {activeSection === "buyouts" && <BuyoutsSection />}
 
                 {/* Governance Section */}
                 {activeSection === "governance" && <GovernanceSection />}

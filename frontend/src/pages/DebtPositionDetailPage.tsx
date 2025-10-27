@@ -6,26 +6,30 @@ import {
   AlertTriangle,
   Shield,
   TrendingDown,
-  DollarSign,
   Target,
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import AppLayout from "../components/app/AppLayout";
 import { useOptimizedDebtPosition } from "../hooks/useOptimizedLoanRecords";
 import { useNFD } from "../hooks/useNFD";
 import { useMarket } from "../hooks/useMarkets";
 import MomentumSpinner from "../components/MomentumSpinner";
+import LiquidationActionDrawer from "../components/app/LiquidationActionDrawer";
 import { buyoutSplitASA, buyoutSplitAlgo, liquidatePartialAlgo, liquidatePartialASA } from "../contracts/lending/user";
 import { getAcceptedCollateral } from "../contracts/lending/state";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { useToast } from "../context/toastContext";
+import { DebtPosition } from "../types/lending";
 
 const DebtPositionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { activeAddress, transactionSigner } = useWallet();
   const { openToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isExecutingBuyout, setIsExecutingBuyout] = useState(false);
+  const [liquidationAmount, setLiquidationAmount] = useState<string>("");
 
   // Use optimized pricing system with fixed LST market lookup
   const { data: position, isLoading, error } = useOptimizedDebtPosition(id || "");
@@ -105,11 +109,11 @@ const DebtPositionDetailPage: React.FC = () => {
   };
 
   const getHealthStatus = (healthRatio: number, liquidationThreshold: number) => {
-    // liquidationThreshold is already a decimal (e.g., 0.85 for 85%)
+    // liquidationThreshold parameter should be the inverted LTV (e.g., 1/0.90 = 1.111)
     // healthRatio is collateralValueUSD / debtValueUSD
     // Liquidation occurs when healthRatio <= liquidationThreshold
     
-    // Healthy: significantly above liquidation threshold (20% buffer)
+    // Healthy: significantly above liquidation threshold (20%+ buffer above liquidation point)
     if (healthRatio >= liquidationThreshold * 1.2) {
       return {
         color: "text-green-400",
@@ -119,8 +123,8 @@ const DebtPositionDetailPage: React.FC = () => {
         icon: Shield,
       };
     } 
-    // Warning: close to liquidation threshold (within 10% buffer above threshold)
-    else if (healthRatio >= liquidationThreshold * 1.1) {
+    // Nearing liquidation: above liquidation point but not healthy (0-20% buffer)
+    else if (healthRatio > liquidationThreshold) {
       return {
         color: "text-amber-400",
         bgColor: "bg-amber-400/10",
@@ -129,7 +133,7 @@ const DebtPositionDetailPage: React.FC = () => {
         icon: AlertTriangle,
       };
     } 
-    // Liquidation zone: at or below liquidation threshold
+    // Liquidation zone: at or below actual liquidation threshold (ACTUALLY LIQUIDATABLE)
     else {
       return {
         color: "text-red-400",
@@ -182,44 +186,47 @@ const DebtPositionDetailPage: React.FC = () => {
     );
   }
 
-  const healthStatus = getHealthStatus(position.healthRatio, position.liquidationThreshold);
+  // The liquidation threshold needs proper interpretation
+  // position.liquidationThreshold is stored as a decimal (e.g., 0.85 for 85% LTV)
+  // This represents the maximum debt-to-collateral ratio before liquidation
+  // So liquidation occurs when: debt/collateral >= 0.85
+  // Since healthRatio = collateral/debt, liquidation occurs when: healthRatio <= 1/0.85
+  const actualLiquidationThreshold = position.liquidationThreshold > 0 ? 1 / position.liquidationThreshold : 1.2;
+  
+  const healthStatus = getHealthStatus(position.healthRatio, actualLiquidationThreshold);
   const HealthIcon = healthStatus.icon;
-  // Use the actual liquidation threshold from the position data, not hardcoded 1.2
-  const isLiquidationZone = position.healthRatio <= position.liquidationThreshold;
-
-  // Calculate buffered amounts for display (5% buffer to account for debt changes)
-  const bufferedPremiumTokens = position.buyoutPremiumTokens * 1.05;
-  const bufferedPremiumUSD = position.buyoutPremium * 1.05;
-  const bufferedTotalCost = position.buyoutDebtRepayment + bufferedPremiumUSD;
-
-  // Liquidation calculations
-  const liveDebt = position.totalDebt; // Current debt after interest
-  const liveDebtUSD = position.totalDebtUSD;
-  const closeFactorCap = liveDebt / 2; // 50% close factor
-  const closeFactorCapUSD = liveDebtUSD / 2;
+  const isLiquidationZone = position.healthRatio <= actualLiquidationThreshold;
   
-  // Calculate effective repay limit based on collateral
-  const liquidationBonusBps = market?.liqBonusBps || position.liquidationBonus * 100;
-  const liquidationBonusMultiplier = 1 + liquidationBonusBps / 10000;
-  
-  // Maximum USD value we can seize (all collateral)
-  const maxSeizableUSD = position.totalCollateral;
-  // USD we'd need to repay to seize all collateral (accounting for bonus)
-  const maxRepayLimitedByCollateralUSD = maxSeizableUSD / liquidationBonusMultiplier;
-  const maxRepayLimitedByCollateral = maxRepayLimitedByCollateralUSD / (position.totalDebtUSD / position.totalDebt); // Convert to tokens
-  
-  // Effective cap is the minimum of close factor and collateral-based limit
-  const effectiveRepayCapTokens = Math.min(closeFactorCap, maxRepayLimitedByCollateral, liveDebt);
-  const effectiveRepayCapUSD = Math.min(closeFactorCapUSD, maxRepayLimitedByCollateralUSD, liveDebtUSD);
-  
-  // Is collateral limiting the repayment (not the close factor)?
-  const isCollateralConstrained = maxRepayLimitedByCollateral < closeFactorCap;
-  
-  // Expected collateral to seize with effective cap
-  const expectedSeizeUSD = effectiveRepayCapUSD * liquidationBonusMultiplier;
-  const expectedSeizeTokens = expectedSeizeUSD / (position.currentCollateralPrice || 1);
+  // Debug logging - please check console to verify thresholds
+  console.log("=== LIQUIDATION ZONE DEBUG ===");
+  console.log("Raw position.liquidationThreshold value:", position.liquidationThreshold);
+  console.log("  (should be 0.90 for 90% liquidation, 0.85 for 85%, etc.)");
+  console.log("Health Ratio (collateral/debt):", position.healthRatio);
+  console.log("Calculated actualThreshold (1/LTV):", actualLiquidationThreshold);
+  console.log("  Healthy if health >=", actualLiquidationThreshold * 1.2);
+  console.log("  Nearing if health >", actualLiquidationThreshold, "but <", actualLiquidationThreshold * 1.2);
+  console.log("  Liquidatable if health <=", actualLiquidationThreshold);
+  console.log("Is Liquidation Zone:", isLiquidationZone);
+  console.log("Health Status Label:", healthStatus.status);
+  console.log("Market data:", market ? `LTV=${market.ltv}, LiqThreshold=${market.liquidationThreshold}` : "not loaded");
+  console.log("==============================");
 
   const handleLiquidate = async () => {
+    // Calculate values needed for transaction
+    const liveDebt = position.totalDebt;
+    const liveDebtUSD = position.totalDebtUSD;
+    const totalCollateralUSD = position.totalCollateral;
+    const isBadDebtScenario = liveDebtUSD > totalCollateralUSD;
+    
+    const parsedLiquidationAmount = isBadDebtScenario 
+      ? liveDebt 
+      : (liquidationAmount ? parseFloat(liquidationAmount) : liveDebt);
+    
+    const requestedRepayAmount = isBadDebtScenario 
+      ? liveDebt
+      : Math.min(Math.max(0, parsedLiquidationAmount), liveDebt);
+    
+    const liveDebtBaseUnits = liveDebt;
     if (!transactionSigner || !activeAddress) {
       openToast({
         type: "error",
@@ -288,50 +295,139 @@ const DebtPositionDetailPage: React.FC = () => {
         // Continue with lstAppId = 0, the transaction might still work
       }
       
-      // Use the effective repay cap (considers both close factor and collateral constraints)
-      // Contract will refund any excess
-      const maxLiquidationAmount = effectiveRepayCapTokens;
+      // Use the requested repayment amount from user input
+      const partialRepayAmount = requestedRepayAmount;
       
       let txId: string;
+      let attemptedFullRepay = false;
       
       if (isAlgoDebt) {
-        console.log("Executing ALGO liquidation method");
+        console.log("Attempting ALGO partial liquidation...");
+        console.log("  Partial amount:", partialRepayAmount, "ALGO");
+        console.log("  Live debt:", liveDebtBaseUnits, "ALGO");
         
-        // For ALGO, amount should be in microAlgos
-        const liquidationAmountMicroAlgos = Math.floor(maxLiquidationAmount * 1e6);
-        
-        txId = await liquidatePartialAlgo({
-          liquidatorAddress: activeAddress,
-          debtorAddress: position.userAddress,
-          appId: marketAppId,
-          repayAmount: liquidationAmountMicroAlgos,
-          collateralTokenId: parseInt(position.collateralToken.id),
-          lstAppId,
-          oracleAppId,
-          signer: transactionSigner,
-        });
+        try {
+          // First attempt: partial liquidation
+          const partialAmountMicroAlgos = Math.floor(partialRepayAmount * 1e6);
+          
+          txId = await liquidatePartialAlgo({
+            liquidatorAddress: activeAddress,
+            debtorAddress: position.userAddress,
+            appId: marketAppId,
+            repayAmount: partialAmountMicroAlgos,
+            collateralTokenId: parseInt(position.collateralToken.id),
+            lstAppId,
+            oracleAppId,
+            signer: transactionSigner,
+          });
+          
+          console.log("Partial liquidation succeeded");
+        } catch (error: unknown) {
+          console.log("Partial liquidation error:", error);
+          
+          // Check if the error is FULL_REPAY_REQUIRED
+          const errorMessage = (error as Error)?.message || String(error);
+          if (errorMessage.includes("FULL_REPAY_REQUIRED")) {
+            console.log("FULL_REPAY_REQUIRED detected - retrying with full debt repayment");
+            attemptedFullRepay = true;
+            
+            // Retry with full debt amount
+            const fullRepayMicroAlgos = Math.floor(liveDebtBaseUnits * 1e6);
+            
+            txId = await liquidatePartialAlgo({
+              liquidatorAddress: activeAddress,
+              debtorAddress: position.userAddress,
+              appId: marketAppId,
+              repayAmount: fullRepayMicroAlgos,
+              collateralTokenId: parseInt(position.collateralToken.id),
+              lstAppId,
+              oracleAppId,
+              signer: transactionSigner,
+            });
+            
+            console.log("Full debt repayment liquidation succeeded");
+          } else {
+            // Re-throw if it's a different error
+            throw error;
+          }
+        }
       } else {
-        console.log("Executing ASA liquidation method");
+        console.log("Attempting ASA partial liquidation...");
+        console.log("  Partial amount:", partialRepayAmount, position.debtToken.symbol);
+        console.log("  Live debt:", liveDebtBaseUnits, position.debtToken.symbol);
         
-        txId = await liquidatePartialASA({
-          liquidatorAddress: activeAddress,
-          debtorAddress: position.userAddress,
-          appId: marketAppId,
-          repayAmount: maxLiquidationAmount, // This will be scaled to micro units in the function
-          baseTokenAssetId: parseInt(position.debtToken.id),
-          collateralTokenId: parseInt(position.collateralToken.id),
-          lstAppId,
-          oracleAppId,
-          signer: transactionSigner,
-        });
+        try {
+          // First attempt: partial liquidation
+          txId = await liquidatePartialASA({
+            liquidatorAddress: activeAddress,
+            debtorAddress: position.userAddress,
+            appId: marketAppId,
+            repayAmount: partialRepayAmount, // Will be scaled to micro units in the function
+            baseTokenAssetId: parseInt(position.debtToken.id),
+            collateralTokenId: parseInt(position.collateralToken.id),
+            lstAppId,
+            oracleAppId,
+            signer: transactionSigner,
+          });
+          
+          console.log("Partial liquidation succeeded");
+        } catch (error: unknown) {
+          console.log("Partial liquidation error:", error);
+          
+          // Check if the error is FULL_REPAY_REQUIRED
+          const errorMessage = (error as Error)?.message || String(error);
+          if (errorMessage.includes("FULL_REPAY_REQUIRED")) {
+            console.log("FULL_REPAY_REQUIRED detected - retrying with full debt repayment");
+            attemptedFullRepay = true;
+            
+            // Retry with full debt amount
+            txId = await liquidatePartialASA({
+              liquidatorAddress: activeAddress,
+              debtorAddress: position.userAddress,
+              appId: marketAppId,
+              repayAmount: liveDebtBaseUnits, // Full debt in base units
+              baseTokenAssetId: parseInt(position.debtToken.id),
+              collateralTokenId: parseInt(position.collateralToken.id),
+              lstAppId,
+              oracleAppId,
+              signer: transactionSigner,
+            });
+            
+            console.log("Full debt repayment liquidation succeeded");
+          } else {
+            // Re-throw if it's a different error
+            throw error;
+          }
+        }
       }
+      
+      // Show appropriate success message based on liquidation type
+      const successMessage = attemptedFullRepay
+        ? `Full liquidation successful! Repaid entire ${formatNumber(liveDebtBaseUnits)} ${position.debtToken.symbol} debt and seized all remaining collateral.`
+        : `Partial liquidation successful! Repaid ${formatNumber(partialRepayAmount)} ${position.debtToken.symbol}.`;
       
       openToast({
         type: "success",
-        message: "Liquidation successful! Transaction ID: " + txId,
-        description: null,
+        message: successMessage,
+        description: `Transaction ID: ${txId}`,
       });
       console.log("Liquidation transaction completed:", txId);
+      console.log("  Type:", attemptedFullRepay ? "Full repayment" : "Partial liquidation");
+      
+      // Optimistic update: Remove the position from the cache immediately
+      queryClient.setQueryData<DebtPosition[]>(
+        ['optimized-debt-positions', activeAddress],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return oldData.filter(p => p.id !== position.id);
+        }
+      );
+      
+      // Trigger background refetch to ensure data is accurate
+      queryClient.invalidateQueries({ 
+        queryKey: ['optimized-debt-positions'],
+        refetchType: 'active'
+      });
       
       // Navigate back to marketplace after successful liquidation
       setTimeout(() => {
@@ -466,6 +562,21 @@ const DebtPositionDetailPage: React.FC = () => {
       });
       console.log("Buyout transaction completed:", txId);
       
+      // Optimistic update: Remove the position from the cache immediately
+      queryClient.setQueryData<DebtPosition[]>(
+        ['optimized-debt-positions', activeAddress],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return oldData.filter(p => p.id !== position.id);
+        }
+      );
+      
+      // Trigger background refetch to ensure data is accurate
+      queryClient.invalidateQueries({ 
+        queryKey: ['optimized-debt-positions'],
+        refetchType: 'active'
+      });
+      
       // Navigate back to marketplace after successful buyout
       setTimeout(() => {
         navigate("/app/marketplace");
@@ -485,7 +596,7 @@ const DebtPositionDetailPage: React.FC = () => {
 
   return (
     <AppLayout title={`Mercury Trading Post`}>
-      <div className="container-section py-4 md:py-8">
+      <div className="container-section py-4 md:py-8 pb-24 lg:pb-8">
         {/* Header */}
         <motion.div
           className="mb-6 md:mb-8"
@@ -754,275 +865,16 @@ const DebtPositionDetailPage: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Transaction Panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <div className="text-slate-600 cut-corners-lg bg-noise-dark border-2 border-slate-600 shadow-industrial">
-              <div className="p-4 md:p-6 border-b border-slate-600">
-                <h2 className="text-lg font-mono font-bold text-white uppercase tracking-wide flex items-center gap-2">
-                  <span>ACTION</span>{" "}
-                </h2>
-              </div>
-
-              <div className="p-4 md:p-6 space-y-6">
-                {/* Cost/Bonus Display */}
-                {isLiquidationZone ? (
-                  <div className="space-y-4">
-                    <h3 className="text-slate-400 uppercase tracking-wide text-sm mb-1">
-                      Liquidation Breakdown
-                    </h3>
-                    
-                    {/* Live Debt (hard ceiling) */}
-                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-slate-400 text-xs uppercase tracking-wide">Current Live Debt</span>
-                        <span className="text-slate-500 text-xs">(Maximum Repayment)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={getTokenImage(position.debtToken.symbol)}
-                          alt={position.debtToken.symbol}
-                          className="w-5 h-5 rounded-full flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <div className="font-mono font-bold text-white">
-                          {formatNumber(liveDebt)} {position.debtToken.symbol}
-                        </div>
-                        <span className="text-slate-400 text-sm">≈ ${formatUSD(liveDebtUSD)}</span>
-                      </div>
-                    </div>
-
-                    {/* Close Factor Cap */}
-                    <div className="bg-slate-700 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-slate-400 text-xs uppercase tracking-wide">Close Factor Cap</span>
-                        <span className="text-amber-400 text-xs font-mono">50% of Debt</span>
-                      </div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <img
-                          src={getTokenImage(position.debtToken.symbol)}
-                          alt={position.debtToken.symbol}
-                          className="w-6 h-6 rounded-full flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <div className="font-mono font-bold text-lg text-amber-400">
-                          {formatNumber(closeFactorCap)} {position.debtToken.symbol}
-                        </div>
-                      </div>
-                      <div className="font-mono font-semibold text-slate-300">
-                        ${formatUSD(closeFactorCapUSD)}
-                      </div>
-                      <div className="text-slate-500 text-xs mt-2">
-                        Standard liquidations are capped at 50% of debt per transaction
-                      </div>
-                    </div>
-                    
-                    {/* Effective Repay Limit - highlighted if different from close factor */}
-                    {isCollateralConstrained && (
-                      <div className="bg-orange-900/20 border border-orange-500/50 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertTriangle className="w-4 h-4 text-orange-400" />
-                          <span className="text-orange-400 text-xs uppercase tracking-wide font-semibold">
-                            Collateral Constrained
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <img
-                            src={getTokenImage(position.debtToken.symbol)}
-                            alt={position.debtToken.symbol}
-                            className="w-6 h-6 rounded-full flex-shrink-0"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                          <div className="font-mono font-bold text-lg text-orange-300">
-                            {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol}
-                          </div>
-                        </div>
-                        <div className="font-mono font-semibold text-slate-300">
-                          ${formatUSD(effectiveRepayCapUSD)}
-                        </div>
-                        <div className="text-orange-200 text-xs mt-2">
-                          ⚠️ Effective limit based on available collateral - repaying more will be refunded
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Liquidation Bonus */}
-                    <div className="bg-slate-700 rounded-lg p-4">
-                      <div className="font-mono font-bold text-2xl text-green-400">
-                        {formatNumber(liquidationBonusBps / 100, 1)}%
-                      </div>
-                      <div className="text-slate-400 text-sm mb-2">
-                        Liquidation Bonus
-                      </div>
-                      <div className="text-slate-500 text-xs">
-                        You receive collateral worth {formatNumber(liquidationBonusBps / 100, 1)}% more than your repayment
-                      </div>
-                    </div>
-                    
-                    {/* Expected Collateral Seized */}
-                    <div className="bg-slate-600 rounded-lg p-4 border border-green-500/30">
-                      <div className="font-mono font-bold text-2xl text-green-400">
-                        ≈{formatNumber(expectedSeizeTokens)} {position.collateralToken.symbol}
-                      </div>
-                      <div className="font-mono font-semibold text-slate-300 mt-1">
-                        ≈${formatUSD(expectedSeizeUSD)}
-                      </div>
-                      <div className="text-slate-300 text-sm font-semibold mb-2">
-                        Expected Collateral Seized
-                      </div>
-                      <div className="text-slate-500 text-xs">
-                        Based on {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol} repayment + {formatNumber(liquidationBonusBps / 100, 1)}% bonus
-                      </div>
-                    </div>
-
-                    {/* Refund Notice */}
-                    <div className="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <div className="text-cyan-400 text-xs">💡</div>
-                        <div className="text-cyan-300 text-xs leading-relaxed">
-                          <strong>Auto-Refund:</strong> You can submit up to {formatNumber(liveDebt)} {position.debtToken.symbol}, 
-                          but the contract will only consume {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol} and 
-                          automatically refund any excess. This ensures you can clear positions when collateral is nearly exhausted.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <h3 className="text-slate-400 uppercase tracking-wide text-sm">
-                      Buyout Breakdown
-                    </h3>
-                    
-                    {/* Debt Repayment */}
-                    <div className="bg-slate-700 rounded-lg p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <img
-                          src={getTokenImage(position.debtToken.symbol)}
-                          alt={position.debtToken.symbol}
-                          className="w-6 h-6 rounded-full flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <div className="font-mono font-bold text-lg text-red-400">
-                          {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol}
-                        </div>
-                      </div>
-                      <div className="font-mono font-semibold text-slate-300">
-                        ${formatUSD(position.buyoutDebtRepayment)}
-                      </div>
-                      <div className="text-slate-400 text-sm">
-                        Debt Repayment
-                      </div>
-                    </div>
-                    
-                    {/* Premium */}
-                    <div className="bg-slate-700 rounded-lg p-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <img
-                          src="/xUSDt.svg"
-                          alt="xUSDt"
-                          className="w-6 h-6 rounded-full flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <div className="font-mono font-bold text-lg text-amber-400">
-                          {formatNumber(bufferedPremiumTokens)} xUSDt
-                        </div>
-                      </div>
-                      <div className="font-mono font-semibold text-slate-300">
-                        ${formatUSD(bufferedPremiumUSD)}
-                      </div>
-                      <div className="text-slate-400 text-sm mb-2">
-                        Buyout Premium (with 5% buffer)
-                      </div>
-                      <div className="text-slate-500 text-xs space-y-1">
-                        <div>Base: {formatNumber(position.buyoutPremiumTokens)} xUSDt (50% to borrower, 50% to protocol)</div>
-                        <div className="text-cyan-400">+5% buffer for debt fluctuations - excess returned to you</div>
-                      </div>
-                    </div>
-                    
-                    {/* Total */}
-                    <div className="bg-slate-600 rounded-lg p-4 border border-cyan-500/30">
-                      <div className="font-mono font-bold text-2xl text-cyan-400">
-                        ${formatUSD(bufferedTotalCost)}
-                      </div>
-                      <div className="text-slate-300 text-sm font-semibold">
-                        Total Buyout Cost (maximum with buffer)
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Button */}
-                <button
-                  onClick={isLiquidationZone ? handleLiquidate : handleBUYOUT}
-                  disabled={isExecutingBuyout}
-                  className={`w-full py-4 border text-white rounded-lg font-mono text-lg font-semibold transition-all duration-150 flex items-center justify-center gap-3 ${
-                    isLiquidationZone
-                      ? "bg-red-600 border-red-500 hover:bg-red-500 disabled:bg-red-400 disabled:border-red-400"
-                      : "bg-cyan-600 border-cyan-500 hover:bg-cyan-500 disabled:bg-cyan-400 disabled:border-cyan-400"
-                  } disabled:cursor-not-allowed disabled:opacity-70`}
-                >
-                  {isExecutingBuyout ? (
-                    <>
-                      <MomentumSpinner size="20" speed="1.2" color="#ffffff" />
-                      <span>EXECUTING...</span>
-                    </>
-                  ) : (
-                    <>
-                      <DollarSign className="w-5 h-5" />
-                      <span>
-                        {isLiquidationZone
-                          ? "LIQUIDATE POSITION"
-                          : "BUYOUT POSITION"}
-                      </span>
-                    </>
-                  )}
-                </button>
-
-                {/* Transaction Details */}
-                <div className="bg-slate-800/50 rounded-lg p-4 text-sm font-mono">
-                  <div className="text-slate-400 mb-2">Transaction will:</div>
-                  <ul className="space-y-1 text-slate-300">
-                    {isLiquidationZone ? (
-                      <>
-                        <li>• Liquidate undercollateralized position</li>
-                        <li>• Repay up to: {formatNumber(effectiveRepayCapTokens)} {position.debtToken.symbol} (${formatUSD(effectiveRepayCapUSD)})</li>
-                        {isCollateralConstrained && (
-                          <li className="text-orange-400 text-xs pl-4">↳ Limited by available collateral (not standard 50% cap)</li>
-                        )}
-                        <li className="text-green-400">• Receive ≈{formatNumber(expectedSeizeTokens)} {position.collateralToken.symbol} with {formatNumber(liquidationBonusBps / 100, 1)}% bonus</li>
-                        <li className="text-cyan-400 text-xs pl-4">↳ Worth ≈${formatUSD(expectedSeizeUSD)}</li>
-                        <li className="text-cyan-400 text-xs pl-4">↳ Any excess repayment automatically refunded</li>
-                      </>
-                    ) : (
-                      <>
-                        <li>• Buyout debt position</li>
-                        <li>• Repay debt: {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol} (${formatUSD(position.buyoutDebtRepayment)})</li>
-                        <li>• Pay premium: {formatNumber(bufferedPremiumTokens)} xUSDt (${formatUSD(bufferedPremiumUSD)})</li>
-                        <li className="text-cyan-400 text-xs pl-4">↳ Includes 5% buffer for debt fluctuations</li>
-                        <li className="text-cyan-400 text-xs pl-4">↳ Excess premium will be returned to you</li>
-                        <li>• Receive collateral: {formatNumber(position.totalCollateralTokens)} {position.collateralToken.symbol} (${formatUSD(position.totalCollateral)})</li>
-                      </>
-                    )}
-                    <li>• Execute atomic smart contract transaction</li>
-                    <li>• Remove position from marketplace</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+          {/* Transaction Panel / Drawer */}
+          <LiquidationActionDrawer
+            position={position}
+            market={market}
+            isExecuting={isExecutingBuyout}
+            liquidationAmount={liquidationAmount}
+            setLiquidationAmount={setLiquidationAmount}
+            onLiquidate={handleLiquidate}
+            onBuyout={handleBUYOUT}
+          />
         </div>
       </div>
     </AppLayout>

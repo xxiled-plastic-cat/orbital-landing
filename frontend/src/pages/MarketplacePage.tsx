@@ -88,7 +88,7 @@ const MarketplacePage: React.FC = () => {
   // Loading and error states
   if (isLoading) {
     return (
-      <AppLayout title="Mercury Trading Post - Trade Tokenized Debt">
+      <AppLayout title="Mercury Trading Post">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <MomentumSpinner 
@@ -106,7 +106,7 @@ const MarketplacePage: React.FC = () => {
 
   if (error) {
     return (
-      <AppLayout title="Mercury Trading Post - Trade Tokenized Debt">
+      <AppLayout title="Mercury Trading Post">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-400 mb-4">Failed to load debt positions</p>
@@ -174,10 +174,10 @@ const MarketplacePage: React.FC = () => {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-slate-400 uppercase tracking-wide text-xs sm:text-xs md:text-sm mb-0.5">
-                      Total Volume:
+                      Total Debt:
                     </span>
                     <span className="font-mono font-bold text-cyan-400 tabular-nums text-sm sm:text-base md:text-lg">
-                      ${filteredAndSortedPositions.reduce((sum, pos) => sum + pos.buyoutCost, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      ${filteredAndSortedPositions.reduce((sum, pos) => sum + pos.totalDebtUSD, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 </div>
@@ -334,7 +334,7 @@ const MarketplacePage: React.FC = () => {
                               ? 'text-amber-400' 
                               : 'text-green-400'
                           }`}>
-                            {(position.healthRatio * 100).toFixed(1)}%
+                            {position.healthRatio.toFixed(3)}
                           </div>
                         </td>
                         <td className="hidden lg:table-cell px-3 md:px-4 py-3 md:py-4 text-right">

@@ -376,12 +376,13 @@ export async function transformLoanRecordsToDebtPositions(
           }
         }
 
-        // Calculate liquidation price (price at which collateral value equals debt * liquidation threshold)
-        // Formula: liquidationPrice = (debtValueUSD * liquidationThreshold) / collateralAmount
+        // Calculate liquidation price
+        // Liquidation occurs when: Debt >= LiquidationThreshold × CollateralValue
+        // So: Debt >= LT × (CollateralAmount × Price)
+        // Solving for Price: Price = Debt / (LT × CollateralAmount)
         const liquidationPrice =
           collateralAmountInTokens > 0
-            ? (debtValueUSD * (Number(market.liquidationThreshold) / 100)) /
-              collateralAmountInTokens
+            ? debtValueUSD / (collateralAmountInTokens * (Number(market.liquidationThreshold) / 100))
             : 0;
 
         // Calculate buyout cost using the correct contract formula

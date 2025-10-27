@@ -295,10 +295,12 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
         const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
 
         // Calculate liquidation price
+        // Liquidation occurs when: Debt >= LiquidationThreshold × CollateralValue
+        // So: Debt >= LT × (CollateralAmount × Price)
+        // Solving for Price: Price = Debt / (LT × CollateralAmount)
         const liquidationPrice =
           collateralAmountInTokens > 0
-            ? (debtValueUSD * (Number(market.liquidationThreshold) / 100)) /
-              collateralAmountInTokens
+            ? debtValueUSD / (collateralAmountInTokens * (Number(market.liquidationThreshold) / 100))
             : 0;
 
         // Calculate buyout cost using the optimized bigint function

@@ -6,3 +6,5 @@ export { default as MarketplaceSection } from './MarketplaceSection';
 export { default as PortfolioSection } from './PortfolioSection';
 export { default as FaucetSection } from './FaucetSection';
 export { default as GovernanceSection } from './GovernanceSection';
+export { default as LiquidationsSection } from './LiquidationsSection';
+export { default as BuyoutsSection } from './BuyoutsSection';
