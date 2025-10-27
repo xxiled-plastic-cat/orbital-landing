@@ -1,8 +1,35 @@
 /**
  * Oracle Service
  * Responsible for fetching prices from multiple sources and updating oracle contracts
+ *
+ * TESTNET/MAINNET ID STRATEGY:
+ * =============================
+ * When running on testnet, we have a dual-ID system:
+ *
+ * 1. ORACLE CONTRACT (Algorand): Uses TESTNET asset IDs
+ *    - Reading prices: Get testnet IDs from box storage
+ *    - Writing prices: Update using testnet IDs
+ *
+ * 2. EXTERNAL PRICE APIS (CompX, Vestige): Use MAINNET asset IDs
+ *    - Always fetch prices using mainnet IDs (for accuracy)
+ *    - Testnet IDs are mapped to mainnet IDs before API calls
+ *
+ * 3. METADATA API (CompX Assets): Uses MAINNET asset IDs
+ *    - Always fetch metadata using mainnet IDs
+ *    - Metadata is cached using original (testnet) IDs for lookup
+ *
+ * Flow Example (on testnet):
+ * - Oracle has: 747008852 (testnet USDCt) with price 1000000
+ * - Map to mainnet: 747008852 → 31566704 (mainnet USDCt)
+ * - Fetch price from CompX using 31566704
+ * - Fetch metadata from CompX using 31566704
+ * - Get new price: $1.000123
+ * - Update oracle using 747008852 (testnet ID) with new price
+ *
+ * On mainnet, testnet→mainnet mapping is a no-op (returns same ID).
  */
 
+import algosdk, { Address } from "algosdk";
 import { OracleClient } from "../clients/oracleClient";
 import {
   calculateMedian,
@@ -48,6 +75,7 @@ export interface OracleAsset {
   assetId: number;
   symbol: string;
   currentPrice: number;
+  decimals?: number;
 }
 
 export interface PriceSource {
@@ -94,18 +122,150 @@ interface VestigePriceData {
   total_lockup: number;
 }
 
+interface CompXAssetMetadata {
+  index: number;
+  params: {
+    decimals: number;
+    name: string;
+    "name-b64": string;
+    "unit-name": string;
+    "unit-name-b64": string;
+    total: number;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+interface CompXAssetsResponse {
+  [assetId: string]: CompXAssetMetadata;
+}
+
+// Cache for asset metadata
+const assetMetadataCache: Map<number, CompXAssetMetadata> = new Map();
+
+/**
+ * Fetch asset metadata from CompX API
+ * @param assetIds - Array of asset IDs to fetch metadata for
+ * @returns Map of asset ID to metadata
+ */
+export async function fetchAssetMetadata(
+  assetIds: number[]
+): Promise<Map<number, CompXAssetMetadata>> {
+  console.log(
+    `📋 Fetching metadata for ${assetIds.length} assets from CompX...`
+  );
+
+  try {
+    // Map testnet assets to mainnet for metadata fetching
+    const isTestnet = process.env.ALGORAND_NETWORK === "testnet";
+    const mainnetAssetIds = assetIds.map((id) => {
+      const mainnetId = getMainnetAssetId(id);
+      if (isTestnet && mainnetId !== id) {
+        console.log(
+          `  🔄 Mapping testnet asset ${id} -> mainnet asset ${mainnetId} for metadata fetch`
+        );
+      }
+      return mainnetId;
+    });
+
+    // Convert to strings, handle ALGO (0 -> "0")
+    const assetIdStrings = mainnetAssetIds.map((id) => id.toString());
+
+    console.log(
+      `  📡 Requesting metadata from CompX for mainnet assets: [${assetIdStrings.join(
+        ", "
+      )}]`
+    );
+
+    const response = await fetch("https://api-general.compx.io/api/assets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assetIds: assetIdStrings,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(
+        `  ❌ CompX Assets API error: ${response.status} ${response.statusText}`
+      );
+      return new Map();
+    }
+
+    const assetsData = (await response.json()) as CompXAssetsResponse;
+    console.log(
+      `  📦 Received metadata for ${
+        Object.keys(assetsData).length
+      } mainnet assets`
+    );
+
+    // Map response back to original (testnet) asset IDs for caching
+    // Note: Response uses mainnet IDs as keys, we cache using original (testnet) IDs
+    const metadataMap = new Map<number, CompXAssetMetadata>();
+
+    assetIds.forEach((originalAssetId, index) => {
+      const mainnetAssetId = mainnetAssetIds[index];
+      // Look up metadata using MAINNET asset ID (the key in the response)
+      const metadata = assetsData[mainnetAssetId.toString()];
+
+      if (metadata) {
+        // Cache metadata using ORIGINAL asset ID (testnet or mainnet)
+        metadataMap.set(originalAssetId, metadata);
+        assetMetadataCache.set(originalAssetId, metadata);
+
+        const displayId =
+          isTestnet && mainnetAssetId !== originalAssetId
+            ? `${originalAssetId} (mainnet: ${mainnetAssetId})`
+            : originalAssetId.toString();
+        const assetName = metadata.params["unit-name"] || metadata.params.name || `Asset-${originalAssetId}`;
+        console.log(
+          `  ✅ Asset ${displayId} - ${assetName}: ${metadata.params.decimals} decimals`
+        );
+      } else {
+        console.warn(
+          `  ⚠️  No metadata found for asset ${originalAssetId} (mainnet lookup: ${mainnetAssetId})`
+        );
+      }
+    });
+
+    return metadataMap;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`  ❌ Error fetching asset metadata:`, errorMessage);
+    return new Map();
+  }
+}
+
+/**
+ * Get asset decimals from cache or return default
+ * @param assetId - Asset ID
+ * @returns Number of decimals
+ */
+function getAssetDecimals(assetId: number): number {
+  const cached = assetMetadataCache.get(assetId);
+  if (cached) {
+    return cached.params.decimals;
+  }
+  // Default to 6 decimals if not found
+  console.warn(`  ⚠️  Using default 6 decimals for asset ${assetId}`);
+  return 6;
+}
+
 /**
  * Fetch asset IDs from the oracle application
  * @returns Promise with array of oracle assets
  */
 export async function getOracleAssets(): Promise<OracleAsset[]> {
-  // TODO: Implement actual oracle application reading
-  // This should read from the Algorand oracle application to get:
-  // - Asset IDs that need price updates
-  // - Current prices stored in the oracle
-  // - Asset metadata (symbol, decimals, etc.)
-
+  const isTestnet = process.env.ALGORAND_NETWORK === "testnet";
   console.log("📋 Fetching assets from oracle application...");
+  console.log(`   Network: ${isTestnet ? "TESTNET" : "MAINNET"}`);
+  console.log(
+    `   Strategy: Oracle uses ${
+      isTestnet ? "testnet" : "mainnet"
+    } IDs, price APIs use mainnet IDs`
+  );
 
   try {
     const algorand = algokit.AlgorandClient.fromConfig({
@@ -130,28 +290,67 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
     const prices = await appClient.state.box.tokenPrices.getMap();
     console.log("Oracle prices map:", prices);
 
+    // First, collect all asset IDs
+    const assetIds: number[] = [];
+    for (const [assetIdKey] of prices) {
+      const assetId = Number(assetIdKey.assetId);
+      if (!isNaN(assetId)) {
+        assetIds.push(assetId);
+      }
+    }
+
+    // Fetch metadata for all assets
+    if (assetIds.length > 0) {
+      console.log(`\n📡 Fetching metadata for ${assetIds.length} assets...`);
+      await fetchAssetMetadata(assetIds);
+      console.log(""); // Empty line for spacing
+    }
+
     // Parse the prices map and convert to OracleAsset[]
     const assets: OracleAsset[] = [];
 
     for (const [assetIdKey, priceValue] of prices) {
       try {
-        // Keys are always BigInt from the oracle
-        // Values are also BigInt representing price with 6 decimals
         const assetId = Number(assetIdKey.assetId);
-        console.log(`Asset ID: ${assetId}`);
-        const currentPrice = Number(priceValue.price) / 1e6;
 
-        if (isNaN(assetId) || isNaN(currentPrice) || currentPrice < 0) {
-          console.warn(`⚠️  Invalid asset ID (${assetId}) or price (${currentPrice}), skipping`);
+        // Check if we have metadata for this asset
+        const metadata = assetMetadataCache.get(assetId);
+        if (!metadata) {
+          console.warn(
+            `  ⚠️  No metadata cached for asset ${assetId} - skipping`
+          );
           continue;
         }
 
-        console.log(`✅ Asset ID ${assetId}: $${currentPrice.toFixed(6)}`);
+        // Get the correct decimals for this asset
+        const decimals = getAssetDecimals(assetId);
+        const assetSymbol = metadata.params["unit-name"] || metadata.params.name || `Asset-${assetId}`;
+        const priceScaleFactor = Math.pow(10, decimals);
+
+        // Convert the stored price using the correct decimals
+        const rawPrice = Number(priceValue.price);
+        const currentPrice = rawPrice / priceScaleFactor;
+
+        if (isNaN(assetId) || isNaN(currentPrice) || currentPrice < 0) {
+          console.warn(
+            `  ⚠️  Invalid asset ID (${assetId}) or price (${currentPrice}), skipping`
+          );
+          continue;
+        }
+
+        const symbol = assetSymbol;
+
+        console.log(
+          `  ✅ Asset ID ${assetId} (${symbol}): $${currentPrice.toFixed(
+            decimals
+          )} [${decimals} decimals]`
+        );
 
         assets.push({
           assetId,
-          symbol: `Asset-${assetId}`,
+          symbol,
           currentPrice,
+          decimals,
         });
       } catch (err) {
         console.error(`Error processing entry:`, err);
@@ -336,7 +535,9 @@ export async function fetchPricesFromAllSources(
   const vestigePrice = await fetchVestigePrice(symbol, assetId);
   if (isValidPrice(vestigePrice)) {
     prices.push({ source: "Vestige", price: vestigePrice, weight: 0.85 });
-    console.log(`  ✅ Vestige price: $${formatPrice(vestigePrice)} (weight: 0.85)`);
+    console.log(
+      `  ✅ Vestige price: $${formatPrice(vestigePrice)} (weight: 0.85)`
+    );
   } else {
     console.log(`  ❌ Vestige price unavailable`);
   }
@@ -375,7 +576,12 @@ export async function getMedianPrice(
 
     console.log(`\n  💰 Price Sources (${pricesWithSources.length}):`);
     pricesWithSources.forEach(({ source, price, weight }) => {
-      console.log(`     ${source.padEnd(10)} → $${formatPrice(price, 8)} (weight: ${weight})`);
+      console.log(
+        `     ${source.padEnd(10)} → $${formatPrice(
+          price,
+          8
+        )} (weight: ${weight})`
+      );
     });
 
     // Calculate weighted average
@@ -400,12 +606,13 @@ export async function getMedianPrice(
     pricesWithSources.forEach(({ source, price, weight }) => {
       const contribution = (price * weight) / totalWeight;
       console.log(
-        `     ${source}: $${formatPrice(price, 8)} × ${weight} = $${formatPrice(contribution, 8)}`
+        `     ${source}: $${formatPrice(price, 8)} × ${weight} = $${formatPrice(
+          contribution,
+          8
+        )}`
       );
     });
-    console.log(
-      `  📊 Weighted Average: $${formatPrice(weightedPrice, 8)}`
-    );
+    console.log(`  📊 Weighted Average: $${formatPrice(weightedPrice, 8)}`);
     console.log("");
 
     return weightedPrice;
@@ -431,28 +638,68 @@ export async function updateOracleContract(
   symbol: string,
   newPrice: number
 ): Promise<boolean> {
-  // TODO: Implement actual oracle contract update
-  // This should:
-  // 1. Create and sign transaction to update oracle contract
-  // 2. Submit transaction to Algorand network
-  // 3. Wait for confirmation
-  // 4. Return success status
-
   console.log(`  🔄 Updating oracle contract for ${symbol}...`);
 
   try {
-    // Stubbed implementation
-    // In reality, this would:
-    // - Connect to Algorand node
-    // - Create transaction to call oracle update method
-    // - Sign with oracle service account
-    // - Submit and wait for confirmation
+    // Validate required environment variables
+    if (!process.env.ORACLE_ADMIN_MNEMONIC) {
+      throw new Error("ORACLE_ADMIN_MNEMONIC environment variable not set");
+    }
+    if (!process.env.ORACLE_ADMIN_ADDRESS) {
+      throw new Error("ORACLE_ADMIN_ADDRESS environment variable not set");
+    }
+    if (!process.env.ORACLE_APP_ID) {
+      throw new Error("ORACLE_APP_ID environment variable not set");
+    }
 
-    // Simulated transaction delay
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    const algorand = algokit.AlgorandClient.fromConfig({
+      algodConfig: {
+        server:
+          process.env.ALGORAND_NODE_URL ||
+          "https://testnet-api.4160.nodely.dev",
+        token: process.env.ALGORAND_NETWORK_TOKEN || "",
+      },
+    });
+    const appClient = new OracleClient({
+      algorand,
+      appId: BigInt(process.env.ORACLE_APP_ID),
+    });
+    const account = algorand.account.fromMnemonic(
+      process.env.ORACLE_ADMIN_MNEMONIC as string,
+      process.env.ORACLE_ADMIN_ADDRESS as string
+    );
+    algorand.setDefaultSigner(account);
+
+    // Get the correct decimals for this asset
+    const decimals = getAssetDecimals(assetId);
+    const priceScaleFactor = Math.pow(10, decimals);
+
+    // Convert price to the correct scale based on asset decimals
+    const scaledPrice = BigInt(Math.round(newPrice * priceScaleFactor));
 
     console.log(
-      `  ✅ Successfully updated ${symbol} to $${formatPrice(newPrice)}`
+      `  📊 Scaling price: $${newPrice} × 10^${decimals} = ${scaledPrice}`
+    );
+    try {
+      await appClient.send.updateTokenPrice({
+        args: {
+          assetId: BigInt(assetId),
+          newPrice: scaledPrice,
+        },
+        sender: account.addr,
+      });
+    } catch (error) {
+      console.error(
+        `  ❌ Error updating oracle contract for ${symbol}:`,
+        error
+      );
+      return false;
+    }
+
+    console.log(
+      `  ✅ Successfully updated ${symbol} to $${formatPrice(
+        newPrice
+      )} [${decimals} decimals]`
     );
     return true;
   } catch (error) {

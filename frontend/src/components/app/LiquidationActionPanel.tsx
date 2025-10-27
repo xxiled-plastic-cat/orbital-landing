@@ -391,11 +391,60 @@ const LiquidationActionPanel = ({
             
             {/* Total */}
             <div className="bg-slate-600 rounded-lg p-4 border border-cyan-500/30">
-              <div className="font-mono font-bold text-2xl text-cyan-400">
+              <div className="font-mono font-bold text-2xl text-cyan-400 mb-1">
                 ${formatUSD(bufferedTotalCost)}
               </div>
-              <div className="text-slate-300 text-sm font-semibold">
+              <div className="text-slate-300 text-sm font-semibold mb-3">
                 Total Buyout Cost (maximum with buffer)
+              </div>
+              
+              {/* Token Breakdown */}
+              <div className="pt-3 border-t border-slate-500/50 space-y-2">
+                <div className="text-xs text-slate-400 uppercase tracking-wide mb-2">
+                  Token Transfer Breakdown:
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={getTokenImage(position.debtToken.symbol)}
+                      alt={position.debtToken.symbol}
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                    <span className="text-slate-300 text-xs">Loan Repayment:</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono font-semibold text-sm text-red-400">
+                      {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol}
+                    </div>
+                    <div className="font-mono text-xs text-slate-400">
+                      ${formatUSD(position.buyoutDebtRepayment)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src="/xUSDt.svg"
+                      alt="xUSDt"
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                    <span className="text-slate-300 text-xs">Premium Payment:</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono font-semibold text-sm text-amber-400">
+                      {formatNumber(bufferedPremiumTokens)} xUSDt
+                    </div>
+                    <div className="font-mono text-xs text-slate-400">
+                      ${formatUSD(bufferedPremiumUSD)}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
