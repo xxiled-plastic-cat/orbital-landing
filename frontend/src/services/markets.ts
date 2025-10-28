@@ -79,8 +79,8 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
     verified: true,
     frozen: false,
   },
-  "747010778": {
-    id: "747010778",
+  "748760746": {
+    id: "748760746",
     name: "Collateralized xUSDt Testnet",
     symbol: "cxUSDt",
     decimals: 6,

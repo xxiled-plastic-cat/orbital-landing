@@ -30,7 +30,7 @@
  */
 
 import algosdk, { Address } from "algosdk";
-import { OracleClient } from "../clients/oracleClient";
+import { OracleClient } from "../clients/oracleClient.js";
 import {
   calculateMedian,
   shouldUpdatePrice,
