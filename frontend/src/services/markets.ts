@@ -70,8 +70,8 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
     verified: true,
     frozen: false,
   },
-  "748153199": {
-    id: "748153199",
+  "748760436": {
+    id: "748760436",
     name: "Collateralized COMPX Testnet",
     symbol: "cCOMPXt",
     decimals: 6,
@@ -123,7 +123,7 @@ const TESTNET_MARKET_ASSET_IDS = [
   "744427950", // COMPXt
   "747008852", // USDCt 
   "747008871", // goBTCt 
-  "748153199", // cCOMPXt (collateral token)
+  "748760436", // cCOMPXt (collateral token)
   "748156049", // cxUSDt (collateral token)
   "747010543", // cALGO (collateral token)
   "748119416", // cUSDCt (collateral token) - NEW CONTRACT
