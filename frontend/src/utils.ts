@@ -1,5 +1,5 @@
 import * as algokit from "@algorandfoundation/algokit-utils";
-import { NETWORK_TOKEN } from "./constants/constants";
+import { NETWORK_TOKEN, getAlgodServer } from "./constants/constants";
 import type { NetworkType } from "./context/networkContext";
 
 // Get the current network from localStorage
@@ -10,24 +10,13 @@ function getCurrentNetwork(): NetworkType {
 
 export function getAlgod(network?: NetworkType) {
   const currentNetwork = network || getCurrentNetwork();
-  const isTestnet = currentNetwork === 'testnet';
   
-  let algorand;
-  if(isTestnet) {
-    algorand = algokit.AlgorandClient.fromConfig({
-      algodConfig: {
-        server: "https://testnet-api.4160.nodely.dev",
-        token: NETWORK_TOKEN,
-      }
-    })
-  } else {
-    algorand = algokit.AlgorandClient.fromConfig({
-      algodConfig: {
-        server: "https://mainnet-api.4160.nodely.dev",
-        token: NETWORK_TOKEN,
-      }
-    })
-  }
+  const algorand = algokit.AlgorandClient.fromConfig({
+    algodConfig: {
+      server: getAlgodServer(currentNetwork),
+      token: NETWORK_TOKEN,
+    }
+  });
   algorand.setDefaultValidityWindow(1000);
 
   return algorand.client.algod;

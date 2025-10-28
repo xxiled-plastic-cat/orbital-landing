@@ -16,6 +16,7 @@ import { getExistingClient } from "../../contracts/lending/getClient";
 import { useMarkets } from "../../hooks/useMarkets";
 import TabSelector from "./TabSelector";
 import Tooltip from "../Tooltip";
+import { getUserFluxTier } from "../../contracts/flux/state";
 
 interface ActionPanelProps {
   market: LendingMarket;
@@ -81,6 +82,9 @@ const ActionPanel = ({
 
   // Collateral token prices state
   const [collateralTokenPrices, setCollateralTokenPrices] = useState<Map<string, number>>(new Map());
+
+  // Flux tier state for fee discounts
+  const [userFluxTier, setUserFluxTier] = useState<number>(0);
 
   // Ref for dropdown click outside detection
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -219,6 +223,32 @@ const ActionPanel = ({
       }
     }
   }, [activeAction, userDebt, selectedCollateral, withdrawCollateralAssetId]);
+
+  // Fetch user's Flux tier for fee discounts
+  useEffect(() => {
+    const fetchFluxTier = async () => {
+      if (!activeAccount?.address) {
+        setUserFluxTier(0);
+        return;
+      }
+
+      try {
+        console.log("activeAccount.address", activeAccount.address);
+        const tier = await getUserFluxTier(activeAccount.address);
+        console.log("tier", tier);
+        setUserFluxTier(tier);
+        console.log(`User Flux tier: ${tier}`);
+      } catch (error) {
+        console.error('Failed to fetch Flux tier:', error);
+        setUserFluxTier(0);
+      }
+    };
+
+    // Fetch tier when on borrow tab or when account changes
+    if (activeMainTab === "borrow" && activeAccount?.address) {
+      void fetchFluxTier();
+    }
+  }, [activeMainTab, activeAccount?.address]);
 
   // Fetch collateral token prices when needed
   useEffect(() => {
@@ -522,6 +552,27 @@ const ActionPanel = ({
   // Get available collateral assets using the hook
   const availableCollateral = getCollateralAssets(userAssets);
 
+  // Helper function to calculate effective origination fee based on Flux tier
+  const calculateEffectiveOriginationFee = (baseFeeTokens: number): { effectiveFee: number; discount: number; discountPercentage: number } => {
+    let multiplier = 1.0; // Default: no discount (100% of original fee)
+    
+    if (userFluxTier === 1) {
+      multiplier = 0.90; // 10% discount
+    } else if (userFluxTier === 2) {
+      multiplier = 0.75; // 25% discount
+    } else if (userFluxTier === 3) {
+      multiplier = 0.50; // 50% discount
+    } else if (userFluxTier >= 4) {
+      multiplier = 0.25; // 75% discount
+    }
+
+    const effectiveFee = baseFeeTokens * multiplier;
+    const discount = baseFeeTokens - effectiveFee;
+    const discountPercentage = (1 - multiplier) * 100;
+
+    return { effectiveFee, discount, discountPercentage };
+  };
+
   // Calculate borrow details with proper USD-based LTV calculation
   const calculateBorrowDetails = () => {
     if (!borrowAmount) {
@@ -529,6 +580,9 @@ const ActionPanel = ({
         ltvRatio: 0,
         dailyInterest: 0,
         originationFee: 0,
+        originationFeeDiscount: 0,
+        originationFeeDiscountPercentage: 0,
+        baseOriginationFee: 0,
         totalFees: 0,
         maxBorrowAmount: 0,
         totalCollateralValueUSD: 0,
@@ -600,7 +654,13 @@ const ActionPanel = ({
 
     // Calculate origination fee using actual market rate
     const originationFeeBps = market.originationFeeBps || 0; // Get from market state
-    const originationFee = (additionalBorrowTokens * originationFeeBps) / 10000; // Convert basis points to decimal
+    const baseOriginationFee = (additionalBorrowTokens * originationFeeBps) / 10000; // Convert basis points to decimal
+    
+    // Apply Flux tier discount to origination fee
+    const feeDetails = calculateEffectiveOriginationFee(baseOriginationFee);
+    const originationFee = feeDetails.effectiveFee;
+    const originationFeeDiscount = feeDetails.discount;
+    const originationFeeDiscountPercentage = feeDetails.discountPercentage;
 
     // Calculate max additional borrow amount based on USD values
     const maxTotalDebtUSD = (totalCollateralValueUSD * market.ltv) / 100;
@@ -619,6 +679,9 @@ const ActionPanel = ({
       ltvRatio,
       dailyInterest,
       originationFee,
+      originationFeeDiscount,
+      originationFeeDiscountPercentage,
+      baseOriginationFee,
       totalFees: originationFee,
       maxBorrowAmount: maxAdditionalBorrow,
       totalCollateralValueUSD,
@@ -879,8 +942,15 @@ const ActionPanel = ({
               {/* Current Position Display */}
               {userDebt && Number(userDebt.principal) > 0 && (
                 <div className="bg-slate-800/50 border border-slate-600 rounded-lg p-3 mb-4">
-                  <div className="text-xs font-mono text-slate-400 uppercase tracking-wide mb-2">
-                    Current Position
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="text-xs font-mono text-slate-400 uppercase tracking-wide">
+                      Current Position
+                    </div>
+                    {userFluxTier > 0 && (
+                      <div className="text-[10px] font-mono text-green-400 bg-green-500/10 px-2 py-0.5 rounded">
+                        FLUX TIER {userFluxTier}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -896,6 +966,13 @@ const ActionPanel = ({
                       </div>
                     </div>
                   </div>
+                  {userFluxTier === 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-700">
+                      <div className="text-[10px] font-mono text-amber-400">
+                        💡 Get FLUX tokens for up to 75% off fees
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1346,19 +1423,47 @@ const ActionPanel = ({
                     </div>
 
                     <div className="flex justify-between items-start gap-2">
-                      <span className="font-mono text-slate-400 text-xs md:text-sm flex-shrink-0">
-                        Origination Fee
-                      </span>
+                      <div className="flex-shrink-0">
+                        <Tooltip
+                          content={
+                            userFluxTier > 0
+                              ? `Flux Tier ${userFluxTier}: ${borrowDetails.originationFeeDiscountPercentage}% discount applied`
+                              : "Fee charged when opening or adding to a borrow position. Gain FLUX power from $COMPX governance for discounts!"
+                          }
+                          textColor="text-slate-300"
+                          position="left"
+                        >
+                          <span className="font-mono text-slate-400 text-xs md:text-sm cursor-help">
+                            Origination Fee
+                            {userFluxTier > 0 && (
+                              <span className="ml-1 text-green-400">
+                                (Tier {userFluxTier})
+                              </span>
+                            )}
+                          </span>
+                        </Tooltip>
+                      </div>
                       <div className="text-right min-w-0 flex-1">
                         {(() => {
                           const tokenAmount = formatTokenAmount(borrowDetails.originationFee);
                           const symbol = getBaseTokenSymbol(market?.symbol);
-                          const fullText = `${tokenAmount} ${symbol}`;
-                          const fontSize = getDynamicFontSize(fullText);
+                          const fontSize = getDynamicFontSize(`${tokenAmount} ${symbol}`);
                           
                           return (
-                            <div className={`font-mono text-white ${fontSize} leading-tight`}>
-                              <div className="break-words">{fullText}</div>
+                            <div className="space-y-0.5">
+                              <div className={`font-mono text-white ${fontSize} leading-tight`}>
+                                <div className="break-words">{tokenAmount} {symbol}</div>
+                              </div>
+                              {userFluxTier > 0 && borrowDetails.originationFeeDiscount > 0 && (
+                                <div className="text-[10px] text-green-400 font-mono">
+                                  Saved: {formatTokenAmount(borrowDetails.originationFeeDiscount)} {symbol}
+                                </div>
+                              )}
+                              {userFluxTier === 0 && borrowDetails.baseOriginationFee > 0 && (
+                                <div className="text-[10px] text-amber-400 font-mono">
+                                  Save up to {formatTokenAmount(borrowDetails.baseOriginationFee * 0.75)} {symbol} with FLUX
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
@@ -1822,6 +1927,20 @@ const ActionPanel = ({
         {/* Status Messages */}
         {!isMarketInactive && activeAction === "open" && (
           <>
+              {/* Flux tier 0 promotional message */}
+              {userFluxTier === 0 && borrowAmount && parseFloat(borrowAmount) > 0 && (
+                <div className="flex items-start gap-2 text-amber-400 text-xs font-mono bg-amber-500/10 border border-amber-500/30 p-3 rounded">
+                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold mb-1">Get Fee Discounts with FLUX</div>
+                    <div className="text-amber-300/90">
+                      Gain FLUX power from $COMPX governance to reduce origination fees by up to 75%. 
+                      Your potential savings: {formatTokenAmount(borrowDetails.baseOriginationFee * 0.75)} {getBaseTokenSymbol(market?.symbol)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {market.availableToBorrow === 0 && (
                 <div className="flex items-center gap-2 text-amber-400 text-sm font-mono">
                   <AlertCircle className="w-4 h-4" />

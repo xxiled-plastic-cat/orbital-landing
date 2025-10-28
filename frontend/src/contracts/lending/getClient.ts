@@ -1,7 +1,7 @@
 import { TransactionSigner } from "algosdk";
 import { OrbitalLendingClient } from "./orbital-lendingClient";
 import * as algokit from "@algorandfoundation/algokit-utils";
-import { NETWORK_TOKEN } from "../../constants/constants";
+import { NETWORK_TOKEN, getAlgodServer } from "../../constants/constants";
 import { OrbitalLendingAsaClient } from "./orbital-lending-asaClient";
 import type { NetworkType } from "../../context/networkContext";
 
@@ -17,24 +17,13 @@ export async function getExistingClient(
   appId: number
 ): Promise<OrbitalLendingClient> {
   const network = getCurrentNetwork();
-  const isTestnet = network === 'testnet';
   
-  let algorand;
-  if (isTestnet) {
-    algorand = algokit.AlgorandClient.fromConfig({
-      algodConfig: {
-        server: "https://testnet-api.4160.nodely.dev",
-        token: NETWORK_TOKEN,
-      },
-    });
-  } else {
-    algorand = algokit.AlgorandClient.fromConfig({
-      algodConfig: {
-        server: "https://mainnet-api.4160.nodely.dev",
-        token: NETWORK_TOKEN,
-      },
-    });
-  }
+  const algorand = algokit.AlgorandClient.fromConfig({
+    algodConfig: {
+      server: getAlgodServer(network),
+      token: NETWORK_TOKEN,
+    },
+  });
   algorand.setDefaultValidityWindow(1000);
 
   const appClient = new OrbitalLendingClient({
@@ -53,24 +42,13 @@ export async function getExistingClientAsa(
   appId: number
 ): Promise<OrbitalLendingAsaClient> {
   const network = getCurrentNetwork();
-  const isTestnet = network === 'testnet';
   
-  let algorand;
-  if (isTestnet) {
-    algorand = algokit.AlgorandClient.fromConfig({
-      algodConfig: {
-        server: "https://testnet-api.4160.nodely.dev",
-        token: NETWORK_TOKEN,
-      },
-    });
-  } else {
-    algorand = algokit.AlgorandClient.fromConfig({
-      algodConfig: {
-        server: "https://mainnet-api.4160.nodely.dev",
-        token: NETWORK_TOKEN,
-      },
-    });
-  }
+  const algorand = algokit.AlgorandClient.fromConfig({
+    algodConfig: {
+      server: getAlgodServer(network),
+      token: NETWORK_TOKEN,
+    },
+  });
   algorand.setDefaultValidityWindow(1000);
 
   const appClient = new OrbitalLendingAsaClient({

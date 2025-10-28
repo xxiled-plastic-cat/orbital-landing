@@ -15,6 +15,30 @@ export const GENERAL_BACKEND_URL = import.meta.env.VITE_GENERAL_BACKEND_URL || '
 // Network-specific constants
 export const ALGORAND_NETWORK = IS_TESTNET ? 'testnet' : 'mainnet';
 
+// Algorand API endpoints (network-aware)
+export const ALGOD_SERVER = IS_TESTNET 
+  ? 'https://testnet-api.4160.nodely.dev' 
+  : 'https://mainnet-api.4160.nodely.dev';
+
+export const INDEXER_SERVER = IS_TESTNET
+  ? 'https://testnet-idx.4160.nodely.dev'
+  : 'https://mainnet-idx.4160.nodely.dev';
+
+// Helper function to get the appropriate server for a given network
+export function getAlgodServer(network: 'testnet' | 'mainnet'): string {
+  return network === 'testnet' 
+    ? 'https://testnet-api.4160.nodely.dev'
+    : 'https://mainnet-api.4160.nodely.dev';
+}
+
+export function getIndexerServer(network: 'testnet' | 'mainnet'): string {
+  return network === 'testnet'
+    ? 'https://testnet-idx.4160.nodely.dev'
+    : 'https://mainnet-idx.4160.nodely.dev';
+}
+
+export const FLUX_ORACLE_APP_ID = import.meta.env.VITE_FLUX_ORACLE_APP_ID || 1134439922;
+console.log("FLUX_ORACLE_APP_ID", FLUX_ORACLE_APP_ID);
 // Debug logging
 if (IS_DEVELOPMENT) {
   console.log('App Constants:', {
@@ -23,7 +47,9 @@ if (IS_DEVELOPMENT) {
     IS_DEVELOPMENT,
     ORBITAL_BACKEND_URL,
     GENERAL_BACKEND_URL,
-    ALGORAND_NETWORK
+    ALGORAND_NETWORK,
+    ALGOD_SERVER,
+    INDEXER_SERVER
   });
 }
 
@@ -34,5 +60,7 @@ export const ENV = {
   IS_DEVELOPMENT,
   ORBITAL_BACKEND_URL,
   GENERAL_BACKEND_URL,
-  ALGORAND_NETWORK
+  ALGORAND_NETWORK,
+  ALGOD_SERVER,
+  INDEXER_SERVER
 } as const;
