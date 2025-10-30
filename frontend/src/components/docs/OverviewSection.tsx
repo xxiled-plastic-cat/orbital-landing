@@ -16,6 +16,7 @@ const OverviewSection: React.FC = () => {
       <VideoEmbed 
         title="Welcome to Orbital Lending"
         description="Complete introduction to the protocol and its orbital mechanics"
+        youtubeUrl="https://www.youtube.com/embed/LeP5kJzzq5M?si=oBoE4u6dmcCA7n1M"
       />
 
       <div className="prose prose-invert max-w-none">
