@@ -15,6 +15,7 @@ const LendingSection: React.FC = () => {
       <VideoEmbed 
         title="How to Supply Assets"
         description="Step-by-step guide to supplying your assets and earning interest"
+        youtubeUrl="https://www.youtube.com/embed/d1w_5GQ4Aik?si=et3XvcwNfj3rAIvn"
       />
 
       <div className="prose prose-invert max-w-none">

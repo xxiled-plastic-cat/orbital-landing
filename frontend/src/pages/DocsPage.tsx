@@ -121,7 +121,7 @@ const DocsPage: React.FC = () => {
                   <div className="flex items-center gap-2 md:gap-3">
                     <BookOpen className="w-4 h-4 md:w-6 md:h-6 text-cyan-400" />
                     <span className="text-xs sm:text-base md:text-lg font-mono font-semibold text-slate-300 uppercase tracking-wide">
-                      MISSION BRIEFING
+                      MISSION CONTROL
                     </span>
                   </div>
                   {/* Status badges */}
