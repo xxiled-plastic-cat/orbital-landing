@@ -2,10 +2,10 @@ import {
   TrendingUp,
   DollarSign,
   ClipboardList,
-  Droplets,
+  Rocket,
   Zap,
   Shield,
-  BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -90,7 +90,7 @@ const AppPage = () => {
           ))}
         </div>
 
-        {/* System Status */}
+        {/* Mission Phases */}
         <motion.div
           className="relative"
           initial={{ opacity: 0, y: 30 }}
@@ -102,101 +102,93 @@ const AppPage = () => {
             <div className="flex items-center justify-center gap-2 md:gap-3 mb-4 md:mb-6">
               <Shield className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
               <h3 className="text-lg md:text-2xl font-mono font-bold text-center text-white">
-                SYSTEM STATUS
+                MISSION PHASES
               </h3>
             </div>
 
             <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-              {/* Module 1 */}
+              {/* Testnet Phase */}
               <motion.div
-                className="relative"
+                className="relative h-full"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 1.2 }}
               >
-                <div className="bg-transparent border border-slate-600 p-4 md:p-6">
+                <div className="bg-transparent border border-slate-600 p-4 md:p-6 h-full flex flex-col">
                   <h4 className="font-mono font-bold text-cyan-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
-                    <Droplets className="w-4 h-4 md:w-5 md:h-5" />
-                    FOUNDATION
+                    <Rocket className="w-4 h-4 md:w-5 md:h-5" />
+                    TESTNET PHASE
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Routing Infrastructure ✓</span>
+                      <span>Deploying Contracts ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Industrial UI Theme ✓</span>
+                      <span>Liquidation & Buyout Testing ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Wallet Integration ✓</span>
-                    </li>
-                    <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Resource Faucet ✓</span>
+                      <span>UI Loadout ✓</span>
                     </li>
                   </ul>
                 </div>
               </motion.div>
 
-              {/* Module 2 */}
+              {/* Mainnet Deployment */}
               <motion.div
-                className="relative"
+                className="relative h-full"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.4 }}
               >
-                <div className="bg-transparent border border-slate-600 p-4 md:p-6">
+                <div className="bg-transparent border border-slate-600 p-4 md:p-6 h-full flex flex-col">
                   <h4 className="font-mono font-bold text-amber-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
                     <Zap className="w-4 h-4 md:w-5 md:h-5" />
-                    CORE LENDING
+                    MAINNET DEPLOYMENT
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Smart Contract Integration ✓</span>
+                      <div className="w-2 h-2 bg-amber-500"></div>
+                      <span>Mainnet Deployment</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Oracle Deployment ✓</span>
+                      <div className="w-2 h-2 bg-amber-500"></div>
+                      <span>Launch ASA Markets: xUSD, COMPX, USDC, TINY, POW, ALPHA</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Interest Accruals ✓</span>
-                    </li>
-                    <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-cyan-400"></div>
-                      <span>Supply/Borrow Interface ✓</span>
+                      <div className="w-2 h-2 bg-amber-500"></div>
+                      <span>ALGO Consensus Lending Market</span>
                     </li>
                   </ul>
                 </div>
               </motion.div>
 
-              {/* Module 3 */}
+              {/* Phase 1 Markets */}
               <motion.div
-                className="relative"
+                className="relative h-full"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.6 }}
               >
-                <div className="bg-transparent border border-slate-600 p-4 md:p-6">
-                  <h4 className="font-mono font-bold text-red-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
-                    <BarChart3 className="w-4 h-4 md:w-5 md:h-5" />
-                    MERCURY TRADING POST
+                <div className="bg-transparent border border-slate-600 p-4 md:p-6 h-full flex flex-col">
+                  <h4 className="font-mono font-bold text-purple-400 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
+                    <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                    PHASE 1
                   </h4>
                   <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-amber-500"></div>
-                      <span>Marketplace Trading</span>
-                    </li>
-                    <li className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                      <span>Portfolio Management</span>
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
+                      <span>Phase 1 Markets</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
-                      <span>Position Analytics</span>
+                      <span>FLUX Markets</span>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-slate-500 rounded-full"></div>
+                      <span>New Interest Curve Options</span>
                     </li>
                   </ul>
                 </div>

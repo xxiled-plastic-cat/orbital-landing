@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@txnlab/use-wallet-react';
-import { GENERAL_BACKEND_URL } from '../constants/constants';
+import { ORBITAL_BACKEND_URL } from '../constants/constants';
 
 export interface UserDeposit {
   address: string;
@@ -51,7 +51,7 @@ export const useUserDeposits = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${GENERAL_BACKEND_URL}/orbital/${activeAccount.address}`);
+      const response = await fetch(`${ORBITAL_BACKEND_URL}/orbital/records/${activeAccount.address}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

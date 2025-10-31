@@ -2,33 +2,13 @@ import React, { useState } from "react";
 import { BookOpen, Menu, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import WalletButton from "./WalletButton";
-import { useNetwork } from "../../context/networkContext";
-
-// Helper component for mobile title display
-const MobileTitle: React.FC<{ title: string }> = ({ title }) => {
-  const { isTestnet } = useNetwork();
-  
-  // If title contains "Testnet", show network-aware title
-  if (title.includes("Testnet") || title.toLowerCase().includes("testnet")) {
-    return (
-      <span className="sm:hidden">
-        {`ORBITAL ${isTestnet ? 'TESTNET' : 'MAINNET'}`}
-      </span>
-    );
-  }
-  
-  // Otherwise show normal title
-  return <span className="sm:hidden">{title.toUpperCase()}</span>;
-};
 
 interface AppHeaderProps {
   showBackButton?: boolean;
   title?: string;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({
-  title = "Orbital Lending",
-}) => {
+const AppHeader: React.FC<AppHeaderProps> = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -46,7 +26,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         <div className="container-section py-3 md:py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Left side - Logo/Title */}
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <Link to="/app" className="flex items-center gap-2 md:gap-3 min-w-0 hover:opacity-80 transition-opacity">
               <div className="bg-slate-800 border border-slate-600 p-1 rounded-full shrink-0">
                 <img
                   src="/orbital-logo.png"
@@ -55,12 +35,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 />
               </div>
               <h1 className="text-sm md:text-lg font-mono font-bold text-white truncate">
-                <span className="hidden sm:inline">
-                  {title.toUpperCase()}
-                </span>
-                <MobileTitle title={title} />
+                ORBITAL LENDING
               </h1>
-            </div>
+            </Link>
 
             {/* Center - Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-6">

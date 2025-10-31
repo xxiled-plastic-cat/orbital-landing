@@ -12,9 +12,10 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useWallet } from '@txnlab/use-wallet-react';
-import { GENERAL_BACKEND_URL } from '../../constants/constants';
+import { ORBITAL_BACKEND_URL } from '../../constants/constants';
 import { useMarkets } from '../../hooks/useMarkets';
 import { useAssetMetadata } from '../../hooks/useAssets';
+import { useExplorer } from '../../context/explorerContext';
 import MomentumSpinner from '../MomentumSpinner';
 
 interface Transaction {
@@ -39,6 +40,7 @@ interface ApiResponse {
 const TransactionHistorySection: React.FC = () => {
   const { activeAccount } = useWallet();
   const { data: markets } = useMarkets();
+  const { getExplorerUrl } = useExplorer();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ const TransactionHistorySection: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${GENERAL_BACKEND_URL}/orbital/${activeAccount.address}`);
+      const response = await fetch(`${ORBITAL_BACKEND_URL}/orbital/records/${activeAccount.address}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -151,7 +153,7 @@ const TransactionHistorySection: React.FC = () => {
       case 'buyout':
         return <DollarSign className="w-4 h-4 text-orange-400" />;
       case 'liquidation':
-        return <AlertTriangle className="w-4 h-4 text-red-400" />;
+        return <AlertCircle className="w-4 h-4 text-red-400" />;
       default:
         return <Radio className="w-4 h-4 text-slate-400" />;
     }
@@ -340,10 +342,15 @@ const TransactionHistorySection: React.FC = () => {
                     <td className="p-3 md:p-4 text-right text-white tabular-nums font-semibold">{tx.tokensOut}</td>
                     <td className="p-3 md:p-4 text-slate-300">{formatTimestamp(tx.timestamp)}</td>
                     <td className="p-3 md:p-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-cyan-400 tabular-nums">{formatTxnId(tx.txnId)}</span>
-                        <ExternalLink className="w-3 h-3 text-slate-500 hover:text-cyan-400 cursor-pointer transition-colors" />
-                      </div>
+                      <a 
+                        href={getExplorerUrl('transaction', tx.txnId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors group"
+                      >
+                        <span className="tabular-nums">{formatTxnId(tx.txnId)}</span>
+                        <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                      </a>
                     </td>
                   </tr>
                 ))}
@@ -447,10 +454,15 @@ const TransactionHistorySection: React.FC = () => {
                           </div>
                           <div>
                             <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Transaction ID</div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-cyan-400 tabular-nums text-sm">{formatTxnId(tx.txnId)}</span>
-                              <ExternalLink className="w-3 h-3 text-slate-500 hover:text-cyan-400 cursor-pointer transition-colors" />
-                            </div>
+                            <a 
+                              href={getExplorerUrl('transaction', tx.txnId)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors group"
+                            >
+                              <span className="tabular-nums text-sm">{formatTxnId(tx.txnId)}</span>
+                              <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                            </a>
                           </div>
                         </div>
                       </div>
