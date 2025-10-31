@@ -11,6 +11,8 @@ interface LiquidationActionPanelProps {
   setLiquidationAmount: (value: string) => void;
   onLiquidate: () => void;
   onBuyout: () => void;
+  userDebtTokenBalance: string | null;
+  isLoadingBalance: boolean;
 }
 
 const LiquidationActionPanel = ({
@@ -21,6 +23,8 @@ const LiquidationActionPanel = ({
   setLiquidationAmount,
   onLiquidate,
   onBuyout,
+  userDebtTokenBalance,
+  isLoadingBalance,
 }: LiquidationActionPanelProps) => {
   // Map token symbols to their image paths
   const getTokenImage = (symbol: string): string => {
@@ -148,6 +152,50 @@ const LiquidationActionPanel = ({
                   {formatNumber(liveDebt)} {position.debtToken.symbol}
                 </div>
                 <span className="text-slate-400 text-sm">≈ ${formatUSD(liveDebtUSD)}</span>
+              </div>
+            </div>
+
+            {/* User's Wallet Balance */}
+            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-slate-400 text-xs uppercase tracking-wide">Your Wallet Balance</span>
+                {isLoadingBalance && (
+                  <span className="text-slate-500 text-xs">Loading...</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <img
+                  src={getTokenImage(position.debtToken.symbol)}
+                  alt={position.debtToken.symbol}
+                  className="w-5 h-5 rounded-full flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+                {userDebtTokenBalance !== null ? (
+                  <>
+                    <div className="font-mono font-bold text-white">
+                      {formatNumber(parseFloat(userDebtTokenBalance))} {position.debtToken.symbol}
+                    </div>
+                    <span className="text-slate-400 text-sm">
+                      ≈ ${formatUSD(parseFloat(userDebtTokenBalance) * (liveDebtUSD / liveDebt))}
+                    </span>
+                    {parseFloat(userDebtTokenBalance) < requestedRepayAmount && (
+                      <span className="ml-auto text-xs text-red-400 font-semibold">
+                        ⚠️ INSUFFICIENT
+                      </span>
+                    )}
+                    {parseFloat(userDebtTokenBalance) >= liveDebt && (
+                      <span className="ml-auto text-xs text-green-400 font-semibold">
+                        ✓ SUFFICIENT
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-slate-500 text-sm">
+                    {isLoadingBalance ? "Loading balance..." : "Connect wallet to view balance"}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -339,6 +387,50 @@ const LiquidationActionPanel = ({
               Buyout Breakdown
             </h3>
             
+            {/* User's Wallet Balance */}
+            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-slate-400 text-xs uppercase tracking-wide">Your Wallet Balance</span>
+                {isLoadingBalance && (
+                  <span className="text-slate-500 text-xs">Loading...</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <img
+                  src={getTokenImage(position.debtToken.symbol)}
+                  alt={position.debtToken.symbol}
+                  className="w-5 h-5 rounded-full flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+                {userDebtTokenBalance !== null ? (
+                  <>
+                    <div className="font-mono font-bold text-white">
+                      {formatNumber(parseFloat(userDebtTokenBalance))} {position.debtToken.symbol}
+                    </div>
+                    <span className="text-slate-400 text-sm">
+                      ≈ ${formatUSD(parseFloat(userDebtTokenBalance) * (liveDebtUSD / liveDebt))}
+                    </span>
+                    {parseFloat(userDebtTokenBalance) < position.buyoutDebtRepaymentTokens && (
+                      <span className="ml-auto text-xs text-red-400 font-semibold">
+                        ⚠️ INSUFFICIENT
+                      </span>
+                    )}
+                    {parseFloat(userDebtTokenBalance) >= position.buyoutDebtRepaymentTokens && (
+                      <span className="ml-auto text-xs text-green-400 font-semibold">
+                        ✓ SUFFICIENT
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-slate-500 text-sm">
+                    {isLoadingBalance ? "Loading balance..." : "Connect wallet to view balance"}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Debt Repayment */}
             <div className="bg-slate-700 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-2">

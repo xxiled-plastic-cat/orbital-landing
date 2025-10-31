@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { createContext, useState, useMemo, useCallback } from "react";
+import { createContext, useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@txnlab/use-wallet-react";
 import * as algokit from "@algorandfoundation/algokit-utils"
@@ -137,6 +137,7 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
     isLoading: isLoadingAssets,
     error: assetsError,
     refetch: refetchAssets,
+    userAssets: userAssetsQuery,
   } = useUserAssetsWithMetadata();
 
   // NFD information using React Query
@@ -219,6 +220,16 @@ const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const clearAllOptimisticUpdates = useCallback(() => {
     setOptimisticOverrides(new Map());
   }, []);
+
+  // Auto-clear optimistic updates when real data successfully loads
+  useEffect(() => {
+    // When user assets query successfully fetches new data, clear optimistic overrides
+    // This allows the real blockchain data to be displayed
+    if (userAssetsQuery?.isSuccess && userAssetsQuery?.data && optimisticOverrides.size > 0) {
+      console.log('✅ Real balance data arrived, clearing optimistic updates');
+      clearAllOptimisticUpdates();
+    }
+  }, [userAssetsQuery?.isSuccess, userAssetsQuery?.data, optimisticOverrides.size, clearAllOptimisticUpdates]);
 
   // Merge real and optimistic data
   const mergedUserAssets = useMemo(() => {

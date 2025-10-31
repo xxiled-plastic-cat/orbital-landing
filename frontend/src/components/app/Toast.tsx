@@ -115,7 +115,7 @@ export const Toast = () => {
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="flex flex-col justify-start items-start">
+              <div className="flex flex-col justify-start items-start flex-shrink-0">
                 {toast.type === "loading" && (
                   <MomentumSpinner size="32" speed="1.1" color="#06b6d4" />
                 )}
@@ -130,12 +130,14 @@ export const Toast = () => {
                   <StarIcon className="w-8 h-8 text-amber-400" />
                 )}
               </div>
-              <div className="flex flex-col justify-start items-start gap-2 px-2 flex-1">
-                <h4 className="text-lg font-bold font-mono text-white">
+              <div className="flex flex-col justify-start items-start gap-2 px-2 flex-1 min-w-0 overflow-hidden">
+                <h4 className="text-lg font-bold font-mono text-white break-words w-full">
                   {toast.message}
                 </h4>
                 {toast.type !== "multi-step" && toast.description && (
-                  <div className="text-sm font-mono text-slate-300">{toast.description}</div>
+                  <div className="text-sm font-mono text-slate-300 break-all w-full">
+                    {toast.description}
+                  </div>
                 )}
                 {toast.type === "multi-step" && renderMultiStepContent()}
               </div>

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@txnlab/use-wallet-react'
 import { 
   fetchAssetMetadata, 
@@ -7,6 +7,7 @@ import {
 } from '../services/markets'
 import { AssetMetadata, UserAssetSummary, UserAssetInfo } from '../types/lending'
 import { useNetwork } from '../context/networkContext'
+import { useMemo } from 'react'
 
 // Hook to get all asset IDs from markets
 export function useMarketAssetIds() {
@@ -57,8 +58,14 @@ export function useUserAssetInfo(assetIds?: string[]) {
   const { selectedNetwork } = useNetwork()
   const USER_ASSETS_QUERY_KEY = [selectedNetwork, 'user-assets'] as const
   
+  // Stabilize the assetIds array to prevent unnecessary query key changes
+  const sortedAssetIds = useMemo(() => 
+    assetIds ? [...assetIds].sort().join(',') : '', 
+    [assetIds]
+  )
+  
   return useQuery({
-    queryKey: [...USER_ASSETS_QUERY_KEY, activeAddress, assetIds?.sort()],
+    queryKey: [...USER_ASSETS_QUERY_KEY, activeAddress, sortedAssetIds],
     queryFn: async (): Promise<UserAssetSummary> => {
       if (!activeAddress) {
         throw new Error('Wallet not connected')
@@ -69,9 +76,11 @@ export function useUserAssetInfo(assetIds?: string[]) {
       return fetchUserAssetInfo(activeAddress, assetIds)
     },
     enabled: !!(activeAddress && assetIds && assetIds.length > 0),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 10 * 1000, // 10 seconds - data considered fresh for this duration
     gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 60 * 1000, // Refetch every minute when active
+    // Poll every 30 seconds as fallback for external balance changes (faucet, transfers)
+    // Internal app transactions use event-driven invalidation for instant updates
+    refetchInterval: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: true,
     retry: (failureCount, error) => {
       if (error.message === 'Wallet not connected') {
@@ -148,5 +157,39 @@ export function useUserAsset(assetId: string) {
   return {
     ...rest,
     data: asset,
+  }
+}
+
+// Hook to invalidate user assets data (useful after transactions)
+export function useInvalidateUserAssets() {
+  const { activeAddress } = useWallet()
+  const { selectedNetwork } = useNetwork()
+  const queryClient = useQueryClient()
+  const USER_ASSETS_QUERY_KEY = [selectedNetwork, 'user-assets'] as const
+  
+  return () => {
+    if (activeAddress) {
+      // Invalidate the user assets query to trigger immediate refetch
+      queryClient.invalidateQueries({
+        queryKey: [...USER_ASSETS_QUERY_KEY, activeAddress]
+      })
+    }
+  }
+}
+
+// Hook to refetch user assets data immediately (alternative to invalidate)
+export function useRefetchUserAssets() {
+  const { activeAddress } = useWallet()
+  const { selectedNetwork } = useNetwork()
+  const queryClient = useQueryClient()
+  const USER_ASSETS_QUERY_KEY = [selectedNetwork, 'user-assets'] as const
+  
+  return () => {
+    if (activeAddress) {
+      // Force refetch the user assets query immediately
+      queryClient.refetchQueries({
+        queryKey: [...USER_ASSETS_QUERY_KEY, activeAddress]
+      })
+    }
   }
 }

@@ -12,6 +12,8 @@ interface LiquidationActionDrawerProps {
   setLiquidationAmount: (value: string) => void;
   onLiquidate: () => void;
   onBuyout: () => void;
+  userDebtTokenBalance: string | null;
+  isLoadingBalance: boolean;
 }
 
 const LiquidationActionDrawer = (props: LiquidationActionDrawerProps) => {

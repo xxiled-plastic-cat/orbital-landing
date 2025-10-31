@@ -20,6 +20,7 @@ import PositionHeader from "../components/app/PositionHeader";
 import MomentumSpinner from "../components/MomentumSpinner";
 import Tooltip from "../components/Tooltip";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
+import { useInvalidateUserAssets } from "../hooks/useAssets";
 import { WalletContext } from "../context/wallet";
 import { useToast } from "../context/toastContext";
 import {
@@ -86,11 +87,11 @@ const MarketDetailsPage = () => {
     userAssets,
     isLoadingAssets,
     applyOptimisticBalanceUpdate,
-    confirmOptimisticUpdate,
   } = useContext(WalletContext);
   const { openToast } = useToast();
   const { activeAddress, transactionSigner } = useWallet();
   const refetchMarkets = useRefetchMarkets();
+  const invalidateUserAssets = useInvalidateUserAssets();
 
   // Function to refetch user debt
   const refetchUserDebt = async () => {
@@ -255,7 +256,7 @@ const MarketDetailsPage = () => {
           signer: transactionSigner,
         })
           .then((txId) => {
-            // Apply optimistic updates only after transaction success
+            // Apply optimistic updates for instant UI feedback
             applyOptimisticBalanceUpdate(
               baseTokenId,
               `-${depositAmountMicrounits}`
@@ -264,13 +265,9 @@ const MarketDetailsPage = () => {
               applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
             }
 
-            // Confirm the updates immediately since transaction was successful
-            confirmOptimisticUpdate(baseTokenId);
-            if (lstTokenId) {
-              confirmOptimisticUpdate(lstTokenId);
-            }
-
-            // Immediately refetch market data to reflect changes in market overview and interest rates
+            // Invalidate queries to trigger background refetch
+            // This will fetch real blockchain data and auto-clear optimistic updates
+            invalidateUserAssets();
             refetchMarkets();
 
             // Refetch user debt and deposit data
@@ -325,7 +322,7 @@ const MarketDetailsPage = () => {
           signer: transactionSigner,
         })
           .then((txId) => {
-            // Apply optimistic updates only after transaction success
+            // Apply optimistic updates for instant UI feedback
             applyOptimisticBalanceUpdate(
               baseTokenId,
               `-${depositAmountMicrounits}`
@@ -334,13 +331,9 @@ const MarketDetailsPage = () => {
               applyOptimisticBalanceUpdate(lstTokenId, depositAmountMicrounits);
             }
 
-            // Confirm the updates immediately since transaction was successful
-            confirmOptimisticUpdate(baseTokenId);
-            if (lstTokenId) {
-              confirmOptimisticUpdate(lstTokenId);
-            }
-
-            // Immediately refetch market data to reflect changes in market overview and interest rates
+            // Invalidate queries to trigger background refetch
+            // This will fetch real blockchain data and auto-clear optimistic updates
+            invalidateUserAssets();
             refetchMarkets();
 
             // Refetch user debt and deposit data
@@ -417,7 +410,7 @@ const MarketDetailsPage = () => {
         lstTokenId: Number(market?.lstTokenId),
       })
         .then((txId) => {
-          // Apply optimistic updates only after transaction success
+          // Apply optimistic updates for instant UI feedback
           if (lstTokenId) {
             applyOptimisticBalanceUpdate(
               lstTokenId,
@@ -426,13 +419,8 @@ const MarketDetailsPage = () => {
           }
           applyOptimisticBalanceUpdate(baseTokenId, redeemAmountMicrounits);
 
-          // Confirm the updates immediately since transaction was successful
-          if (lstTokenId) {
-            confirmOptimisticUpdate(lstTokenId);
-          }
-          confirmOptimisticUpdate(baseTokenId);
-
-          // Immediately refetch market data to reflect changes in market overview and interest rates
+          // Invalidate queries to trigger background refetch
+          invalidateUserAssets();
           refetchMarkets();
 
           // Refetch user debt and deposit data
@@ -500,7 +488,7 @@ const MarketDetailsPage = () => {
         signer: transactionSigner,
       })
         .then((txId) => {
-          // Apply optimistic updates only after transaction success
+          // Apply optimistic updates for instant UI feedback
           const repayAmountMicrounits = (
             Number(repayAmount) * Math.pow(10, 6)
           ).toString();
@@ -512,10 +500,8 @@ const MarketDetailsPage = () => {
             `-${repayAmountMicrounits}`
           );
 
-          // Confirm the updates immediately since transaction was successful
-          confirmOptimisticUpdate(baseTokenId);
-
-          // Immediately refetch market data to reflect changes
+          // Invalidate queries to trigger background refetch
+          invalidateUserAssets();
           refetchMarkets();
 
           openToast({
@@ -558,7 +544,7 @@ const MarketDetailsPage = () => {
         signer: transactionSigner,
       })
         .then((txId) => {
-          // Apply optimistic updates only after transaction success
+          // Apply optimistic updates for instant UI feedback
           const repayAmountMicrounits = (
             Number(repayAmount) * Math.pow(10, 6)
           ).toString();
@@ -570,10 +556,8 @@ const MarketDetailsPage = () => {
             `-${repayAmountMicrounits}`
           );
 
-          // Confirm the updates immediately since transaction was successful
-          confirmOptimisticUpdate(baseTokenId);
-
-          // Immediately refetch market data to reflect changes
+          // Invalidate queries to trigger background refetch
+          invalidateUserAssets();
           refetchMarkets();
 
           openToast({
@@ -630,7 +614,7 @@ const MarketDetailsPage = () => {
       signer: transactionSigner,
     })
       .then((txId) => {
-        // Apply optimistic updates only after transaction success
+        // Apply optimistic updates for instant UI feedback
         const withdrawAmountMicrounits = (
           Number(withdrawAmount) * Math.pow(10, 6)
         ).toString();
@@ -641,10 +625,8 @@ const MarketDetailsPage = () => {
           withdrawAmountMicrounits
         );
 
-        // Confirm the updates immediately since transaction was successful
-        confirmOptimisticUpdate(collateralAssetId);
-
-        // Immediately refetch market data to reflect changes
+        // Invalidate queries to trigger background refetch
+        invalidateUserAssets();
         refetchMarkets();
 
         openToast({
@@ -740,7 +722,7 @@ const MarketDetailsPage = () => {
       signer: transactionSigner,
     })
       .then((txId) => {
-        // Apply optimistic updates only after transaction success
+        // Apply optimistic updates for instant UI feedback
         const borrowAmountMicrounits = (
           Number(borrowAmount) * Math.pow(10, 6)
         ).toString();
@@ -760,15 +742,10 @@ const MarketDetailsPage = () => {
             effectiveCollateralAssetId,
             `-${collateralAmountMicrounits}`
           );
-
-          // Confirm collateral update
-          confirmOptimisticUpdate(effectiveCollateralAssetId);
         }
 
-        // Confirm the borrowed token update
-        confirmOptimisticUpdate(baseTokenId);
-
-        // Immediately refetch market data to reflect changes in market overview and interest rates
+        // Invalidate queries to trigger background refetch
+        invalidateUserAssets();
         refetchMarkets();
 
         const successDescription = isAddingCollateral

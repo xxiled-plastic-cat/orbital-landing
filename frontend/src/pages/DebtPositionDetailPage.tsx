@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import { buyoutSplitASA, buyoutSplitAlgo, liquidatePartialAlgo, liquidatePartial
 import { getAcceptedCollateral } from "../contracts/lending/state";
 import { useWallet } from "@txnlab/use-wallet-react";
 import { useToast } from "../context/toastContext";
+import { WalletContext } from "../context/wallet";
 import { DebtPosition } from "../types/lending";
 
 const DebtPositionDetailPage: React.FC = () => {
@@ -31,11 +32,30 @@ const DebtPositionDetailPage: React.FC = () => {
   const [isExecutingBuyout, setIsExecutingBuyout] = useState(false);
   const [liquidationAmount, setLiquidationAmount] = useState<string>("");
 
+  // Get user's wallet balances
+  const { algoBalance, userAssets, isLoadingAssets } = useContext(WalletContext);
+
   // Use optimized pricing system with fixed LST market lookup
   const { data: position, isLoading, error } = useOptimizedDebtPosition(id || "");
 
   // Fetch market data to get buyoutTokenId, oracleAppId, etc.
   const { data: market } = useMarket(position?.marketId || "");
+
+  // Calculate user's balance for the debt token
+  const userDebtTokenBalance = useMemo(() => {
+    if (!position || isLoadingAssets) return null;
+    
+    const debtTokenId = position.debtToken.id;
+    
+    // Check if it's ALGO (id === "0")
+    if (debtTokenId === "0") {
+      return algoBalance ? (parseFloat(algoBalance) / 1e6).toString() : "0";
+    }
+    
+    // Find the asset in user's assets
+    const asset = userAssets?.assets.find(a => a.assetId === debtTokenId);
+    return asset ? (parseFloat(asset.balance) / 1e6).toString() : "0";
+  }, [position, userAssets, algoBalance, isLoadingAssets]);
 
   // Fetch NFD data for the user address
   const { nfdName, nfdAvatar, isLoadingNFD } = useNFD(
@@ -557,8 +577,8 @@ const DebtPositionDetailPage: React.FC = () => {
       
       openToast({
         type: "success",
-        message: "Buyout successful! Transaction ID: " + txId,
-        description: null,
+        message: "Buyout successful!",
+        description: `Transaction ID: ${txId}`,
       });
       console.log("Buyout transaction completed:", txId);
       
@@ -874,6 +894,8 @@ const DebtPositionDetailPage: React.FC = () => {
             setLiquidationAmount={setLiquidationAmount}
             onLiquidate={handleLiquidate}
             onBuyout={handleBUYOUT}
+            userDebtTokenBalance={userDebtTokenBalance}
+            isLoadingBalance={isLoadingAssets}
           />
         </div>
       </div>
