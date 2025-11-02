@@ -10,7 +10,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center gap-2 mb-6 md:mb-0">
             <Rocket className="h-6 w-6 text-neon-teal" />
-            <span className="font-sora text-lg font-bold">Orbital<span className="text-neon-teal">Lending</span></span>
+            <span className="font-display text-lg font-bold">Orbital<span className="text-neon-teal">Lending</span></span>
           </div>
           
           <div className="flex gap-8 mb-6 md:mb-0">

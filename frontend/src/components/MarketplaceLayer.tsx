@@ -61,7 +61,7 @@ const MarketplaceLayer = () => {
               <div className="absolute inset-0 bg-space-gradient opacity-50"></div>
               <div className="relative">
                 <div className="flex justify-between items-center mb-6 border-b border-neon-teal border-opacity-20 pb-4">
-                  <h3 className="font-sora text-xl font-bold">System Architecture</h3>
+                  <h3 className="font-display text-xl font-bold">System Architecture</h3>
                   <div className="text-neon-teal text-xs px-2 py-1 bg-neon-teal bg-opacity-10 rounded-full">
                     On-Chain First
                   </div>

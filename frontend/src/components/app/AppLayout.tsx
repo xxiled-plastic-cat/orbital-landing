@@ -15,7 +15,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   title = "Orbital Lending",
 }) => {
   return (
-    <div className="min-h-screen text-white font-inter relative ">
+    <div className="min-h-screen text-white font-sans relative ">
       <OrbitalBackground />
 
       <AppHeader showBackButton={showBackButton} title={title} />

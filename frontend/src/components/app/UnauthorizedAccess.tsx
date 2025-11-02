@@ -46,7 +46,7 @@ const UnauthorizedAccess: React.FC = () => {
 
           {/* Title */}
           <motion.h2 
-            className="text-3xl md:text-4xl font-sora font-bold mb-4"
+            className="text-3xl md:text-4xl font-display font-bold mb-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}

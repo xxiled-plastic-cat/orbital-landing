@@ -77,7 +77,7 @@ const DebtMarketplace = () => {
               <div className={`bg-${column.color} bg-opacity-10 p-3 rounded-full w-14 h-14 flex items-center justify-center mb-4`}>
                 <column.icon className={`text-${column.color} w-7 h-7`} />
               </div>
-              <h3 className="font-sora text-xl font-bold mb-3">{column.title}</h3>
+              <h3 className="font-display text-xl font-bold mb-3">{column.title}</h3>
               <p className="text-soft-gray">{column.description}</p>
             </motion.div>
           ))}
@@ -94,7 +94,7 @@ const DebtMarketplace = () => {
             className="flex justify-between items-center cursor-pointer"
             onClick={() => setFormulaExpanded(!formulaExpanded)}
           >
-            <h3 className="text-2xl font-sora font-bold">Pricing Formula</h3>
+            <h3 className="text-2xl font-display font-bold">Pricing Formula</h3>
             {formulaExpanded ? 
               <ChevronUp className="text-neon-teal" /> : 
               <ChevronDown className="text-neon-teal" />

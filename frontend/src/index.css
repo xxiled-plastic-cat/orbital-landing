@@ -8,7 +8,7 @@
   }
   
   body {
-    @apply bg-space-dark text-white font-inter overflow-x-hidden;
+    @apply bg-space-dark text-white font-mono overflow-x-hidden;
   }
 }
 
@@ -28,7 +28,7 @@
   }
   
   .section-title {
-    @apply text-4xl md:text-5xl font-sora font-bold mb-6 md:mb-10 text-white;
+    @apply text-4xl md:text-5xl font-display font-bold mb-6 md:mb-10 text-white;
   }
   
   .section-subtitle {

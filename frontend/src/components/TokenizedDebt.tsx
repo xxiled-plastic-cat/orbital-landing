@@ -123,7 +123,7 @@ const TokenizedDebt = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="text-xs text-soft-gray">DEBT POSITION</div>
-                    <div className="text-xl font-bold font-sora">Loan #7842</div>
+                    <div className="text-xl font-bold font-display">Loan #7842</div>
                   </div>
                   <div className="bg-neon-teal bg-opacity-10 text-neon-teal px-2 py-1 rounded-lg text-xs">
                     Active
