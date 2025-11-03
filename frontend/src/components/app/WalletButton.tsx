@@ -91,8 +91,12 @@ const WalletButton: React.FC = () => {
     
     // Use NFD name if available
     if (nfdName) {
+      // Remove .algo suffix if present
+      const displayName = nfdName.endsWith('.algo') 
+        ? nfdName.slice(0, -5) 
+        : nfdName;
       // Truncate long NFD names (keep first 12 chars + ...)
-      return nfdName.length > 15 ? `${nfdName.slice(0, 12)}...` : nfdName;
+      return displayName.length > 15 ? `${displayName.slice(0, 12)}...` : displayName;
     }
     
     // Fall back to truncated address
