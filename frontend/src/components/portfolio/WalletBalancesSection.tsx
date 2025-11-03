@@ -265,7 +265,13 @@ const WalletBalancesSection: React.FC = () => {
                     parseFloat(tokenBalance.balance) > 0
                       ? "bg-gradient-to-br from-slate-800/40 to-slate-900/30 border-slate-600/70 hover:border-slate-500/90 hover:shadow-slate-800/20"
                       : "bg-gradient-to-br from-slate-900/30 to-slate-950/40 border-slate-700/50 opacity-75"
-                  } bg-noise-dark shadow-lg`}
+                  } bg-noise-dark shadow-lg ${
+                    !tokenBalance.isLST &&
+                    tokenBalance.tokenId !== "0" &&
+                    (parseFloat(tokenBalance.balance) === 0 || !tokenBalance.isOptedIn)
+                      ? "pb-12"
+                      : ""
+                  }`}
                   whileHover={{ scale: 1.02, y: -1 }}
                   transition={{ duration: 0.15 }}
                 >
@@ -347,15 +353,6 @@ const WalletBalancesSection: React.FC = () => {
                             >
                               {tokenBalance.formattedBalance}
                             </div>
-
-                            {!tokenBalance.isOptedIn &&
-                              tokenBalance.tokenId !== "0" && (
-                                <div className="bg-amber-900/30 border border-amber-700/50 px-1 py-0.5">
-                                  <span className="text-xs text-amber-400 font-mono font-semibold uppercase tracking-wider">
-                                    Not Opted In
-                                  </span>
-                                </div>
-                              )}
                           </div>
                         </div>
                       </div>
@@ -372,6 +369,43 @@ const WalletBalancesSection: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Buy on Compx Button - Positioned in bottom right for base tokens with 0 balance or not opted in */}
+                  {!tokenBalance.isLST &&
+                    tokenBalance.tokenId !== "0" &&
+                    (parseFloat(tokenBalance.balance) === 0 || !tokenBalance.isOptedIn) && (
+                      <div className="absolute bottom-2 right-2 z-10">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const swapUrl = `https://app.compx.io/swap?asset_1=0&asset_2=${tokenBalance.tokenId}`;
+                            window.open(swapUrl, "_blank", "noopener,noreferrer");
+                          }}
+                          className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-cyan-400 font-mono text-[10px] uppercase tracking-wide cut-corners-sm transition-all duration-150 border border-cyan-500 hover:border-cyan-400 flex items-center space-x-1.5 whitespace-nowrap"
+                        >
+                          <img
+                            src="/compx-logo-small.png"
+                            alt="Compx"
+                            className="w-3.5 h-3.5 flex-shrink-0"
+                          />
+                          <span className="text-white">Buy <span className="text-compx-pink">{tokenBalance.tokenSymbol}</span></span>
+                          <svg
+                            className="w-2.5 h-2.5 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                 </motion.div>
               ))}
             </div>

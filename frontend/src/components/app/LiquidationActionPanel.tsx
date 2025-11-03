@@ -2,6 +2,7 @@ import { DollarSign, AlertTriangle } from "lucide-react";
 import { DebtPosition } from "../../types/lending";
 import { LendingMarket } from "../../types/lending";
 import MomentumSpinner from "../MomentumSpinner";
+import { BuyOnCompxButton } from "./BuyOnCompxButton";
 
 interface LiquidationActionPanelProps {
   position: DebtPosition;
@@ -197,6 +198,16 @@ const LiquidationActionPanel = ({
                   </div>
                 )}
               </div>
+              {/* Buy on Compx Button when insufficient balance */}
+              {userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < requestedRepayAmount && (
+                <div className="mt-2 flex justify-center">
+                  <BuyOnCompxButton
+                    tokenSymbol={position.debtToken.symbol}
+                    tokenId={position.debtToken.id}
+                    hasBalance={false}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Liquidation Amount Input */}
@@ -429,6 +440,16 @@ const LiquidationActionPanel = ({
                   </div>
                 )}
               </div>
+              {/* Buy on Compx Button when insufficient balance */}
+              {userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < position.buyoutDebtRepaymentTokens && (
+                <div className="mt-2 flex justify-center">
+                  <BuyOnCompxButton
+                    tokenSymbol={position.debtToken.symbol}
+                    tokenId={position.debtToken.id}
+                    hasBalance={false}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Debt Repayment */}

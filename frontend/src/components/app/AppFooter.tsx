@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { ExternalLink, Shield, Zap } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useNetwork } from "../../context/networkContext";
 
 // Helper component for network environment badge
@@ -20,7 +19,6 @@ const NetworkEnvironmentBadge = () => {
 
 const AppFooter = () => {
   const currentYear = new Date().getFullYear();
-  const navigate = useNavigate();
 
   const socialLinks = [
     {
@@ -102,7 +100,7 @@ const AppFooter = () => {
     >
       <div className="text-slate-600 cut-corners-lg mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 bg-noise-dark border-2 border-slate-600 shadow-industrial max-w-7xl w-full">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8 min-w-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12 mb-8 min-w-0">
           {/* Branding Section */}
           <div className="flex flex-col gap-4 min-w-0">
             <div className="flex items-center gap-3">
@@ -132,45 +130,66 @@ const AppFooter = () => {
             </div>
           </div>
 
-          {/* Navigation Links */}
+          {/* CompX Ecosystem */}
           <div className="flex flex-col gap-4 min-w-0">
             <h3 className="text-sm font-mono font-semibold text-white uppercase tracking-wide mb-2">
-              Navigation
+              CompX Ecosystem
             </h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <button
-                onClick={() => navigate('/app/markets')}
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
-              >
-                Markets
-              </button>
-              <button
-                onClick={() => navigate('/app/portfolio')}
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
-              >
-                Logbook
-              </button>
-              <button
-                onClick={() => navigate('/app')}
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left"
-              >
-                Dashboard
-              </button>
+            <div className="flex flex-col gap-3">
               <a
-                href="https://compx.io"
+                href="https://app.compx.io"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2"
+                className="flex items-center gap-3 text-slate-400 hover:text-cyan-400 transition-colors group"
               >
-                CompX Website
-                <ExternalLink className="w-3 h-3" />
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center transition-colors flex-shrink-0">
+                  <img
+                    src="/compx-logo-small.png"
+                    alt="CompX Core"
+                    className="w-6 h-6 object-contain rounded-full"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono">CompX Core</span>
+                  <ExternalLink className="w-3 h-3" />
+                </div>
               </a>
-              <button
-                onClick={() => navigate('/app/docs')}
-                className="text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm flex items-center gap-2 text-left col-span-2"
+              <a
+                href="https://waypoint.compx.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 text-slate-400 hover:text-cyan-400 transition-colors group"
               >
-                Documentation
-              </button>
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center transition-colors flex-shrink-0">
+                  <img
+                    src="/waypoint-logo-small.png"
+                    alt="Waypoint"
+                    className="w-6 h-6 object-contain rounded-full"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono">Waypoint</span>
+                  <ExternalLink className="w-3 h-3" />
+                </div>
+              </a>
+              <a
+                href="https://cairn.live"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 text-slate-400 hover:text-cyan-400 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center transition-colors flex-shrink-0">
+                  <img
+                    src="/cairn-logo-small.png"
+                    alt="Cairn"
+                    className="w-6 h-6 object-contain rounded-full"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono">Cairn</span>
+                  <ExternalLink className="w-3 h-3" />
+                </div>
+              </a>
             </div>
           </div>
 
