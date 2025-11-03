@@ -18,9 +18,7 @@ import ExplorerSelectModal from "./ExplorerSelectModal";
 import NetworkSelectModal from "./NetworkSelectModal";
 import { useExplorer, EXPLORERS } from "../../context/explorerContext";
 import { useNetwork } from "../../context/networkContext";
-import { galaxyCardTypes } from "./galaxy-card-data";
-import { getUserFluxTier } from "../../contracts/flux/state";
-import axios from "axios";
+import GovernanceRewardsButtons from "./GovernanceRewardsButtons";
 
 const WalletButton: React.FC = () => {
   const { activeAccount, activeWallet } = useWallet();
@@ -34,10 +32,6 @@ const WalletButton: React.FC = () => {
     top: 0,
     right: 0,
   });
-  const [galaxyCardImageUrl, setGalaxyCardImageUrl] = useState<string>("");
-  const [loadingGalaxyCard, setLoadingGalaxyCard] = useState(false);
-  const [fluxTier, setFluxTier] = useState<number>(0);
-  const [loadingFluxTier, setLoadingFluxTier] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { selectedExplorer } = useExplorer();
@@ -57,62 +51,6 @@ const WalletButton: React.FC = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Fetch Galaxy Card data
-  useEffect(() => {
-    const fetchGalaxyCard = async () => {
-      if (!activeAccount?.address) {
-        setGalaxyCardImageUrl("");
-        return;
-      }
-
-      setLoadingGalaxyCard(true);
-      try {
-        const { data: galaxyCardData } = await axios.get(
-          `https://api-general.compx.io/api/galaxy-card/${activeAccount.address}`
-        );
-        if (galaxyCardData) {
-          const imageUrl =
-            galaxyCardTypes.find(
-              (card) =>
-                card.name === galaxyCardData.name &&
-                card.level == galaxyCardData.level
-            )?.imageURL || "";
-          setGalaxyCardImageUrl(imageUrl);
-        }
-      } catch (error) {
-        console.error("Failed to fetch galaxy card:", error);
-        setGalaxyCardImageUrl("");
-      } finally {
-        setLoadingGalaxyCard(false);
-      }
-    };
-
-    fetchGalaxyCard();
-  }, [activeAccount?.address]);
-
-  // Fetch FLUX tier data
-  useEffect(() => {
-    const fetchFluxTier = async () => {
-      if (!activeAccount?.address) {
-        setFluxTier(0);
-        return;
-      }
-
-      setLoadingFluxTier(true);
-      try {
-        const tier = await getUserFluxTier(activeAccount.address);
-        setFluxTier(tier);
-      } catch (error) {
-        console.error("Failed to fetch FLUX tier:", error);
-        setFluxTier(0);
-      } finally {
-        setLoadingFluxTier(false);
-      }
-    };
-
-    fetchFluxTier();
-  }, [activeAccount?.address]);
 
   const handleConnect = () => {
     setDisplayWalletConnectModal(true);
@@ -261,87 +199,11 @@ const WalletButton: React.FC = () => {
                 <div className="absolute inset-0 cut-corners-lg shadow-edge-glow pointer-events-none"></div>
                 
                 {/* Wallet info header with action buttons */}
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-700">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border-2 border-slate-500 overflow-hidden flex-shrink-0">
-                    {nfdAvatar ? (
-                      <img
-                        src={nfdAvatar}
-                        alt="NFD Avatar"
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <img
-                        src={activeWallet.metadata.icon}
-                        alt={`${activeWallet.metadata.name} logo`}
-                        className="w-7 h-7 object-contain rounded-full"
-                      />
-                    )}
-                  </div>
-                  
-                  {/* Action buttons grid */}
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    {/* Governance button */}
-                    <div className="relative group">
-                      <button
-                        onClick={() => {
-                          window.open('https://app.compx.io/governance', '_blank', 'noopener,noreferrer');
-                          setIsDropdownOpen(false);
-                        }}
-                        className="w-full h-14 px-2 bg-transparent border-2 border-slate-600   hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center justify-center gap-1"
-                      >
-                        {loadingFluxTier ? (
-                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-cyan-400 border-t-transparent"></div>
-                        ) : (
-                          <>
-                            <img 
-                              src="/FLUX-LOGO.png" 
-                              alt="FLUX" 
-                              className="w-10 h-10 object-contain rounded-full"
-                            />
-                            <span className="text-md font-mono font-bold text-white uppercase tracking-wide">
-                              T-{fluxTier}
-                            </span>
-                          </>
-                        )}
-                      </button>
-                      {/* Tooltip */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-slate-900 border border-cyan-500 text-white text-xs font-mono whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50">
-                        Your current FLUX tier
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-cyan-500"></div>
-                      </div>
-                    </div>
-                    
-                    {/* COMPX Rewards button */}
-                    <div className="relative group">
-                      <button
-                        onClick={() => {
-                          window.open('https://app.compx.io/compx-rewards', '_blank', 'noopener,noreferrer');
-                          setIsDropdownOpen(false);
-                        }}
-                        className={`w-full h-14 bg-transparent border-2 border-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center justify-center relative overflow-hidden ${galaxyCardImageUrl ? 'p-0' : 'px-2'}`}
-                      >
-                        {loadingGalaxyCard ? (
-                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-400 border-t-transparent"></div>
-                        ) : galaxyCardImageUrl ? (
-                          <img 
-                            src={galaxyCardImageUrl} 
-                            alt="Galaxy Card" 
-                            className="w-full h-full object-cover absolute inset-0"
-                          />
-                        ) : (
-                          <span className="text-xs font-mono font-bold text-white uppercase tracking-wide text-center">
-                            Earn CompX Rewards
-                          </span>
-                        )}
-                      </button>
-                      {/* Tooltip */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-slate-900 border border-cyan-500 text-white text-xs font-mono whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50">
-                        Your current CompX Rewards level
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-cyan-500"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <GovernanceRewardsButtons
+                  walletAddress={activeAccount.address}
+                  walletIcon={activeWallet.metadata.icon}
+                  nfdAvatar={nfdAvatar}
+                />
 
                 {/* Address section */}
                 <div className="mb-6">
@@ -375,11 +237,11 @@ const WalletButton: React.FC = () => {
                   {/* Network Select button */}
                   <button
                     onClick={handleNetworkSelect}
-                    className="w-full h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                    className="w-full h-12 px-4 bg-slate-700 border-2 border-t-cyan-500 border-l-cyan-500 border-b-slate-700 border-r-slate-700 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                   >
                     <div className={`w-6 h-6 flex items-center justify-center border ${
                       isTestnet 
-                        ? 'bg-purple-600 border-purple-500' 
+                        ? 'bg-cyan-600 border-cyan-500' 
                         : 'bg-cyan-600 border-cyan-500'
                     }`}>
                       {isTestnet ? (
@@ -392,9 +254,7 @@ const WalletButton: React.FC = () => {
                       <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
                         Switch Network
                       </p>
-                      <p className={`text-xs font-mono ${
-                        isTestnet ? 'text-purple-200' : 'text-cyan-200'
-                      }`}>
+                      <p className="text-xs font-mono text-cyan-200">
                         Current: {isTestnet ? 'Testnet' : 'Mainnet'}
                       </p>
                     </div>
@@ -404,16 +264,16 @@ const WalletButton: React.FC = () => {
                   {isTestnet && (
                     <button
                       onClick={handleFaucet}
-                      className="w-full h-12 px-4 bg-purple-600 border-2 border-purple-500 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-purple-500 hover:border-purple-400 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                      className="w-full h-12 px-4 bg-cyan-600 border-2 border-t-cyan-400 border-l-cyan-400 border-b-cyan-700 border-r-cyan-700 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-cyan-500 hover:border-cyan-400 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                     >
-                      <div className="w-6 h-6 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center border border-purple-500">
-                        <Droplets className="w-3 h-3 text-purple-200" />
+                      <div className="w-6 h-6 bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-full flex items-center justify-center border border-cyan-500">
+                        <Droplets className="w-3 h-3 text-cyan-200" />
                       </div>
                       <div className="flex-1 text-left">
                         <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
                           Resource Station
                         </p>
-                        <p className="text-xs text-purple-200 font-mono">
+                        <p className="text-xs text-cyan-200 font-mono">
                           Request testnet resources
                         </p>
                       </div>
@@ -423,7 +283,7 @@ const WalletButton: React.FC = () => {
                   {/* Explorer Select button */}
                   <button
                     onClick={handleExplorerSelect}
-                    className="w-full h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                    className="w-full h-12 px-4 bg-slate-700 border-2 border-t-cyan-500 border-l-cyan-500 border-b-slate-700 border-r-slate-700 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                   >
                     <div className="w-6 h-6 flex items-center justify-center border border-slate-500" style={{ backgroundColor: EXPLORERS[selectedExplorer].bgColor }}>
                       <img 
