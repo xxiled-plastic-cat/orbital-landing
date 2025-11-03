@@ -18,6 +18,9 @@ import ExplorerSelectModal from "./ExplorerSelectModal";
 import NetworkSelectModal from "./NetworkSelectModal";
 import { useExplorer, EXPLORERS } from "../../context/explorerContext";
 import { useNetwork } from "../../context/networkContext";
+import { galaxyCardTypes } from "./galaxy-card-data";
+import { getUserFluxTier } from "../../contracts/flux/state";
+import axios from "axios";
 
 const WalletButton: React.FC = () => {
   const { activeAccount, activeWallet } = useWallet();
@@ -31,6 +34,10 @@ const WalletButton: React.FC = () => {
     top: 0,
     right: 0,
   });
+  const [galaxyCardImageUrl, setGalaxyCardImageUrl] = useState<string>("");
+  const [loadingGalaxyCard, setLoadingGalaxyCard] = useState(false);
+  const [fluxTier, setFluxTier] = useState<number>(0);
+  const [loadingFluxTier, setLoadingFluxTier] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { selectedExplorer } = useExplorer();
@@ -50,6 +57,62 @@ const WalletButton: React.FC = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch Galaxy Card data
+  useEffect(() => {
+    const fetchGalaxyCard = async () => {
+      if (!activeAccount?.address) {
+        setGalaxyCardImageUrl("");
+        return;
+      }
+
+      setLoadingGalaxyCard(true);
+      try {
+        const { data: galaxyCardData } = await axios.get(
+          `https://api-general.compx.io/api/galaxy-card/${activeAccount.address}`
+        );
+        if (galaxyCardData) {
+          const imageUrl =
+            galaxyCardTypes.find(
+              (card) =>
+                card.name === galaxyCardData.name &&
+                card.level == galaxyCardData.level
+            )?.imageURL || "";
+          setGalaxyCardImageUrl(imageUrl);
+        }
+      } catch (error) {
+        console.error("Failed to fetch galaxy card:", error);
+        setGalaxyCardImageUrl("");
+      } finally {
+        setLoadingGalaxyCard(false);
+      }
+    };
+
+    fetchGalaxyCard();
+  }, [activeAccount?.address]);
+
+  // Fetch FLUX tier data
+  useEffect(() => {
+    const fetchFluxTier = async () => {
+      if (!activeAccount?.address) {
+        setFluxTier(0);
+        return;
+      }
+
+      setLoadingFluxTier(true);
+      try {
+        const tier = await getUserFluxTier(activeAccount.address);
+        setFluxTier(tier);
+      } catch (error) {
+        console.error("Failed to fetch FLUX tier:", error);
+        setFluxTier(0);
+      } finally {
+        setLoadingFluxTier(false);
+      }
+    };
+
+    fetchFluxTier();
+  }, [activeAccount?.address]);
 
   const handleConnect = () => {
     setDisplayWalletConnectModal(true);
@@ -197,9 +260,9 @@ const WalletButton: React.FC = () => {
                 {/* Edge lighting */}
                 <div className="absolute inset-0 cut-corners-lg shadow-edge-glow pointer-events-none"></div>
                 
-                {/* Wallet info header */}
-                <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-700">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border-2 border-slate-500 overflow-hidden">
+                {/* Wallet info header with action buttons */}
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-700">
+                  <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border-2 border-slate-500 overflow-hidden flex-shrink-0">
                     {nfdAvatar ? (
                       <img
                         src={nfdAvatar}
@@ -214,13 +277,68 @@ const WalletButton: React.FC = () => {
                       />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-mono font-bold text-white text-lg uppercase tracking-wide">
-                      {activeWallet.metadata.name}
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <p className="text-sm text-slate-300 font-mono uppercase tracking-wide">Connected</p>
+                  
+                  {/* Action buttons grid */}
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    {/* Governance button */}
+                    <div className="relative group">
+                      <button
+                        onClick={() => {
+                          window.open('https://app.compx.io/governance', '_blank', 'noopener,noreferrer');
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full h-14 px-2 bg-transparent border-2 border-slate-600   hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center justify-center gap-1"
+                      >
+                        {loadingFluxTier ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-cyan-400 border-t-transparent"></div>
+                        ) : (
+                          <>
+                            <img 
+                              src="/FLUX-LOGO.png" 
+                              alt="FLUX" 
+                              className="w-10 h-10 object-contain rounded-full"
+                            />
+                            <span className="text-md font-mono font-bold text-white uppercase tracking-wide">
+                              T-{fluxTier}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                      {/* Tooltip */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-slate-900 border border-cyan-500 text-white text-xs font-mono whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50">
+                        Your current FLUX tier
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-cyan-500"></div>
+                      </div>
+                    </div>
+                    
+                    {/* COMPX Rewards button */}
+                    <div className="relative group">
+                      <button
+                        onClick={() => {
+                          window.open('https://app.compx.io/compx-rewards', '_blank', 'noopener,noreferrer');
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`w-full h-14 bg-transparent border-2 border-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center justify-center relative overflow-hidden ${galaxyCardImageUrl ? 'p-0' : 'px-2'}`}
+                      >
+                        {loadingGalaxyCard ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-400 border-t-transparent"></div>
+                        ) : galaxyCardImageUrl ? (
+                          <img 
+                            src={galaxyCardImageUrl} 
+                            alt="Galaxy Card" 
+                            className="w-full h-full object-cover absolute inset-0"
+                          />
+                        ) : (
+                          <span className="text-xs font-mono font-bold text-white uppercase tracking-wide text-center">
+                            Earn CompX Rewards
+                          </span>
+                        )}
+                      </button>
+                      {/* Tooltip */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-slate-900 border border-cyan-500 text-white text-xs font-mono whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50">
+                        Your current CompX Rewards level
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-cyan-500"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
