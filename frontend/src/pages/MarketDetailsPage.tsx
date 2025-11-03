@@ -45,6 +45,7 @@ import { recordUserAction } from "../services/userStats";
 import { useNetwork } from "../context/networkContext";
 import { ExplorerLinks } from "../components/app/explorerlinks";
 import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
+import { BuyOnCompxButton } from "../components/app/BuyOnCompxButton";
 
 // Helper component to display network name
 const NetworkDisplay = () => {
@@ -930,6 +931,13 @@ const MarketDetailsPage = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                {/* Buy on Compx Button */}
+                <BuyOnCompxButton
+                  tokenSymbol={getBaseTokenSymbol(market.symbol)}
+                  tokenId={market.baseTokenId}
+                  hasBalance={false}
+                />
+                
                 <Tooltip content="Loan-to-Value: Max % of collateral value you can borrow" position="bottom">
                   <div className="text-cyan-500 cut-corners-sm px-2 py-1 md:px-4 md:py-2 border border-cyan-500 shadow-inset">
                     <span className="text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wide">

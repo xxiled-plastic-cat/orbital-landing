@@ -18,6 +18,7 @@ import ExplorerSelectModal from "./ExplorerSelectModal";
 import NetworkSelectModal from "./NetworkSelectModal";
 import { useExplorer, EXPLORERS } from "../../context/explorerContext";
 import { useNetwork } from "../../context/networkContext";
+import GovernanceRewardsButtons from "./GovernanceRewardsButtons";
 
 const WalletButton: React.FC = () => {
   const { activeAccount, activeWallet } = useWallet();
@@ -152,9 +153,17 @@ const WalletButton: React.FC = () => {
               src={nfdAvatar}
               alt="NFD Avatar"
               className="w-full h-full object-cover rounded-full"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = `<img src="${activeWallet.metadata.icon}" alt="${activeWallet.metadata.name} logo" class="w-3 h-3 object-contain rounded-full" />`;
+              }}
             />
           ) : (
-            <Wallet className="w-3 h-3 text-cyan-400" />
+            <img
+              src={activeWallet.metadata.icon}
+              alt={`${activeWallet.metadata.name} logo`}
+              className="w-3 h-3 object-contain rounded-full"
+            />
           )}
         </div>
 
@@ -197,33 +206,12 @@ const WalletButton: React.FC = () => {
                 {/* Edge lighting */}
                 <div className="absolute inset-0 cut-corners-lg shadow-edge-glow pointer-events-none"></div>
                 
-                {/* Wallet info header */}
-                <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-700">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center border-2 border-slate-500 overflow-hidden">
-                    {nfdAvatar ? (
-                      <img
-                        src={nfdAvatar}
-                        alt="NFD Avatar"
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <img
-                        src={activeWallet.metadata.icon}
-                        alt={`${activeWallet.metadata.name} logo`}
-                        className="w-7 h-7 object-contain rounded-full"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-mono font-bold text-white text-lg uppercase tracking-wide">
-                      {activeWallet.metadata.name}
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <p className="text-sm text-slate-300 font-mono uppercase tracking-wide">Connected</p>
-                    </div>
-                  </div>
-                </div>
+                {/* Wallet info header with action buttons */}
+                <GovernanceRewardsButtons
+                  walletAddress={activeAccount.address}
+                  walletIcon={activeWallet.metadata.icon}
+                  nfdAvatar={nfdAvatar}
+                />
 
                 {/* Address section */}
                 <div className="mb-6">
@@ -257,11 +245,11 @@ const WalletButton: React.FC = () => {
                   {/* Network Select button */}
                   <button
                     onClick={handleNetworkSelect}
-                    className="w-full h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                    className="w-full h-12 px-4 bg-slate-700 border-2 border-t-cyan-500 border-l-cyan-500 border-b-slate-700 border-r-slate-700 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                   >
                     <div className={`w-6 h-6 flex items-center justify-center border ${
                       isTestnet 
-                        ? 'bg-purple-600 border-purple-500' 
+                        ? 'bg-cyan-600 border-cyan-500' 
                         : 'bg-cyan-600 border-cyan-500'
                     }`}>
                       {isTestnet ? (
@@ -274,9 +262,7 @@ const WalletButton: React.FC = () => {
                       <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
                         Switch Network
                       </p>
-                      <p className={`text-xs font-mono ${
-                        isTestnet ? 'text-purple-200' : 'text-cyan-200'
-                      }`}>
+                      <p className="text-xs font-mono text-cyan-200">
                         Current: {isTestnet ? 'Testnet' : 'Mainnet'}
                       </p>
                     </div>
@@ -286,16 +272,16 @@ const WalletButton: React.FC = () => {
                   {isTestnet && (
                     <button
                       onClick={handleFaucet}
-                      className="w-full h-12 px-4 bg-purple-600 border-2 border-purple-500 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-purple-500 hover:border-purple-400 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                      className="w-full h-12 px-4 bg-cyan-600 border-2 border-t-cyan-400 border-l-cyan-400 border-b-cyan-700 border-r-cyan-700 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-cyan-500 hover:border-cyan-400 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                     >
-                      <div className="w-6 h-6 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center border border-purple-500">
-                        <Droplets className="w-3 h-3 text-purple-200" />
+                      <div className="w-6 h-6 bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-full flex items-center justify-center border border-cyan-500">
+                        <Droplets className="w-3 h-3 text-cyan-200" />
                       </div>
                       <div className="flex-1 text-left">
                         <p className="font-mono font-bold text-white uppercase tracking-wide text-xs">
                           Resource Station
                         </p>
-                        <p className="text-xs text-purple-200 font-mono">
+                        <p className="text-xs text-cyan-200 font-mono">
                           Request testnet resources
                         </p>
                       </div>
@@ -305,7 +291,7 @@ const WalletButton: React.FC = () => {
                   {/* Explorer Select button */}
                   <button
                     onClick={handleExplorerSelect}
-                    className="w-full h-12 px-4 bg-slate-700 border-2 border-slate-600 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-slate-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
+                    className="w-full h-12 px-4 bg-slate-700 border-2 border-t-cyan-500 border-l-cyan-500 border-b-slate-700 border-r-slate-700 cut-corners-sm font-mono text-sm font-semibold text-white hover:bg-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center gap-3 relative z-10"
                   >
                     <div className="w-6 h-6 flex items-center justify-center border border-slate-500" style={{ backgroundColor: EXPLORERS[selectedExplorer].bgColor }}>
                       <img 

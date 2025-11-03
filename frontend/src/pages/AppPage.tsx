@@ -24,6 +24,7 @@ const AppPage = () => {
           {[
             {
               icon: DollarSign,
+              imageUrl: "/lending-markets.png",
               title: "Lending Markets",
               description:
                 "Supply assets to earn interest or borrow against your collateral with competitive rates.",
@@ -31,6 +32,7 @@ const AppPage = () => {
             },
             {
               icon: TrendingUp,
+              imageUrl: "/trading-post.png",
               title: "Mercury Trading Post",
               description:
                 "Discover and trade debt positions with automated pricing and instant liquidity.",
@@ -38,6 +40,7 @@ const AppPage = () => {
             },
             {
               icon: ClipboardList,
+              imageUrl: "/logbook.png",
               title: "Logbook",
               description:
                 "Monitor your positions, track performance, and manage your lending portfolio.",
@@ -46,45 +49,62 @@ const AppPage = () => {
           ].map((item) => (
             <motion.div
               key={item.title}
-              className="relative"
+              className="relative h-full"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: item.delay }}
             >
               {/* Industrial Card */}
-              <div className="text-slate-600 cut-corners-lg p-4 md:p-6 bg-noise-dark border-2 border-slate-600 shadow-industrial hover:border-slate-500 transition-all duration-150">
-                <div className="bg-slate-700 border border-slate-600 p-3 md:p-4 w-12 h-12 md:w-16 md:h-16 flex items-center justify-center mb-4 md:mb-6">
-                  <item.icon className="text-cyan-400 w-6 h-6 md:w-8 md:h-8" />
-                </div>
-                <h3 className="font-mono text-lg md:text-xl font-bold mb-3 md:mb-4 text-white">
-                  {item.title}
-                </h3>
-                <p className="text-slate-300 mb-4 md:mb-6 leading-relaxed text-sm">
-                  {item.description}
-                </p>
-                {item.title === "Lending Markets" ? (
-                  <Link to="/app/markets" className="block w-full">
-                    <button className="w-full text-cyan-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400">
-                      <span className="text-white">EXPLORE MARKETS</span>
-                    </button>
-                  </Link>
-                ) : item.title === "Mercury Trading Post" ? (
-                  <Link to="/app/marketplace" className="block w-full">
-                    <button className="w-full text-cyan-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400">
-                      <span className="text-white">ENTER MERCURY TRADING POST</span>
-                    </button>
-                  </Link>
-                ) : item.title === "Logbook" ? (
-                  <Link to="/app/portfolio" className="block w-full">
-                    <button className="w-full text-cyan-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400">
-                      <span className="text-white">VIEW LOGBOOK</span>
-                    </button>
-                  </Link>
-                ) : (
-                  <button className="w-full text-slate-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm cursor-not-allowed border border-slate-500">
-                    <span className="text-slate-400">COMING SOON</span>
-                  </button>
+              <div className="h-full flex flex-col text-slate-600 cut-corners-lg bg-noise-dark border-2 border-slate-600 shadow-industrial hover:border-slate-500 transition-all duration-150">
+                {/* Image at top if present */}
+                {item.imageUrl && (
+                  <div className="p-4 md:p-6 pb-0">
+                    <div className="w-full aspect-[4/3] overflow-hidden border-2 border-slate-600">
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
                 )}
+                
+                <div className="flex-grow flex flex-col p-4 md:p-6">
+                  {!item.imageUrl && (
+                    <div className="bg-slate-700 border border-slate-600 p-3 md:p-4 w-12 h-12 md:w-16 md:h-16 flex items-center justify-center mb-4 md:mb-6">
+                      <item.icon className="text-cyan-400 w-6 h-6 md:w-8 md:h-8" />
+                    </div>
+                  )}
+                  <h3 className="font-mono text-lg md:text-xl font-bold mb-3 md:mb-4 text-white">
+                    {item.title}
+                  </h3>
+                  <p className="text-slate-300 mb-4 md:mb-6 leading-relaxed text-sm flex-grow">
+                    {item.description}
+                  </p>
+                  {item.title === "Lending Markets" ? (
+                    <Link to="/app/markets" className="block w-full">
+                      <button className="w-full text-cyan-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400">
+                        <span className="text-white">EXPLORE MARKETS</span>
+                      </button>
+                    </Link>
+                  ) : item.title === "Mercury Trading Post" ? (
+                    <Link to="/app/marketplace" className="block w-full">
+                      <button className="w-full text-cyan-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400">
+                        <span className="text-white">ENTER MERCURY TRADING POST</span>
+                      </button>
+                    </Link>
+                  ) : item.title === "Logbook" ? (
+                    <Link to="/app/portfolio" className="block w-full">
+                      <button className="w-full text-cyan-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400">
+                        <span className="text-white">VIEW LOGBOOK</span>
+                      </button>
+                    </Link>
+                  ) : (
+                    <button className="w-full text-slate-500 cut-corners-sm px-4 py-2.5 md:px-6 md:py-3 font-mono text-xs md:text-sm cursor-not-allowed border border-slate-500">
+                      <span className="text-slate-400">COMING SOON</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           ))}
