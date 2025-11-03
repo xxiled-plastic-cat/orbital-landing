@@ -83,6 +83,12 @@ const GovernanceRewardsButtons: React.FC<GovernanceRewardsButtonsProps> = ({
             src={nfdAvatar}
             alt="NFD Avatar"
             className="w-full h-full object-cover rounded-full"
+            onError={(e) => {
+              if (walletIcon) {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = `<img src="${walletIcon}" alt="Wallet logo" class="w-7 h-7 object-contain rounded-full" />`;
+              }
+            }}
           />
         ) : walletIcon ? (
           <img

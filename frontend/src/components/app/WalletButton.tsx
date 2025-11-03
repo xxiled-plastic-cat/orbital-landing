@@ -153,9 +153,17 @@ const WalletButton: React.FC = () => {
               src={nfdAvatar}
               alt="NFD Avatar"
               className="w-full h-full object-cover rounded-full"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = `<img src="${activeWallet.metadata.icon}" alt="${activeWallet.metadata.name} logo" class="w-3 h-3 object-contain rounded-full" />`;
+              }}
             />
           ) : (
-            <Wallet className="w-3 h-3 text-cyan-400" />
+            <img
+              src={activeWallet.metadata.icon}
+              alt={`${activeWallet.metadata.name} logo`}
+              className="w-3 h-3 object-contain rounded-full"
+            />
           )}
         </div>
 
