@@ -173,20 +173,20 @@ const AppFooter = () => {
                 </div>
               </a>
               <a
-                href="https://cairn.live"
+                href="https://canix.compx.io"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 text-slate-400 hover:text-cyan-400 transition-colors group"
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center transition-colors flex-shrink-0">
                   <img
-                    src="/cairn-logo-small.png"
-                    alt="Cairn"
+                    src="/canix-logo-small.png"
+                    alt="Canix"
                     className="w-6 h-6 object-contain rounded-full"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono">Cairn</span>
+                  <span className="text-sm font-mono">Canix</span>
                   <ExternalLink className="w-3 h-3" />
                 </div>
               </a>
