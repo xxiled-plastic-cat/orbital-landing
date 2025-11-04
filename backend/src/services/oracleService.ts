@@ -259,13 +259,22 @@ function getAssetDecimals(assetId: number): number {
  */
 export async function getOracleAssets(): Promise<OracleAsset[]> {
   const isTestnet = process.env.ALGORAND_NETWORK === "testnet";
+  const networkName = isTestnet ? "TESTNET" : "MAINNET";
+  
   console.log("📋 Fetching assets from oracle application...");
-  console.log(`   Network: ${isTestnet ? "TESTNET" : "MAINNET"}`);
+  console.log(`   Network: ${networkName}`);
+  console.log(`   Node URL: ${process.env.ALGORAND_NODE_URL || "https://testnet-api.4160.nodely.dev"}`);
+  console.log(`   Oracle App ID: ${process.env.ORACLE_APP_ID}`);
   console.log(
     `   Strategy: Oracle uses ${
       isTestnet ? "testnet" : "mainnet"
     } IDs, price APIs use mainnet IDs`
   );
+  
+  // Warn if asset IDs look suspicious
+  if (!isTestnet) {
+    console.log(`   ⚠️  MAINNET MODE: Ensure your oracle only contains mainnet asset IDs`);
+  }
 
   try {
     const algorand = algokit.AlgorandClient.fromConfig({
@@ -313,11 +322,25 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
       try {
         const assetId = Number(assetIdKey.assetId);
 
+        // Validate asset ID first
+        if (isNaN(assetId)) {
+          console.warn(`  ⚠️  Invalid asset ID from oracle, skipping`);
+          continue;
+        }
+
+        // Validate price value exists
+        if (!priceValue || priceValue.price === undefined || priceValue.price === null) {
+          console.warn(
+            `  ⚠️  No price value found for asset ${assetId} - skipping`
+          );
+          continue;
+        }
+
         // Check if we have metadata for this asset
         const metadata = assetMetadataCache.get(assetId);
         if (!metadata) {
           console.warn(
-            `  ⚠️  No metadata cached for asset ${assetId} - skipping`
+            `  ⚠️  No metadata cached for asset ${assetId} - skipping (ensure asset exists on ${isTestnet ? 'testnet' : 'mainnet'})`
           );
           continue;
         }
@@ -329,11 +352,21 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
 
         // Convert the stored price using the correct decimals
         const rawPrice = Number(priceValue.price);
+        
+        // Validate the raw price
+        if (isNaN(rawPrice) || rawPrice < 0) {
+          console.warn(
+            `  ⚠️  Invalid raw price (${rawPrice}) for asset ${assetId} (${assetSymbol}), skipping`
+          );
+          continue;
+        }
+
         const currentPrice = rawPrice / priceScaleFactor;
 
-        if (isNaN(assetId) || isNaN(currentPrice) || currentPrice < 0) {
+        // Final validation of computed price
+        if (isNaN(currentPrice) || currentPrice < 0) {
           console.warn(
-            `  ⚠️  Invalid asset ID (${assetId}) or price (${currentPrice}), skipping`
+            `  ⚠️  Invalid computed price (${currentPrice}) for asset ${assetId} (${assetSymbol}), skipping`
           );
           continue;
         }
