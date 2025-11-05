@@ -6,7 +6,7 @@ import TokenizedDebt from '../components/TokenizedDebt';
 import DebtMarketplace from '../components/DebtMarketplace';
 import MarketplaceLayer from '../components/MarketplaceLayer';
 import WhyOrbital from '../components/WhyOrbital';
-import Footer from '../components/Footer';
+import AppFooter from '../components/app/AppFooter';
 
 const LandingPage = () => {
   return (
@@ -20,7 +20,7 @@ const LandingPage = () => {
         <MarketplaceLayer />
         <WhyOrbital />
       </main>
-      <Footer />
+      <AppFooter />
     </div>
   );
 };

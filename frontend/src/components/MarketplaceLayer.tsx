@@ -89,7 +89,7 @@ const MarketplaceLayer = () => {
                     <div className="mb-2 font-bold">Smart Contract Layer</div>
                     <div className="flex flex-wrap gap-2">
                       <div className="bg-neon-teal bg-opacity-10 text-neon-teal text-xs px-2 py-1 rounded whitespace-nowrap">Lending Markets</div>
-                      <div className="bg-neon-purple bg-opacity-10 text-neon-purple text-xs px-2 py-1 rounded whitespace-nowrap">Loaner NFTs</div>
+                      <div className="bg-neon-purple bg-opacity-10 text-neon-purple text-xs px-2 py-1 rounded whitespace-nowrap">Debt Positions</div>
                       <div className="bg-neon-pink bg-opacity-10 text-neon-pink text-xs px-2 py-1 rounded whitespace-nowrap">Price Oracles</div>
                       <div className="bg-blue-500 bg-opacity-10 text-blue-500 text-xs px-2 py-1 rounded whitespace-nowrap">Liquidation Engine</div>
                     </div>

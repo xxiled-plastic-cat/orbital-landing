@@ -100,8 +100,8 @@ const TokenizedDebt = () => {
                   <CircleDollarSign className="text-neon-pink w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold mb-2">Smart Contract Security</h3>
-                  <p className="text-soft-gray">The lending contract retains full control via clawback/freeze mechanisms, ensuring market integrity.</p>
+                  <h3 className="text-xl font-bold mb-2">Buyout healthy loans with a premium</h3>
+                  <p className="text-soft-gray">Buyout healthly loans paying a premium to the borrower and protocol</p>
                 </div>
               </motion.li>
             </ul>

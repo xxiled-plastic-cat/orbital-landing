@@ -1,6 +1,6 @@
 
 import { motion } from 'framer-motion';
-import { ChevronDown, Rocket, BarChart3 } from 'lucide-react';
+import {  Rocket, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OrbitalAnimation from './OrbitalAnimation';
 import OrbitalParticles from './OrbitalParticles';
@@ -61,14 +61,7 @@ const Hero = () => {
           </motion.div>
         </div>
         
-        <motion.div 
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-cyan-400 flex flex-col items-center"
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <p className="text-sm mb-2 font-mono">DISCOVER MORE</p>
-          <ChevronDown />
-        </motion.div>
+       
       </div>
       
       {/* Subtle background effects */}

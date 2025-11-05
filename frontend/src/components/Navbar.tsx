@@ -22,7 +22,7 @@ const Navbar = () => {
 
   const navLinks = [
     { name: 'Markets', href: '#markets' },
-    { name: 'Loaner NFTs', href: '#tokenized-debt' },
+    { name: 'Tokenized Debt', href: '#tokenized-debt' },
     { name: 'Marketplace', href: '#marketplace' },
     { name: 'Benefits', href: '#why-orbital' },
   ];
@@ -38,13 +38,11 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center gap-3">
-            <div className="bg-slate-800 border border-slate-600 p-2 rounded-lg">
-              <img 
-                src="/orbital-logo.png" 
-                alt="Orbital Lending" 
-                className="h-6 w-6"
-              />
-            </div>
+            <img 
+              src="/orbital-logo.png" 
+              alt="Orbital Lending" 
+              className="h-10 w-10 rounded-full"
+            />
             <span className="font-mono text-xl font-bold text-white">ORBITAL<span className="text-cyan-400">LENDING</span></span>
           </div>
           
