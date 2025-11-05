@@ -30,7 +30,7 @@ const Hero = () => {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              Unlock composable DeFi with liquid loans, tokenized debt, and permissionless risk transfer—all fully on-chain.
+              Unlock composable DeFi with liquid loans, tokenized debt, and permissionless risk transfer.<br /> Fully on-chain.
             </motion.p>
             
             <motion.div 

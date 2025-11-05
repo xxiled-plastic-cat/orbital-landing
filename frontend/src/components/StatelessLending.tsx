@@ -43,22 +43,22 @@ const StatelessLending = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <AnimatedCard 
-            title="Stateless Architecture"
-            description="Each supported asset has its own standalone smart contract. Zero per-user state means full composability and minimal overhead."
+            title="Isolated Markets"
+            description="Each supported asset has its own standalone smart contract, liquidity and risk are isolated."
             icon={Database}
             delay={0}
           />
           
           <AnimatedCard 
-            title="Oracle-based Lending"
-            description="Depositing mints Liquid Staking Tokens (LSTs) that accrue value over time, with oracle-powered lending limits."
+            title="Liquid Staking Tokens"
+            description="Depositing mints Liquid Staking Tokens (LSTs) that accrue value over time."
             icon={Blocks}
             delay={1}
           />
           
           <AnimatedCard 
             title="Cross-Market Borrowing"
-            description="Users can borrow any asset in the ecosystem—across contracts—if their LST is accepted as collateral."
+            description="Users can borrow any asset in the ecosystem if their LST is accepted as collateral."
             icon={ArrowRightLeft}
             delay={2}
           />
@@ -84,8 +84,7 @@ const StatelessLending = () => {
               Depositing mints Liquid Staking Tokens (LSTs) that accrue value over time.
             </p>
             <p className="text-slate-300 font-mono">
-              Users can borrow any asset in the ecosystem—across contracts—if their LST is accepted as collateral.
-              Zero per-user state means full composability with minimal overhead.
+              Users can borrow any asset in the ecosystem if their LST is accepted as collateral.
             </p>
           </div>
         </motion.div>
