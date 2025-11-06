@@ -53,7 +53,7 @@
 {
   "platform": "Orbital Lending",
   "logo": "/orbital-icon.svg",
-  "url": "https://app.orbitallending.com",
+  "url": "https://orbital.compx.io",
   "asset": "Algorand",
   "assetType": "Native",
   "yieldType": "Lending",
