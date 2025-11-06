@@ -378,9 +378,35 @@ export async function fetchAssetMetadata(
       return metadataArray;
     }
 
-    // Fetch from backend for mainnet
+    // Separate ALGO (asset ID 0) from other assets
+    const algoAssets: AssetMetadata[] = [];
+    const regularAssets: string[] = [];
+    
+    assetIds.forEach((assetId) => {
+      if (assetId === '0') {
+        // Hardcode ALGO metadata
+        algoAssets.push({
+          id: '0',
+          name: 'Algorand',
+          symbol: 'ALGO',
+          decimals: 6,
+          image: '/mainnet-tokens/0.svg',
+          verified: true,
+          frozen: false,
+        });
+      } else {
+        regularAssets.push(assetId);
+      }
+    });
+
+    // If there are no regular assets to fetch, just return ALGO
+    if (regularAssets.length === 0) {
+      return algoAssets;
+    }
+
+    // Fetch from backend for mainnet (non-ALGO assets)
     const response = await axios.post(`${ORBITAL_BACKEND_URL}/assets`, {
-      assetIds,
+      assetIds: regularAssets,
     });
 
     // Backend returns an object with asset IDs as keys, convert to array
@@ -402,11 +428,12 @@ export async function fetchAssetMetadata(
           frozen: assetData.frozen || assetData["is-frozen"],
         });
       }
-      return metadataArray;
+      // Combine with ALGO metadata
+      return [...algoAssets, ...metadataArray];
     }
 
-    // If it's already an array, return as-is
-    return responseData;
+    // If it's already an array, combine with ALGO and return
+    return [...algoAssets, ...responseData];
   } catch (error) {
     console.error("Failed to fetch asset metadata:", error);
     
