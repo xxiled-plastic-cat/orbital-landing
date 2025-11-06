@@ -171,11 +171,11 @@ const AppPage = () => {
                   <ul className="space-y-3 text-slate-300 text-sm">
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-amber-500"></div>
-                      <span>Mainnet Deployment</span>
+                      <span>Mainnet Deployment ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-amber-500"></div>
-                      <span>Launch ASA Markets: xUSD, COMPX, USDC, TINY, POW, ALPHA</span>
+                      <span>Launch ASA Markets: xUSD, COMPX, USDC, TINY, POW, ALPHA ✓</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-amber-500"></div>
