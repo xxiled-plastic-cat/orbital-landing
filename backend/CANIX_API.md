@@ -32,7 +32,7 @@ curl "http://localhost:3000/api/orbital/markets/canix"
     {
       "platform": "Orbital Lending",
       "logo": "/orbital-icon.svg",
-      "url": "https://app.orbitallending.com",
+      "url": "https://orbital.compx.io",
       "asset": "Algorand",
       "assetType": "Native",
       "yieldType": "Lending",
@@ -49,7 +49,7 @@ curl "http://localhost:3000/api/orbital/markets/canix"
     {
       "platform": "Orbital Lending",
       "logo": "/orbital-icon.svg",
-      "url": "https://app.orbitallending.com",
+      "url": "https://orbital.compx.io",
       "asset": "USD Coin",
       "assetType": "Stablecoin",
       "yieldType": "Lending",
@@ -76,7 +76,7 @@ curl "http://localhost:3000/api/orbital/markets/canix"
 |-------|------|-------------|---------|
 | `platform` | string | Protocol name | `"Orbital Lending"` |
 | `logo` | string | Path to platform logo | `"/orbital-icon.svg"` |
-| `url` | string | Platform URL | `"https://app.orbitallending.com"` |
+| `url` | string | Platform URL | `"https://orbital.compx.io"` |
 | `asset` | string | Asset name | `"Algorand"` |
 | `assetType` | string | Asset category | `"Native"`, `"Stablecoin"`, `"Wrapped"`, `"Asset"` |
 | `yieldType` | string | Type of yield | `"Lending"` |

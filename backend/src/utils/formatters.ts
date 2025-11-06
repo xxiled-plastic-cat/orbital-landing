@@ -55,8 +55,8 @@ export function formatRewardAssets(rewardAssets?: string[]): string {
  * Map platform URLs
  */
 export const platformUrls: Record<string, string> = {
-  'Orbital': 'https://app.orbitallending.com',
-  'Orbital Lending': 'https://app.orbitallending.com',
+  'Orbital': 'https://orbital.compx.io',
+  'Orbital Lending': 'https://orbital.compx.io',
   'CompX': 'https://app.compx.io',
   'Folks Finance': 'https://app.folks.finance',
   'AlgoFi': 'https://app.algofi.org',

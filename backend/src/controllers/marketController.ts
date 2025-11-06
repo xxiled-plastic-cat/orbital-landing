@@ -160,7 +160,7 @@ export const getCanixFormattedMarkets = async (req: Request, res: Response): Pro
     const canixFormattedData = enrichedMarkets.map((market) => ({
       platform: 'Orbital Lending',
       logo: platformLogos['Orbital Lending'] || '/orbital-icon.svg',
-      url: platformUrls['Orbital Lending'] || 'https://app.orbitallending.com',
+      url: platformUrls['Orbital Lending'] || 'https://orbital.compx.io',
       asset: market.baseTokenName || 'Unknown Asset',
       assetType: categorizeAssetType(undefined, market.baseTokenName),
       yieldType: 'Lending',
