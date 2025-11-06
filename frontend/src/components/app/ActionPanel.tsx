@@ -1750,8 +1750,8 @@ const ActionPanel = ({
                           ? Number(
                               calculateLSTDue(
                                 BigInt(Number(amount) * 10 ** 6),
-                                BigInt(market.circulatingLST * 10 ** 6 || 0),
-                                BigInt(market.totalDeposits * 10 ** 6 || 0)
+                                BigInt(Math.floor(market.circulatingLST) * 10 ** 6 || 0),
+                                BigInt(Math.floor(market.totalDeposits) * 10 ** 6 || 0)
                               )
                             ).toFixed(2)
                           : "0.00"
