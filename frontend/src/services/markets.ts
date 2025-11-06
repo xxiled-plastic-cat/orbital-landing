@@ -29,6 +29,7 @@ interface BackendMarket {
   appId: string;
   baseTokenId: string;
   lstTokenId: string;
+  network: 'mainnet' | 'testnet';
 }
 
 // Testnet asset metadata
@@ -157,15 +158,40 @@ export async function fetchMarkets(
     
     try {
       const markets = await getOrbitalLendingMarkets();
-      backendMarkets = markets.map((m) => ({
-        appId: m.appId.toString(),
-        baseTokenId: m.baseTokenId.toString(),
-        lstTokenId: m.lstTokenId.toString(),
-      }));
+      const currentNetwork = getCurrentNetwork();
+      
+      // Filter markets by network - only fetch data for markets on the current network
+      backendMarkets = markets
+        .filter((m) => m.network === currentNetwork)
+        .map((m) => ({
+          appId: m.appId.toString(),
+          baseTokenId: m.baseTokenId.toString(),
+          lstTokenId: m.lstTokenId.toString(),
+          network: m.network,
+        }));
+      
+      console.log(`Filtered ${backendMarkets.length} markets for ${currentNetwork} network`);
     } catch (error) {
       console.warn('Failed to fetch from Orbital backend, using fallback:', error);
       // Fallback to empty array - will fetch from on-chain only
       backendMarkets = [];
+    }
+
+    // 2. Fetch asset metadata for all base tokens
+    const baseTokenIds = backendMarkets.map(m => m.baseTokenId);
+    let assetMetadataMap: Record<string, AssetMetadata> = {};
+    
+    if (baseTokenIds.length > 0) {
+      try {
+        const metadata = await fetchAssetMetadata(baseTokenIds);
+        // Convert array to map for easy lookup
+        metadata.forEach(asset => {
+          assetMetadataMap[asset.id] = asset;
+        });
+        console.log(`Fetched metadata for ${metadata.length} assets`);
+      } catch (error) {
+        console.warn('Failed to fetch asset metadata, using fallback:', error);
+      }
     }
 
     const marketStates: LendingMarket[] = [];
@@ -230,17 +256,33 @@ export async function fetchMarkets(
         const capBorrow = (Number(totalDeposits) * Number(utilCapBps)) / 10000;
         const currentBorrows = Number(totalBorrows);
 
-        // Get token metadata - try appId and baseTokenId as keys
-        const appIdNum = Number(market.appId);
+        // Get token metadata - use fetched metadata first, then fallback to hardcoded
         const baseTokenIdNum = Number(market.baseTokenId);
-        const tokenMeta = TOKEN_METADATA[appIdNum] ||
+        const appIdNum = Number(market.appId);
+        const currentNetwork = getCurrentNetwork();
+        
+        // Try to get metadata from API response first
+        const fetchedMeta = assetMetadataMap[market.baseTokenId];
+        
+        // Fallback to hardcoded metadata for testnet or if fetch failed
+        const tokenMeta = fetchedMeta ? {
+          name: fetchedMeta.name,
+          symbol: fetchedMeta.symbol,
+          // For mainnet, use local SVG files from public/mainnet-tokens directory
+          // For testnet, use the testnet-specific images
+          image: currentNetwork === 'mainnet' 
+            ? `/mainnet-tokens/${market.baseTokenId}.svg`
+            : (TOKEN_METADATA[baseTokenIdNum]?.image || `/mainnet-tokens/${market.baseTokenId}.svg`),
+        } : (TOKEN_METADATA[appIdNum] ||
           TOKEN_METADATA[baseTokenIdNum] ||
           TOKEN_METADATA[market.appId as any] ||
           TOKEN_METADATA[market.baseTokenId as any] || {
             name: `Token ${market.baseTokenId}`,
             symbol: `TKN${market.baseTokenId.slice(-4)}`,
-            image: "/default-token.svg",
-          };
+            image: currentNetwork === 'mainnet' 
+              ? `/mainnet-tokens/${market.baseTokenId}.svg`
+              : "/default-token.svg",
+          });
 
         const baseTokenPrice = await getPricing({
           tokenId: Number(market.baseTokenId),
@@ -337,8 +379,6 @@ export async function fetchAssetMetadata(
     }
 
     // Fetch from backend for mainnet
-    // Note: This endpoint isn't implemented in Orbital backend yet
-    // You may want to add an /assets endpoint or use Algorand indexer
     const response = await axios.post(`${ORBITAL_BACKEND_URL}/assets`, {
       assetIds,
     });
@@ -355,7 +395,8 @@ export async function fetchAssetMetadata(
           name: assetData.name || `Asset ${assetId}`,
           symbol: assetData.symbol || `TKN${assetId.slice(-4)}`,
           decimals: assetData.decimals || 6,
-          image: assetData.image,
+          // Use local mainnet token images from public/mainnet-tokens directory
+          image: `/mainnet-tokens/${assetId}.svg`,
           verified: assetData.verified,
           total: assetData.total,
           frozen: assetData.frozen || assetData["is-frozen"],
@@ -397,13 +438,19 @@ export async function getMarketAssetIds(): Promise<string[]> {
       return [...TESTNET_MARKET_ASSET_IDS];
     }
 
-    // Fetch from backend for mainnet
+    // Fetch from backend
     const markets = await getOrbitalLendingMarkets();
-    const backendMarkets: BackendMarket[] = markets.map((m) => ({
-      appId: m.appId.toString(),
-      baseTokenId: m.baseTokenId.toString(),
-      lstTokenId: m.lstTokenId.toString(),
-    }));
+    const currentNetwork = getCurrentNetwork();
+    
+    // Filter markets by network
+    const backendMarkets: BackendMarket[] = markets
+      .filter((m) => m.network === currentNetwork)
+      .map((m) => ({
+        appId: m.appId.toString(),
+        baseTokenId: m.baseTokenId.toString(),
+        lstTokenId: m.lstTokenId.toString(),
+        network: m.network,
+      }));
 
     const assetIds = new Set<string>();
 

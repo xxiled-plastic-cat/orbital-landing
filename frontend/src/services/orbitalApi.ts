@@ -30,6 +30,7 @@ export interface OrbitalMarket {
   appId: number;
   baseTokenId: number;
   lstTokenId: number;
+  network: 'mainnet' | 'testnet';
 }
 
 export async function getOrbitalLendingMarkets(): Promise<OrbitalMarket[]> {
@@ -45,12 +46,14 @@ export async function getOrbitalLendingMarketById(id: number): Promise<OrbitalMa
 export async function addOrbitalLendingMarket(
   appId: number,
   baseTokenId: number,
-  lstTokenId: number
+  lstTokenId: number,
+  network: 'mainnet' | 'testnet' = 'mainnet'
 ): Promise<OrbitalMarket> {
   const response = await orbitalApi.post('/orbital/markets', {
     appId,
     baseTokenId,
     lstTokenId,
+    network,
   });
   return response.data;
 }

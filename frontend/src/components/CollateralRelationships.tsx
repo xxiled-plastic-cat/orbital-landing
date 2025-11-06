@@ -43,22 +43,22 @@ const CollateralRelationships = ({ market, acceptedCollateral }: CollateralRelat
             collateralAssets.map((asset, index) => (
               <div
                 key={asset.assetId}
-                className="bg-slate-800/50 border border-slate-600 cut-corners-sm p-4 hover:border-cyan-400/50 transition-colors duration-200"
+                className="border border-slate-600 cut-corners-sm p-4 hover:border-cyan-400/50 transition-colors duration-200"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center">
-                    {asset.image ? (
-                      <img
-                        src={asset.image}
-                        alt={asset.symbol}
-                        className="w-6 h-6 object-contain"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono text-white">
+                  {asset.image ? (
+                    <img
+                      src={asset.image}
+                      alt={asset.symbol}
+                      className="w-16 h-16 object-contain flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg font-mono text-white">
                         {index + 1}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <div className="flex-1">
                     <div className="font-mono text-slate-300 font-semibold text-sm">
                       {asset.symbol}

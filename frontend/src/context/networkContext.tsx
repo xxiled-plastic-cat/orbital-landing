@@ -42,18 +42,22 @@ const STORAGE_KEY = 'orbital-preferred-network';
 
 export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedNetwork, setSelectedNetworkState] = useState<NetworkType>(() => {
-    // Check for environment variable first
-    const envNetwork = import.meta.env.VITE_NETWORK as NetworkType | undefined;
+    // Check localStorage first - user preference takes priority
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'mainnet' || stored === 'testnet') {
+      return stored;
+    }
     
-    // If env variable is set and valid, use it and update localStorage
+    // If no user preference, check environment variable as initial default
+    const envNetwork = import.meta.env.VITE_NETWORK as NetworkType | undefined;
     if (envNetwork && (envNetwork === 'mainnet' || envNetwork === 'testnet')) {
       localStorage.setItem(STORAGE_KEY, envNetwork);
       return envNetwork;
     }
     
-    // Otherwise, load from localStorage on init, default to mainnet
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return (stored as NetworkType) || 'mainnet';
+    // Final fallback to mainnet
+    localStorage.setItem(STORAGE_KEY, 'mainnet');
+    return 'mainnet';
   });
 
   const setSelectedNetwork = (network: NetworkType) => {

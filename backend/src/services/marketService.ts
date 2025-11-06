@@ -26,13 +26,15 @@ export async function getOrbitalLendingMarketById(id: string | number) {
 export async function addOrbitalLendingMarket(
   appId: number,
   baseTokenId: number,
-  lstTokenId: number
+  lstTokenId: number,
+  network: 'mainnet' | 'testnet' = 'mainnet'
 ) {
   try {
     const marketData = {
       appId,
       baseTokenId,
       lstTokenId,
+      network,
     };
     const market = await OrbitalLendingMarket.create(marketData);
     return market;

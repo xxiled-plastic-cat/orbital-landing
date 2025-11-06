@@ -151,6 +151,36 @@ POST /api/orbital/markets
 }
 ```
 
+### Assets
+- `POST /api/assets` - Get asset metadata for multiple asset IDs
+
+**Get Asset Metadata Example:**
+```json
+POST /api/assets
+{
+  "assetIds": [1732165149, 760037151]
+}
+
+Response:
+{
+  "1732165149": {
+    "name": "CompX Token",
+    "symbol": "COMPX",
+    "decimals": 6,
+    "image": "...",
+    "verified": true,
+    "total": "1000000000000000",
+    "frozen": false
+  },
+  "760037151": {
+    "name": "xUSD",
+    "symbol": "xUSD",
+    "decimals": 6,
+    ...
+  }
+}
+```
+
 ### User Records
 - `POST /api/orbital/records` - Create new user record
 - `GET /api/orbital/records/market/:marketId` - Get all records for a market

@@ -8,6 +8,7 @@ class OrbitalLendingMarket extends Model<
   declare appId: number;
   declare baseTokenId: number;
   declare lstTokenId: number;
+  declare network: 'mainnet' | 'testnet';
 }
 
 OrbitalLendingMarket.init({
@@ -23,6 +24,14 @@ OrbitalLendingMarket.init({
   lstTokenId: {
     type: DataTypes.BIGINT,
     allowNull: false
+  },
+  network: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'mainnet',
+    validate: {
+      isIn: [['mainnet', 'testnet']]
+    }
   }
 }, {
   sequelize,

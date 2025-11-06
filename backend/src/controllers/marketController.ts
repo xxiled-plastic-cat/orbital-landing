@@ -32,11 +32,12 @@ export const getMarketById = async (req: Request, res: Response): Promise<void> 
 
 export const createMarket = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { appId, baseTokenId, lstTokenId } = req.body;
+    const { appId, baseTokenId, lstTokenId, network = 'mainnet' } = req.body;
     const market = await marketService.addOrbitalLendingMarket(
       appId,
       baseTokenId,
-      lstTokenId
+      lstTokenId,
+      network
     );
     res.status(201).json(market);
   } catch (error) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { NetworkType } from "../context/networkContext";
+import { fetchAssetMetadata } from "../services/markets";
 
 // Get the current network from localStorage
 function getCurrentNetwork(): NetworkType {
@@ -94,33 +95,38 @@ export const useCollateralTokens = (
         });
         setCollateralTokens(tokens);
       } else {
-        // Fetch from backend for mainnet
-        const response = await fetch("/api/tokens/metadata", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ assetIds }),
+        // Fetch from backend for mainnet using the shared fetchAssetMetadata function
+        const metadataArray = await fetchAssetMetadata(assetIds);
+        
+        // Convert array to Record format
+        const tokens: Record<string, CollateralTokenInfo> = {};
+        metadataArray.forEach((metadata) => {
+          tokens[metadata.id] = {
+            symbol: metadata.symbol,
+            name: metadata.name,
+            decimals: metadata.decimals,
+            // Image is already set to /mainnet-tokens/${assetId}.svg by fetchAssetMetadata
+            image: metadata.image,
+          };
         });
-
-        if (response.ok) {
-          const tokens = await response.json();
-          setCollateralTokens(tokens);
-        } else {
-          throw new Error("Failed to fetch token metadata");
-        }
+        
+        setCollateralTokens(tokens);
       }
     } catch (err) {
       console.error("Error fetching token metadata:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
 
-      // Fallback to generic names
+      // Fallback to generic names with mainnet images
       const fallbackTokens: Record<string, CollateralTokenInfo> = {};
+      const currentNetwork = getCurrentNetwork();
       assetIds.forEach((assetId) => {
         fallbackTokens[assetId] = {
           symbol: `Asset ${assetId}`,
           name: `Asset ${assetId}`,
           decimals: 6,
+          image: currentNetwork === 'mainnet' 
+            ? `/mainnet-tokens/${assetId}.svg`
+            : undefined,
         };
       });
       setCollateralTokens(fallbackTokens);
