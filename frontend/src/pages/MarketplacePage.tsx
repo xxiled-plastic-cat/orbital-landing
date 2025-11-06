@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -8,7 +8,8 @@ import {
   ArrowDown,
   Search,
   Grid3x3,
-  List
+  List,
+  Wallet
 } from 'lucide-react';
 import AppLayout from '../components/app/AppLayout';
 import DebtPositionCard from '../components/DebtPositionCard';
@@ -18,6 +19,8 @@ import { useOptimizedDebtPositions } from '../hooks/useOptimizedLoanRecords';
 import MomentumSpinner from '../components/MomentumSpinner';
 import PriceStatusIndicator from '../components/PriceStatusIndicator';
 import { DebtPosition } from '../types/lending';
+import { WalletContext } from '../context/wallet';
+import { useWallet } from '@txnlab/use-wallet-react';
 
 // DebtPosition interface is now imported from types/lending.ts
 
@@ -25,6 +28,8 @@ import { DebtPosition } from '../types/lending';
 type SortOrder = 'asc' | 'desc';
 
 const MarketplacePage: React.FC = () => {
+  const { activeAddress } = useWallet();
+  const { setDisplayWalletConnectModal } = useContext(WalletContext);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<"cards" | "table">(() => {
@@ -84,43 +89,6 @@ const MarketplacePage: React.FC = () => {
   };
 
   const SortIcon = getSortIcon();
-
-  // Loading and error states
-  if (isLoading) {
-    return (
-      <AppLayout title="Mercury Trading Post">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <MomentumSpinner 
-              size="48" 
-              speed="1.1" 
-              color="#06b6d4" 
-              className="mx-auto mb-4" 
-            />
-            <p className="text-slate-400">Loading debt positions...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <AppLayout title="Mercury Trading Post">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <p className="text-red-400 mb-4">Failed to load debt positions</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-cyan-400 text-slate-900 rounded-lg hover:bg-opacity-80 font-semibold"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout title="Mercury Trading Post">
@@ -254,8 +222,85 @@ const MarketplacePage: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* No Wallet Connected State */}
+        {!activeAddress && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-center py-12">
+              <div className="text-slate-600 cut-corners-lg p-8 bg-slate-800/20">
+                <Wallet className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
+                <div className="text-slate-300 font-mono mb-4 text-lg">
+                  CONNECT WALLET TO VIEW TRADING POST
+                </div>
+                <div className="text-slate-400 text-sm font-mono mb-6 max-w-md mx-auto">
+                  Connect your wallet to browse available debt positions, view pricing, and start trading on Mercury Trading Post.
+                </div>
+                <button
+                  onClick={() => setDisplayWalletConnectModal(true)}
+                  className="text-cyan-500 cut-corners-sm px-6 py-3 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
+                >
+                  <span className="text-white">CONNECT WALLET</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Loading State */}
+        {activeAddress && isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-center py-12">
+              <div className="text-slate-600 cut-corners-lg p-8 bg-slate-800/20">
+                <MomentumSpinner 
+                  size="48" 
+                  speed="1.1" 
+                  color="#06b6d4" 
+                  className="mx-auto mb-4" 
+                />
+                <div className="text-slate-400 font-mono mb-4">
+                  SCANNING DEBT POSITIONS...
+                </div>
+                <div className="text-slate-500 text-sm font-mono">
+                  Loading positions from the blockchain
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Error State */}
+        {activeAddress && error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-center py-12">
+              <div className="text-slate-600 cut-corners-lg p-8 bg-slate-800/20">
+                <DollarSign className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                <div className="text-red-400 font-mono mb-4">
+                  FAILED TO LOAD POSITIONS
+                </div>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="text-cyan-500 cut-corners-sm px-6 py-3 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
+                >
+                  <span className="text-white">RETRY</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Debt Positions Grid/Table */}
-        {filteredAndSortedPositions.length > 0 ? (
+        {activeAddress && !isLoading && !error && filteredAndSortedPositions.length > 0 ? (
           <>
             {viewMode === "cards" ? (
               <div className="grid gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -354,7 +399,10 @@ const MarketplacePage: React.FC = () => {
               </div>
             )}
           </>
-        ) : (
+        ) : null}
+
+        {/* Empty State - No positions found */}
+        {activeAddress && !isLoading && !error && filteredAndSortedPositions.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

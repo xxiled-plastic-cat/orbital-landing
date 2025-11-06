@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -9,6 +9,7 @@ import {
   Grid3x3,
   List,
   Info,
+  Wallet,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
 import MarketCard from "../components/MarketCard";
@@ -17,9 +18,13 @@ import { useMarkets } from "../hooks/useMarkets";
 import { Link, useNavigate } from "react-router-dom";
 import Tooltip from "../components/Tooltip";
 import NetworkBadge from "../components/app/NetworkBadge";
+import { WalletContext } from "../context/wallet";
+import { useWallet } from "@txnlab/use-wallet-react";
 
 const LendingMarketsPage = () => {
   const navigate = useNavigate();
+  const { activeAddress } = useWallet();
+  const { setDisplayWalletConnectModal } = useContext(WalletContext);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">(() => {
@@ -243,8 +248,34 @@ const LendingMarketsPage = () => {
           </div>
         </motion.div>
 
+        {/* No Wallet Connected State */}
+        {!activeAddress && (
+          <motion.div
+            className="text-center py-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-slate-600 cut-corners-lg p-8">
+              <Wallet className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
+              <div className="text-slate-300 font-mono mb-4 text-lg">
+                CONNECT WALLET TO VIEW MARKETS
+              </div>
+              <div className="text-slate-400 text-sm font-mono mb-6 max-w-md mx-auto">
+                Connect your wallet to browse active lending markets, view real-time rates, and start earning on your assets.
+              </div>
+              <button
+                onClick={() => setDisplayWalletConnectModal(true)}
+                className="text-cyan-500 cut-corners-sm px-6 py-3 font-mono text-sm hover:text-cyan-400 transition-all duration-150 border border-cyan-500 hover:border-cyan-400"
+              >
+                <span className="text-white">CONNECT WALLET</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Loading State */}
-        {isLoading && (
+        {activeAddress && isLoading && (
           <motion.div
             className="text-center py-12"
             initial={{ opacity: 0 }}
@@ -269,7 +300,7 @@ const LendingMarketsPage = () => {
         )}
 
         {/* Error State */}
-        {isError && (
+        {activeAddress && isError && (
           <motion.div
             className="text-center py-12"
             initial={{ opacity: 0 }}
@@ -295,7 +326,7 @@ const LendingMarketsPage = () => {
         )}
 
         {/* Orbital Markets Grid/Table */}
-        {!isLoading && !isError && (
+        {activeAddress && !isLoading && !isError && (
           <>
             {viewMode === "cards" ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -461,7 +492,7 @@ const LendingMarketsPage = () => {
         )}
 
         {/* Empty State */}
-        {!isLoading && !isError && filteredMarkets.length === 0 && (
+        {activeAddress && !isLoading && !isError && filteredMarkets.length === 0 && (
           <motion.div
             className="text-center py-12"
             initial={{ opacity: 0 }}
