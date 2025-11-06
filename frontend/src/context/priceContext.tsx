@@ -1,9 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { getPricing } from '../contracts/oracle/pricing';
-import { getExistingClient } from '../contracts/lending/getClient';
 import { collateralUSDFromLST } from '../contracts/lending/testing-utils';
-import { getAcceptedCollateral } from '../contracts/lending/state';
 
 // Price cache entry with timestamp
 interface PriceCacheEntry {

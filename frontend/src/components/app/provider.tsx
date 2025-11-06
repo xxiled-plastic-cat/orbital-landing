@@ -17,20 +17,24 @@ const queryClient = new QueryClient({
   },
 })
 
-// Get the stored network preference, prioritizing environment variable
+// Get the stored network preference, prioritizing user choice in localStorage
 const getStoredNetwork = () => {
-  // Check for environment variable first
-  const envNetwork = import.meta.env.VITE_NETWORK as string | undefined;
+  // Check localStorage first - user preference takes priority
+  const stored = localStorage.getItem('orbital-preferred-network');
+  if (stored === 'mainnet' || stored === 'testnet') {
+    return stored;
+  }
   
-  // If env variable is set and valid, use it and update localStorage
+  // If no user preference, check environment variable as initial default
+  const envNetwork = import.meta.env.VITE_NETWORK as string | undefined;
   if (envNetwork && (envNetwork === 'mainnet' || envNetwork === 'testnet')) {
     localStorage.setItem('orbital-preferred-network', envNetwork);
     return envNetwork;
   }
   
-  // Otherwise, load from localStorage, default to mainnet
-  const stored = localStorage.getItem('orbital-preferred-network');
-  return stored === 'testnet' ? 'testnet' : 'mainnet';
+  // Final fallback to mainnet
+  localStorage.setItem('orbital-preferred-network', 'mainnet');
+  return 'mainnet';
 }
 
 const walletManager = new WalletManager({
