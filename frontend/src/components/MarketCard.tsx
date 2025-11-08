@@ -194,28 +194,28 @@ const MarketCard: React.FC<MarketCardProps> = ({
         </div>
 
         {/* Enhanced Station Metrics */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-8">
           <div className="text-center">
-            <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+            <div className="text-slate-400 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 uppercase tracking-wider">
               SUPPLIED
             </div>
-            <div className="text-xl font-mono font-bold text-white tabular-nums">
+            <div className="text-xs sm:text-sm md:text-base lg:text-xl font-mono font-bold text-white tabular-nums">
               ${(market.totalDepositsUSD).toLocaleString()}
             </div>
           </div>
           <div className="text-center">
-            <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+            <div className="text-slate-400 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 uppercase tracking-wider">
               BORROWED
             </div>
-            <div className="text-xl font-mono font-bold text-white tabular-nums">
+            <div className="text-xs sm:text-sm md:text-base lg:text-xl font-mono font-bold text-white tabular-nums">
               ${(market.totalBorrowsUSD).toLocaleString()}
             </div>
           </div>
           <div className="text-center">
-            <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+            <div className="text-slate-400 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 uppercase tracking-wider">
               AVAILABLE
             </div>
-            <div className="text-xl font-mono font-bold text-cyan-400 tabular-nums">
+            <div className="text-xs sm:text-sm md:text-base lg:text-xl font-mono font-bold text-cyan-400 tabular-nums">
               ${(market.availableToBorrowUSD).toLocaleString()}
             </div>
           </div>

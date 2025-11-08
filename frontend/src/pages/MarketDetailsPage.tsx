@@ -234,8 +234,9 @@ const MarketDetailsPage = () => {
     try {
       setTransactionLoading(true);
 
+      const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
       const depositAmountMicrounits = (
-        Number(amount) * Math.pow(10, 6)
+        Number(amount) * Math.pow(10, baseTokenDecimals)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
@@ -276,17 +277,19 @@ const MarketDetailsPage = () => {
             refetchUserDepositRecord();
 
             // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            const baseDecimals = market?.baseTokenDecimals ?? 6;
+            const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
-              BigInt(Number(amount) * 10 ** 6),
-              BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-              BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+              BigInt(Number(amount) * 10 ** baseDecimals),
+              BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+              BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
             );
 
             recordUserAction({
               address: activeAddress as string,
               marketId: Number(market?.id),
               action: "deposit",
-              tokensOut: Number(lstMinted) / 10 ** 6, //LST returned (convert from microunits)
+              tokensOut: Number(lstMinted) / 10 ** lstDecimals, //LST returned (convert from microunits)
               tokensIn: Number(amount), //Base token deposited
               timestamp: Date.now(),
               txnId: txId,
@@ -342,17 +345,19 @@ const MarketDetailsPage = () => {
             refetchUserDepositRecord();
 
             // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            const baseDecimals = market?.baseTokenDecimals ?? 6;
+            const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
-              BigInt(Number(amount) * 10 ** 6),
-              BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-              BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+              BigInt(Number(amount) * 10 ** baseDecimals),
+              BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+              BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
             );
 
             recordUserAction({
               address: activeAddress as string,
               marketId: Number(market?.id),
               action: "deposit",
-              tokensOut: Number(lstMinted) / 10 ** 6, //LST returned (convert from microunits)
+              tokensOut: Number(lstMinted) / 10 ** lstDecimals, //LST returned (convert from microunits)
               tokensIn: Number(amount), //Base token deposited
               timestamp: Date.now(),
               txnId: txId,
@@ -389,8 +394,9 @@ const MarketDetailsPage = () => {
     try {
       setTransactionLoading(true);
 
+      const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
       const redeemAmountMicrounits = (
-        Number(amount) * Math.pow(10, 6)
+        Number(amount) * Math.pow(10, lstTokenDecimals)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
@@ -428,10 +434,12 @@ const MarketDetailsPage = () => {
           refetchUserDebt();
           refetchUserDepositRecord();
 
+          const baseDecimals = market?.baseTokenDecimals ?? 6;
+          const lstDecimals = market?.lstTokenDecimals ?? 6;
           const asaDue = calculateAssetDue(
-            BigInt(Number(amount) * 10 ** 6),
-            BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-            BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+            BigInt(Number(amount) * 10 ** lstDecimals),
+            BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+            BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
           );
 
           recordUserAction({
@@ -439,7 +447,7 @@ const MarketDetailsPage = () => {
             marketId: Number(market?.id),
             action: "redeem",
             tokensOut: Number(amount), //LST returned
-            tokensIn: Number(asaDue) / 10 ** 6, //Base token received (convert from microunits)
+            tokensIn: Number(asaDue) / 10 ** baseDecimals, //Base token received (convert from microunits)
             timestamp: Date.now(),
             txnId: txId,
             tokenInId: Number(market?.lstTokenId),
@@ -490,8 +498,9 @@ const MarketDetailsPage = () => {
       })
         .then((txId) => {
           // Apply optimistic updates for instant UI feedback
+          const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
           const repayAmountMicrounits = (
-            Number(repayAmount) * Math.pow(10, 6)
+            Number(repayAmount) * Math.pow(10, baseTokenDecimals)
           ).toString();
           const baseTokenId = market?.baseTokenId || "0";
 
@@ -546,8 +555,9 @@ const MarketDetailsPage = () => {
       })
         .then((txId) => {
           // Apply optimistic updates for instant UI feedback
+          const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
           const repayAmountMicrounits = (
-            Number(repayAmount) * Math.pow(10, 6)
+            Number(repayAmount) * Math.pow(10, baseTokenDecimals)
           ).toString();
           const baseTokenId = market?.baseTokenId || "0";
 
@@ -616,8 +626,9 @@ const MarketDetailsPage = () => {
     })
       .then((txId) => {
         // Apply optimistic updates for instant UI feedback
+        const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
         const withdrawAmountMicrounits = (
-          Number(withdrawAmount) * Math.pow(10, 6)
+          Number(withdrawAmount) * Math.pow(10, lstTokenDecimals)
         ).toString();
 
         // Add withdrawn collateral tokens back to user balance
@@ -724,8 +735,10 @@ const MarketDetailsPage = () => {
     })
       .then((txId) => {
         // Apply optimistic updates for instant UI feedback
+        const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
+        const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
         const borrowAmountMicrounits = (
-          Number(borrowAmount) * Math.pow(10, 6)
+          Number(borrowAmount) * Math.pow(10, baseTokenDecimals)
         ).toString();
         const baseTokenId = market?.baseTokenId || "0";
 
@@ -735,7 +748,7 @@ const MarketDetailsPage = () => {
         // Only update collateral balance if new collateral is being added
         if (isAddingCollateral) {
           const collateralAmountMicrounits = (
-            Number(effectiveCollateralAmount) * Math.pow(10, 6)
+            Number(effectiveCollateralAmount) * Math.pow(10, lstTokenDecimals)
           ).toString();
 
           // Remove collateral tokens from user balance

@@ -23,6 +23,8 @@ export interface LendingMarket {
   baseTokenPrice: number; // Base token price
   circulatingLST: number; // Circulating LST tokens
   borrowIndexWad?: bigint; // Borrow index for interest calculations
+  baseTokenDecimals: number; // Number of decimals for the base token (e.g., 6 for ALGO, 8 for BTC)
+  lstTokenDecimals: number; // Number of decimals for the LST token (typically same as base token)
   // Interest Rate Model Parameters
   baseBps?: number; // Base APR in basis points
   utilCapBps?: number; // Utilization cap in basis points

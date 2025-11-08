@@ -177,13 +177,15 @@ export async function fetchMarkets(
       backendMarkets = [];
     }
 
-    // 2. Fetch asset metadata for all base tokens
+    // 2. Fetch asset metadata for all base tokens and LST tokens
     const baseTokenIds = backendMarkets.map(m => m.baseTokenId);
+    const lstTokenIds = backendMarkets.map(m => m.lstTokenId);
+    const allTokenIds = [...new Set([...baseTokenIds, ...lstTokenIds])]; // Remove duplicates
     let assetMetadataMap: Record<string, AssetMetadata> = {};
     
-    if (baseTokenIds.length > 0) {
+    if (allTokenIds.length > 0) {
       try {
-        const metadata = await fetchAssetMetadata(baseTokenIds);
+        const metadata = await fetchAssetMetadata(allTokenIds);
         // Convert array to map for easy lookup
         metadata.forEach(asset => {
           assetMetadataMap[asset.id] = asset;
@@ -284,6 +286,10 @@ export async function fetchMarkets(
               : "/default-token.svg",
           });
 
+        // Get decimals for base token and LST token
+        const baseTokenDecimals = assetMetadataMap[market.baseTokenId]?.decimals || 6;
+        const lstTokenDecimals = assetMetadataMap[market.lstTokenId]?.decimals || baseTokenDecimals; // LST typically has same decimals as base
+
         const baseTokenPrice = await getPricing({
           tokenId: Number(market.baseTokenId),
           address,
@@ -291,9 +297,9 @@ export async function fetchMarkets(
           appId: Number(oracleAppId),
         });
         const availableToBorrowUSD =
-          (Math.max(0, capBorrow - currentBorrows) * baseTokenPrice) / 10 ** 6;
+          (Math.max(0, capBorrow - currentBorrows) * baseTokenPrice) / 10 ** baseTokenDecimals;
         const availableToBorrow =
-          Math.max(0, capBorrow - currentBorrows) / 10 ** 6;
+          Math.max(0, capBorrow - currentBorrows) / 10 ** baseTokenDecimals;
         const totalDepositsUSD = Number(totalDeposits) * (baseTokenPrice || 0);
         const totalBorrowsUSD = Number(totalBorrows) * (baseTokenPrice || 0);
 
@@ -307,10 +313,10 @@ export async function fetchMarkets(
           supplyApr: supplyApr,
           borrowApr: borrowApr,
           utilizationRate: utilizationRate,
-          totalDeposits: Number(totalDeposits) / 10 ** 6,
-          totalDepositsUSD: totalDepositsUSD / 10 ** 6,
-          totalBorrows: Number(totalBorrows) / 10 ** 6,
-          totalBorrowsUSD: totalBorrowsUSD / 10 ** 6,
+          totalDeposits: Number(totalDeposits) / 10 ** baseTokenDecimals,
+          totalDepositsUSD: totalDepositsUSD / 10 ** baseTokenDecimals,
+          totalBorrows: Number(totalBorrows) / 10 ** baseTokenDecimals,
+          totalBorrowsUSD: totalBorrowsUSD / 10 ** baseTokenDecimals,
           availableToBorrow: availableToBorrow,
           availableToBorrowUSD: availableToBorrowUSD,
           isActive: true,
@@ -319,8 +325,10 @@ export async function fetchMarkets(
           oracleAppId: Number(oracleAppId),
           buyoutTokenId: Number(buyoutTokenId),
           baseTokenPrice: Number(baseTokenPrice),
-          circulatingLST: Number(appGlobalState.circulatingLst) / 10 ** 6,
+          circulatingLST: Number(appGlobalState.circulatingLst) / 10 ** lstTokenDecimals,
           borrowIndexWad: borrowIndexWad,
+          baseTokenDecimals: baseTokenDecimals,
+          lstTokenDecimals: lstTokenDecimals,
           // Interest Rate Model Parameters
           baseBps: Number(appGlobalState.baseBps ?? 200n), // Default 2%
           utilCapBps: Number(utilCapBps),
