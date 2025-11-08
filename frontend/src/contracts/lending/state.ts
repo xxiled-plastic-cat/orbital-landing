@@ -32,9 +32,9 @@ export async function getAcceptedCollateral(
 /**
  * Calculate the amount of LST tokens due when making a deposit
  * @param amountIn - The deposit amount in microunits
- * @param circulatingLST - Total circulating LST tokens
- * @param totalDeposits - Total deposits in the pool
- * @returns Amount of LST tokens to mint for the depositor
+ * @param circulatingLST - Total circulating LST tokens in microunits
+ * @param totalDeposits - Total deposits in the pool in microunits
+ * @returns Amount of LST tokens to mint for the depositor in microunits
  */
 export function calculateLSTDue(
   amountIn: bigint,
@@ -43,22 +43,22 @@ export function calculateLSTDue(
 ): bigint {
   // If no deposits exist yet, return the deposit amount as initial LST supply (1:1 ratio)
   if (totalDeposits === 0n) {
-    return amountIn / 10n ** 6n;
+    return amountIn;
   }
 
   // Calculate LST due using the formula: (amountIn * circulatingLST) / totalDeposits
   // This maintains the proportional share of the pool
   const lstDue = (amountIn * circulatingLST) / totalDeposits;
 
-  return lstDue / 10n ** 6n;
+  return lstDue;
 }
 
 /**
  * Calculate the amount of underlying asset to return when redeeming LST tokens
- * @param lstAmount - The amount of LST tokens being redeemed
- * @param circulatingLST - Total circulating LST tokens
- * @param totalDeposits - Total deposits in the pool
- * @returns Amount of underlying asset to return to the redeemer
+ * @param lstAmount - The amount of LST tokens being redeemed in microunits
+ * @param circulatingLST - Total circulating LST tokens in microunits
+ * @param totalDeposits - Total deposits in the pool in microunits
+ * @returns Amount of underlying asset to return to the redeemer in microunits
  */
 export function calculateAssetDue(
   lstAmount: bigint,
@@ -74,7 +74,7 @@ export function calculateAssetDue(
   // This maintains the proportional share of the pool
   const assetDue = (lstAmount * totalDeposits) / circulatingLST;
 
-  return assetDue / 10n ** 6n;
+  return assetDue;
 }
 
 export async function getDepositBoxValue(

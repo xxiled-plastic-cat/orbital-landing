@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { NetworkId } from '@txnlab/use-wallet-react';
 
 export type NetworkType = 'mainnet' | 'testnet';

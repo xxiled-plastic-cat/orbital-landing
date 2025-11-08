@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { TrendingUp, Info } from "lucide-react";
 import { LendingMarket } from "../types/lending";
-import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 import Tooltip from "./Tooltip";
 
 interface InterestRateModelProps {
@@ -49,9 +48,9 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
     return aprBps / 100; // Convert basis points to percentage
   };
 
-  // Calculate kink point as percentage of utilization cap
-  const kinkUtilization = (kinkNormBps / 10000) * (utilCapBps / 100);
-  const maxUtilization = utilCapBps / 100;
+  // Kink is normalized to the cap (0-100% where 100% = cap)
+  const kinkUtilization = kinkNormBps / 100;
+  const maxUtilization = 100; // Cap is always 100% in normalized view
   return (
     <motion.div
       className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
@@ -79,8 +78,9 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
           {/* Y-axis labels - Dynamic based on max APR */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs font-mono text-slate-400">
             {(() => {
+              const absoluteMaxUtil = utilCapBps / 100;
               // Use the actual max APR cap, or calculate a reasonable max if no cap is set
-              const maxDisplayRate = maxAprBps > 0 ? maxAprBps / 100 : Math.max(calculateInterestRate(maxUtilization) * 1.2, 50);
+              const maxDisplayRate = maxAprBps > 0 ? maxAprBps / 100 : Math.max(calculateInterestRate(absoluteMaxUtil) * 1.2, 50);
               const steps = 5;
               const stepSize = maxDisplayRate / steps;
               return Array.from({ length: steps + 1 }, (_, i) => (
@@ -113,13 +113,16 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
               <path
                 d={(() => {
                   const points: string[] = [];
+                  const absoluteMaxUtil = utilCapBps / 100; // Actual cap percentage
                   // Use the same maxDisplayRate calculation as Y-axis
-                  const maxDisplayRate = maxAprBps > 0 ? maxAprBps / 100 : Math.max(calculateInterestRate(maxUtilization) * 1.2, 50);
+                  const maxDisplayRate = maxAprBps > 0 ? maxAprBps / 100 : Math.max(calculateInterestRate(absoluteMaxUtil) * 1.2, 50);
                   
-                  // Generate curve points
-                  for (let util = 0; util <= maxUtilization; util += maxUtilization / 50) {
-                    const rate = calculateInterestRate(util);
-                    const x = (util / maxUtilization) * 100;
+                  // Generate curve points - loop through normalized utilization (0-100)
+                  for (let normalizedUtil = 0; normalizedUtil <= 100; normalizedUtil += 2) {
+                    // Convert normalized to absolute for rate calculation
+                    const absoluteUtil = (normalizedUtil / 100) * absoluteMaxUtil;
+                    const rate = calculateInterestRate(absoluteUtil);
+                    const x = normalizedUtil;
                     const y = 100 - (Math.min(rate, maxDisplayRate) / maxDisplayRate) * 100;
                     points.push(`${x},${y}`);
                   }
@@ -136,38 +139,38 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
             {/* Current utilization marker */}
             <div
               className="absolute top-0 bottom-0 border-l-2 border-cyan-400 opacity-80"
-              style={{ left: `${(market.utilizationRate / maxUtilization) * 100}%` }}
+              style={{ left: `${market.utilizationRate}%` }}
             >
               <div className="absolute -top-6 -left-8 text-xs font-mono text-cyan-400 font-bold whitespace-nowrap">
-                Current: {calculateRealTimeBorrowAPR(market).toFixed(1)}%
+                Current: {market.borrowApr.toFixed(1)}%
               </div>
             </div>
 
             {/* Kink point marker */}
             <div 
               className="absolute top-0 bottom-0 border-l border-yellow-400 opacity-60"
-              style={{ left: `${(kinkUtilization / maxUtilization) * 100}%` }}
+              style={{ left: `${kinkUtilization}%` }}
             >
               <div className="absolute -top-6 -left-6 text-xs font-mono text-yellow-400 whitespace-nowrap">
-                Kink: {kinkUtilization.toFixed(1)}%
+                Kink: {kinkUtilization.toFixed(0)}%
               </div>
             </div>
 
             {/* Utilization cap marker */}
             <div className="absolute top-0 bottom-0 right-0 border-l border-red-400 opacity-60">
               <div className="absolute -top-6 -right-6 text-xs font-mono text-red-400 whitespace-nowrap">
-                Cap: {maxUtilization.toFixed(0)}%
+                Cap: 100%
               </div>
             </div>
           </div>
 
-          {/* X-axis labels - Dynamic based on utilization cap */}
+          {/* X-axis labels - Normalized (0-100% where 100% = cap) */}
           <div className="absolute bottom-0 left-8 right-4 flex justify-between text-xs font-mono text-slate-400">
             <span>0%</span>
-            <span>{(maxUtilization * 0.25).toFixed(0)}%</span>
-            <span>{(maxUtilization * 0.5).toFixed(0)}%</span>
-            <span>{(maxUtilization * 0.75).toFixed(0)}%</span>
-            <span>{maxUtilization.toFixed(0)}%</span>
+            <span>25%</span>
+            <span>50%</span>
+            <span>75%</span>
+            <span>100%</span>
           </div>
         </div>
       </div>
@@ -193,8 +196,8 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
           </div>
           <div className="flex items-center gap-1">
             Kink Point:{" "}
-            <span className="text-yellow-400">{kinkUtilization.toFixed(1)}%</span>
-            <Tooltip content="Utilization threshold where rate slope increases sharply" position="right">
+            <span className="text-yellow-400">{kinkUtilization.toFixed(0)}%</span>
+            <Tooltip content="Utilization threshold where rate slope increases sharply (normalized to cap)" position="right">
               <Info className="w-3 h-3 text-slate-500 cursor-help" />
             </Tooltip>
           </div>
@@ -227,7 +230,7 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
             <div className="flex items-center gap-1">
               Current Rate:{" "}
               <span className="text-white font-bold">
-                {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+                {market.borrowApr.toFixed(2)}%
               </span>
               <Tooltip content="Current borrow rate based on market utilization" position="right">
                 <Info className="w-3 h-3 text-slate-500 cursor-help" />
@@ -235,6 +238,16 @@ const InterestRateModel = ({ market }: InterestRateModelProps) => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Normalization note */}
+      <div className="mt-4 p-3 bg-slate-800/30 border border-slate-700/50 rounded text-xs font-mono text-slate-400 flex gap-2 items-center">
+        <Info className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+        <span>
+          Note: All data points above are normalized to the utilization cap of{" "}
+          <span className="text-red-400 font-semibold">{(utilCapBps / 100).toFixed(0)}%</span>
+          
+        </span>
       </div>
     </motion.div>
   );

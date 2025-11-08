@@ -5,7 +5,6 @@ import {
   calculateAssetDue,
   calculateLSTDue,
 } from "../../contracts/lending/state";
-import { calculateRealTimeBorrowAPR } from "../../utils/interestRateCalculations";
 import { LendingMarket } from "../../types/lending";
 import { getLoanRecordReturnType } from "../../contracts/lending/interface";
 import { useCollateralTokens } from "../../hooks/useCollateralTokens";
@@ -355,7 +354,7 @@ const ActionPanel = ({
       }
 
       case "open":
-        return (market.availableToBorrow * Math.pow(10, 6)).toString();
+        return (market.availableToBorrow * Math.pow(10, market.baseTokenDecimals)).toString();
 
       case "repay": {
         if (!userDebt || !userDebt.principal) return "0";
@@ -405,12 +404,12 @@ const ActionPanel = ({
         if (lstBalance === 0n) return "0";
         
         // Calculate available liquidity in the pool (in microunits)
-        const totalDepositsMicro = BigInt(Math.floor(market.totalDeposits * 10 ** 6));
-        const totalBorrowsMicro = BigInt(Math.floor(market.totalBorrows * 10 ** 6));
+        const totalDepositsMicro = BigInt(Math.floor(market.totalDeposits * 10 ** market.baseTokenDecimals));
+        const totalBorrowsMicro = BigInt(Math.floor(market.totalBorrows * 10 ** market.baseTokenDecimals));
         const availableLiquidity = totalDepositsMicro - totalBorrowsMicro;
         
         // Calculate what user's full LST balance is worth (in microunits)
-        const circulatingLSTMicro = BigInt(Math.floor(market.circulatingLST * 10 ** 6));
+        const circulatingLSTMicro = BigInt(Math.floor(market.circulatingLST * 10 ** market.lstTokenDecimals));
         const fullRedeemValue = circulatingLSTMicro > 0n 
           ? (lstBalance * totalDepositsMicro) / circulatingLSTMicro
           : 0n;
@@ -510,22 +509,22 @@ const ActionPanel = ({
     }
 
     // Calculate available liquidity in the pool
-    const totalDepositsMicro = BigInt(Math.floor(market.totalDeposits * 10 ** 6));
-    const totalBorrowsMicro = BigInt(Math.floor(market.totalBorrows * 10 ** 6));
+    const totalDepositsMicro = BigInt(Math.floor(market.totalDeposits * 10 ** market.baseTokenDecimals));
+    const totalBorrowsMicro = BigInt(Math.floor(market.totalBorrows * 10 ** market.baseTokenDecimals));
     const availableLiquidity = totalDepositsMicro - totalBorrowsMicro;
 
     // Calculate what user's full LST balance is worth
-    const circulatingLSTMicro = BigInt(Math.floor(market.circulatingLST * 10 ** 6));
+    const circulatingLSTMicro = BigInt(Math.floor(market.circulatingLST * 10 ** market.lstTokenDecimals));
     const fullRedeemValue = circulatingLSTMicro > 0n
       ? (lstBalance * totalDepositsMicro) / circulatingLSTMicro
       : 0n;
 
     // Check if constrained
     const isConstrained = fullRedeemValue > availableLiquidity;
-    const availableLiquidityDisplay = Number(availableLiquidity) / 10 ** 6;
+    const availableLiquidityDisplay = Number(availableLiquidity) / 10 ** market.baseTokenDecimals;
     const maxRedeemableDisplay = Number(
       isConstrained ? availableLiquidity : fullRedeemValue
-    ) / 10 ** 6;
+    ) / 10 ** market.baseTokenDecimals;
 
     return {
       isConstrained,
@@ -608,7 +607,7 @@ const ActionPanel = ({
     }
 
     // Calculate existing collateral value in USD
-    const existingCollateralTokens = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, 6) : 0;
+    const existingCollateralTokens = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, market.lstTokenDecimals) : 0;
     const existingCollateralValueUSD = existingCollateralTokens * collateralTokenPrice;
 
     // Calculate additional collateral value in USD
@@ -619,7 +618,7 @@ const ActionPanel = ({
     const totalCollateralValueUSD = existingCollateralValueUSD + additionalCollateralValueUSD;
 
     // Calculate existing debt value in USD
-    const existingDebtTokens = userDebt ? Number(userDebt.principal) / Math.pow(10, 6) : 0;
+    const existingDebtTokens = userDebt ? Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals) : 0;
     const existingDebtValueUSD = existingDebtTokens * baseTokenPrice;
 
     // Calculate additional borrow value in USD
@@ -649,7 +648,7 @@ const ActionPanel = ({
     });
 
     // Calculate daily interest on the additional borrow amount
-    const realTimeBorrowAPR = calculateRealTimeBorrowAPR(market);
+    const realTimeBorrowAPR = market.borrowApr;
     const dailyInterest = (additionalBorrowTokens * realTimeBorrowAPR) / 100 / 365;
 
     // Calculate origination fee using actual market rate
@@ -710,13 +709,13 @@ const ActionPanel = ({
       };
     }
 
-    const totalDebt = Number(userDebt.principal) / Math.pow(10, 6); // Convert from microunits
+    const totalDebt = Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals); // Convert from microunits
     const repaymentAmount = parseFloat(repayAmount);
     const remainingDebt = Math.max(0, totalDebt - repaymentAmount);
     const isFullRepayment = repaymentAmount >= totalDebt;
 
     // Calculate collateral returned proportionally
-    const collateralAmount = Number(userDebt.collateralAmount) / Math.pow(10, 6); // Convert from microunits
+    const collateralAmount = Number(userDebt.collateralAmount) / Math.pow(10, market.lstTokenDecimals); // Convert from microunits
     const repaymentRatio = Math.min(1, repaymentAmount / totalDebt);
     const collateralReturned = collateralAmount * repaymentRatio;
 
@@ -781,7 +780,7 @@ const ActionPanel = ({
     }
 
     // Calculate existing collateral value in USD
-    const existingCollateralTokens = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, 6) : 0;
+    const existingCollateralTokens = userDebt ? Number(userDebt.collateralAmount) / Math.pow(10, market.lstTokenDecimals) : 0;
     const existingCollateralValueUSD = existingCollateralTokens * collateralTokenPrice;
 
     // Calculate additional collateral value in USD
@@ -792,7 +791,7 @@ const ActionPanel = ({
     const totalCollateralValueUSD = existingCollateralValueUSD + additionalCollateralValueUSD;
 
     // Calculate existing debt value in USD
-    const existingDebtTokens = userDebt ? Number(userDebt.principal) / Math.pow(10, 6) : 0;
+    const existingDebtTokens = userDebt ? Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals) : 0;
     const existingDebtValueUSD = existingDebtTokens * baseTokenPrice;
 
     // Calculate max total debt based on LTV
@@ -956,13 +955,13 @@ const ActionPanel = ({
                     <div>
                       <div className="text-slate-400 font-mono">Collateral</div>
                       <div className="text-white font-mono">
-                        {(Number(userDebt.collateralAmount) / Math.pow(10, 6)).toFixed(6)} {availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
+                        {(Number(userDebt.collateralAmount) / Math.pow(10, market.lstTokenDecimals)).toFixed(market.lstTokenDecimals)} {availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
                       </div>
                     </div>
                     <div>
                       <div className="text-slate-400 font-mono">Debt</div>
                       <div className="text-white font-mono">
-                        {(Number(userDebt.principal) / Math.pow(10, 6)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                        {(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals)).toFixed(market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)}
                       </div>
                     </div>
                   </div>
@@ -1175,7 +1174,7 @@ const ActionPanel = ({
               </div>
               {userDebt && (
                 <div className="text-xs font-mono text-slate-400 mt-1">
-                    Total Debt: {(Number(userDebt.principal) / Math.pow(10, 6)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)}
+                    Total Debt: {(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals)).toFixed(market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)}
                 </div>
               )}
             </div>
@@ -1326,7 +1325,7 @@ const ActionPanel = ({
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-mono text-slate-400">Borrow APR</span>
                   <span className="font-mono font-bold text-blue-400">
-                    {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+                    {market.borrowApr.toFixed(2)}%
                   </span>
                 </div>
 
@@ -1747,26 +1746,26 @@ const ActionPanel = ({
                     {activeAction === "deposit" &&
                       `${
                         amount
-                          ? Number(
+                          ? (Number(
                               calculateLSTDue(
-                                BigInt(Number(amount) * 10 ** 6),
-                                BigInt(Math.floor(market.circulatingLST) * 10 ** 6 || 0),
-                                BigInt(Math.floor(market.totalDeposits) * 10 ** 6 || 0)
+                                BigInt(Number(amount) * 10 ** market.baseTokenDecimals),
+                                BigInt(Math.floor(market.circulatingLST) * 10 ** market.lstTokenDecimals || 0),
+                                BigInt(Math.floor(market.totalDeposits) * 10 ** market.baseTokenDecimals || 0)
                               )
-                            ).toFixed(2)
-                          : "0.00"
+                            ) / 10 ** market.lstTokenDecimals).toFixed(market.lstTokenDecimals)
+                          : "0." + "0".repeat(market.lstTokenDecimals)
                       } ${getLSTTokenSymbol(market?.symbol)}`}
                     {activeAction === "redeem" &&
                       `${
                         amount
-                          ? Number(
+                          ? (Number(
                               calculateAssetDue(
-                                BigInt(Number(amount) * 10 ** 6),
-                                BigInt(Math.floor(market?.circulatingLST) * 10 ** 6 || 0),
-                                BigInt(Math.floor(market?.totalDeposits) * 10 ** 6 || 0)
+                                BigInt(Number(amount) * 10 ** market.lstTokenDecimals),
+                                BigInt(Math.floor(market?.circulatingLST) * 10 ** market.lstTokenDecimals || 0),
+                                BigInt(Math.floor(market?.totalDeposits) * 10 ** market.baseTokenDecimals || 0)
                               )
-                            ).toFixed(2)
-                          : "0.00"
+                            ) / 10 ** market.baseTokenDecimals).toFixed(market.baseTokenDecimals)
+                          : "0." + "0".repeat(market.baseTokenDecimals)
                       } ${getBaseTokenSymbol(market?.symbol)}`}
                   </span>
                 </div>
@@ -2071,7 +2070,7 @@ const ActionPanel = ({
 
               {!repayAmount && userDebt && Number(userDebt.principal) > 0 && (
                 <div className="text-xs text-slate-500 font-mono">
-                  Enter amount to repay (max: {(Number(userDebt.principal) / Math.pow(10, 6)).toFixed(6)} {getBaseTokenSymbol(market?.symbol)})
+                  Enter amount to repay (max: {(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals)).toFixed(market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)})
                 </div>
               )}
 

@@ -19,7 +19,7 @@ export function useMarkets() {
     enabled: !!(activeAddress), // Only run query when wallet is connected
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 60 * 1000, // Refetch every minute when active
+    refetchInterval: 120 * 1000, // Refetch every 2 minutes when active
     refetchOnWindowFocus: true,
     retry: (failureCount, error) => {
       // Don't retry if wallet is not connected

@@ -3,14 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { TrendingUp, Radio, AlertCircle } from "lucide-react";
 import { LendingMarket } from "../types/lending";
-import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 import Tooltip from "./Tooltip";
 
 interface MarketCardProps {
   market: LendingMarket;
   index: number;
   formatNumber: (num: number, decimals?: number) => string;
-  getUtilizationBgColor: (rate: number) => string;
+  getUtilizationBgColor: (rate: number, market?: any) => string;
 }
 
 const MarketCard: React.FC<MarketCardProps> = ({
@@ -137,7 +136,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
               </span>
             </div>
             <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums tracking-tight">
-              {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+              {market.borrowApr.toFixed(2)}%
             </div>
            
           </div>
@@ -159,10 +158,13 @@ const MarketCard: React.FC<MarketCardProps> = ({
             <div className="orbital-ring w-full bg-noise-dark">
               <motion.div
                 className={`h-full bg-gradient-to-r ${getUtilizationBgColor(
-                  market.utilizationRate
+                  market.utilizationRate,
+                  market
                 )} relative rounded-lg`}
                 initial={{ width: 0 }}
-                animate={{ width: `${market.utilizationRate}%` }}
+                animate={{ 
+                  width: `${Math.min(market.utilizationRate, 100)}%` 
+                }}
                 transition={{
                   duration: 1.4,
                   delay: 0.5 + index * 0.1,
@@ -177,10 +179,15 @@ const MarketCard: React.FC<MarketCardProps> = ({
             </div>
 
             {/* Enhanced markers */}
-            <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
+            <div 
+              className="absolute top-0 h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"
+              style={{ 
+                left: `${(market.kinkNormBps ?? 5000) / 100}%` 
+              }}
+            ></div>
             <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
 
-            {/* Kink indicator */}
+            {/* Kink indicator - show when near cap */}
             {market.utilizationRate >= 90 && (
               <motion.div
                 className="absolute -top-1 left-[100%] transform -translate-x-1"
@@ -194,28 +201,28 @@ const MarketCard: React.FC<MarketCardProps> = ({
         </div>
 
         {/* Enhanced Station Metrics */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-8">
           <div className="text-center">
-            <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+            <div className="text-slate-400 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 uppercase tracking-wider">
               SUPPLIED
             </div>
-            <div className="text-xl font-mono font-bold text-white tabular-nums">
+            <div className="text-xs sm:text-sm md:text-base lg:text-xl font-mono font-bold text-white tabular-nums">
               ${(market.totalDepositsUSD).toLocaleString()}
             </div>
           </div>
           <div className="text-center">
-            <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+            <div className="text-slate-400 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 uppercase tracking-wider">
               BORROWED
             </div>
-            <div className="text-xl font-mono font-bold text-white tabular-nums">
+            <div className="text-xs sm:text-sm md:text-base lg:text-xl font-mono font-bold text-white tabular-nums">
               ${(market.totalBorrowsUSD).toLocaleString()}
             </div>
           </div>
           <div className="text-center">
-            <div className="text-slate-400 text-xs font-mono mb-2 uppercase tracking-wider">
+            <div className="text-slate-400 text-[10px] sm:text-xs font-mono mb-1 sm:mb-2 uppercase tracking-wider">
               AVAILABLE
             </div>
-            <div className="text-xl font-mono font-bold text-cyan-400 tabular-nums">
+            <div className="text-xs sm:text-sm md:text-base lg:text-xl font-mono font-bold text-cyan-400 tabular-nums">
               ${(market.availableToBorrowUSD).toLocaleString()}
             </div>
           </div>

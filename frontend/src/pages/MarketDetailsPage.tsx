@@ -44,7 +44,6 @@ import {
 import { recordUserAction } from "../services/userStats";
 import { useNetwork } from "../context/networkContext";
 import { ExplorerLinks } from "../components/app/explorerlinks";
-import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 import { BuyOnCompxButton } from "../components/app/BuyOnCompxButton";
 
 // Helper component to display network name
@@ -234,8 +233,9 @@ const MarketDetailsPage = () => {
     try {
       setTransactionLoading(true);
 
+      const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
       const depositAmountMicrounits = (
-        Number(amount) * Math.pow(10, 6)
+        Number(amount) * Math.pow(10, baseTokenDecimals)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
@@ -276,17 +276,19 @@ const MarketDetailsPage = () => {
             refetchUserDepositRecord();
 
             // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            const baseDecimals = market?.baseTokenDecimals ?? 6;
+            const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
-              BigInt(Number(amount) * 10 ** 6),
-              BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-              BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+              BigInt(Number(amount) * 10 ** baseDecimals),
+              BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+              BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
             );
 
             recordUserAction({
               address: activeAddress as string,
               marketId: Number(market?.id),
               action: "deposit",
-              tokensOut: Number(lstMinted), //LST returned
+              tokensOut: Number(lstMinted) / 10 ** lstDecimals, //LST returned (convert from microunits)
               tokensIn: Number(amount), //Base token deposited
               timestamp: Date.now(),
               txnId: txId,
@@ -342,17 +344,19 @@ const MarketDetailsPage = () => {
             refetchUserDepositRecord();
 
             // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            const baseDecimals = market?.baseTokenDecimals ?? 6;
+            const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
-              BigInt(Number(amount) * 10 ** 6),
-              BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-              BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+              BigInt(Number(amount) * 10 ** baseDecimals),
+              BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+              BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
             );
 
             recordUserAction({
               address: activeAddress as string,
               marketId: Number(market?.id),
               action: "deposit",
-              tokensOut: Number(lstMinted), //LST returned
+              tokensOut: Number(lstMinted) / 10 ** lstDecimals, //LST returned (convert from microunits)
               tokensIn: Number(amount), //Base token deposited
               timestamp: Date.now(),
               txnId: txId,
@@ -389,8 +393,9 @@ const MarketDetailsPage = () => {
     try {
       setTransactionLoading(true);
 
+      const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
       const redeemAmountMicrounits = (
-        Number(amount) * Math.pow(10, 6)
+        Number(amount) * Math.pow(10, lstTokenDecimals)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
@@ -428,10 +433,12 @@ const MarketDetailsPage = () => {
           refetchUserDebt();
           refetchUserDepositRecord();
 
+          const baseDecimals = market?.baseTokenDecimals ?? 6;
+          const lstDecimals = market?.lstTokenDecimals ?? 6;
           const asaDue = calculateAssetDue(
-            BigInt(Number(amount) * 10 ** 6),
-            BigInt((market?.circulatingLST ?? 0) * 10 ** 6),
-            BigInt((market?.totalDeposits ?? 0) * 10 ** 6)
+            BigInt(Number(amount) * 10 ** lstDecimals),
+            BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+            BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
           );
 
           recordUserAction({
@@ -439,7 +446,7 @@ const MarketDetailsPage = () => {
             marketId: Number(market?.id),
             action: "redeem",
             tokensOut: Number(amount), //LST returned
-            tokensIn: Number(asaDue), //Base token deposited
+            tokensIn: Number(asaDue) / 10 ** baseDecimals, //Base token received (convert from microunits)
             timestamp: Date.now(),
             txnId: txId,
             tokenInId: Number(market?.lstTokenId),
@@ -490,8 +497,9 @@ const MarketDetailsPage = () => {
       })
         .then((txId) => {
           // Apply optimistic updates for instant UI feedback
+          const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
           const repayAmountMicrounits = (
-            Number(repayAmount) * Math.pow(10, 6)
+            Number(repayAmount) * Math.pow(10, baseTokenDecimals)
           ).toString();
           const baseTokenId = market?.baseTokenId || "0";
 
@@ -546,8 +554,9 @@ const MarketDetailsPage = () => {
       })
         .then((txId) => {
           // Apply optimistic updates for instant UI feedback
+          const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
           const repayAmountMicrounits = (
-            Number(repayAmount) * Math.pow(10, 6)
+            Number(repayAmount) * Math.pow(10, baseTokenDecimals)
           ).toString();
           const baseTokenId = market?.baseTokenId || "0";
 
@@ -616,8 +625,9 @@ const MarketDetailsPage = () => {
     })
       .then((txId) => {
         // Apply optimistic updates for instant UI feedback
+        const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
         const withdrawAmountMicrounits = (
-          Number(withdrawAmount) * Math.pow(10, 6)
+          Number(withdrawAmount) * Math.pow(10, lstTokenDecimals)
         ).toString();
 
         // Add withdrawn collateral tokens back to user balance
@@ -724,8 +734,10 @@ const MarketDetailsPage = () => {
     })
       .then((txId) => {
         // Apply optimistic updates for instant UI feedback
+        const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
+        const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
         const borrowAmountMicrounits = (
-          Number(borrowAmount) * Math.pow(10, 6)
+          Number(borrowAmount) * Math.pow(10, baseTokenDecimals)
         ).toString();
         const baseTokenId = market?.baseTokenId || "0";
 
@@ -735,7 +747,7 @@ const MarketDetailsPage = () => {
         // Only update collateral balance if new collateral is being added
         if (isAddingCollateral) {
           const collateralAmountMicrounits = (
-            Number(effectiveCollateralAmount) * Math.pow(10, 6)
+            Number(effectiveCollateralAmount) * Math.pow(10, lstTokenDecimals)
           ).toString();
 
           // Remove collateral tokens from user balance
@@ -861,9 +873,16 @@ const MarketDetailsPage = () => {
     );
   }
 
-  const getUtilizationBgColor = (rate: number) => {
+  const getUtilizationBgColor = (rate: number, market: any) => {
+    // rate is already normalized to the cap (0-100% where 100% = the cap)
+    // kinkNormBps is also normalized (0-10000 where 10000 = 100% of cap)
+    const kinkPercent = (market.kinkNormBps ?? 5000) / 100;
+    
+    // Red zone: 90% or more of the cap
     if (rate >= 90) return "from-red-500 to-red-600";
-    if (rate >= 70) return "from-amber-500 to-amber-600";
+    // Amber zone: at or above the kink point
+    if (rate >= kinkPercent) return "from-amber-500 to-amber-600";
+    // Cyan zone: below the kink point
     return "from-cyan-500 to-blue-500";
   };
 
@@ -996,7 +1015,7 @@ const MarketDetailsPage = () => {
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
                 <div className="inset-panel cut-corners-sm p-3 md:p-4">
                   <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
                     Total Supply
@@ -1004,11 +1023,26 @@ const MarketDetailsPage = () => {
                       <Info className="w-3 h-3 cursor-help" />
                     </Tooltip>
                   </div>
-                  <div className="text-lg md:text-2xl font-mono font-bold text-white tabular-nums">
+                  <div className="text-base md:text-xl font-mono font-bold text-white tabular-nums">
                     ${market.totalDepositsUSD.toLocaleString()}
                   </div>
-                  <div className="text-xs md:text-sm text-slate-500 font-mono">
+                  <div className="text-xs text-slate-500 font-mono">
                     {market.totalDeposits.toFixed(6)} {market.symbol}
+                  </div>
+                </div>
+
+                <div className="inset-panel cut-corners-sm p-3 md:p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
+                    Total Borrows
+                    <Tooltip content="Total value of all assets currently borrowed from this market" position="top">
+                      <Info className="w-3 h-3 cursor-help" />
+                    </Tooltip>
+                  </div>
+                  <div className="text-base md:text-xl font-mono font-bold text-white tabular-nums">
+                    ${market.totalBorrowsUSD.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono">
+                    {market.totalBorrows.toFixed(6)} {market.symbol}
                   </div>
                 </div>
 
@@ -1032,7 +1066,7 @@ const MarketDetailsPage = () => {
                     </Tooltip>
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-amber-400 tabular-nums">
-                    {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+                    {market.borrowApr.toFixed(2)}%
                   </div>
                 </div>
               </div>
@@ -1054,10 +1088,13 @@ const MarketDetailsPage = () => {
                   <div className="orbital-ring w-full bg-noise-dark">
                     <motion.div
                       className={`h-full bg-gradient-to-r ${getUtilizationBgColor(
-                        market.utilizationRate
+                        market.utilizationRate,
+                        market
                       )} relative rounded-lg`}
                       initial={{ width: 0 }}
-                      animate={{ width: `${market.utilizationRate}%` }}
+                      animate={{ 
+                        width: `${Math.min(market.utilizationRate, 100)}%` 
+                      }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
                       style={{
                         minWidth: market.utilizationRate > 0 ? "14px" : "0px",
@@ -1065,19 +1102,26 @@ const MarketDetailsPage = () => {
                     />
                   </div>
                   <Tooltip content="Interest rates accelerate after kink to incentivize supply" position="top">
-                    <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
+                    <div 
+                      className="absolute top-0 h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"
+                      style={{ 
+                        left: `${(market.kinkNormBps ?? 5000) / 100}%` 
+                      }}
+                    ></div>
                   </Tooltip>
-                  <Tooltip content="Max utilization threshold. No further borrowing at 100%" position="top">
+                  <Tooltip content="Max utilization threshold. No further borrowing beyond this point" position="top">
                     <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
                   </Tooltip>
                 </div>
                 <div className="flex justify-between text-xs font-mono text-slate-500 mt-2">
                   <span>0%</span>
                   <Tooltip content="Kink point: where interest rate slope increases sharply" position="top">
-                    <span className="text-yellow-400">Kink: 50%</span>
+                    <span className="text-yellow-400">
+                      Kink: {((market.kinkNormBps ?? 5000) / 100).toFixed(0)}%
+                    </span>
                   </Tooltip>
                   <Tooltip content="Utilization cap: maximum % that can be borrowed" position="top">
-                    <span className="text-red-400">Cap: 100%</span>
+                    <span className="text-red-400">Cap: {((market.utilCapBps ?? 8000) / 100).toFixed(0)}%</span>
                   </Tooltip>
                 </div>
               </div>

@@ -63,10 +63,24 @@ const LendingMarketsPage = () => {
     return num.toFixed(decimals);
   };
 
-  const getUtilizationBgColor = (rate: number) => {
-    if (rate >= 90) return "from-red-500 to-red-600"; // Danger
-    if (rate >= 70) return "from-amber-500 to-amber-600"; // Warning
-    return "from-cyan-500 to-blue-500"; // Thruster blue
+  const getUtilizationBgColor = (rate: number, market?: any) => {
+    if (!market) {
+      // Fallback to hardcoded thresholds if market not provided
+      if (rate >= 90) return "from-red-500 to-red-600";
+      if (rate >= 70) return "from-amber-500 to-amber-600";
+      return "from-cyan-500 to-blue-500";
+    }
+    
+    // rate is already normalized to the cap (0-100% where 100% = the cap)
+    // kinkNormBps is also normalized (0-10000 where 10000 = 100% of cap)
+    const kinkPercent = (market.kinkNormBps ?? 5000) / 100;
+    
+    // Red zone: 90% or more of the cap
+    if (rate >= 90) return "from-red-500 to-red-600";
+    // Amber zone: at or above the kink point
+    if (rate >= kinkPercent) return "from-amber-500 to-amber-600";
+    // Cyan zone: below the kink point
+    return "from-cyan-500 to-blue-500";
   };
 
   return (
