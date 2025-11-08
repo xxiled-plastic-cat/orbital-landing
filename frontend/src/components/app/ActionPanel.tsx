@@ -1747,26 +1747,26 @@ const ActionPanel = ({
                     {activeAction === "deposit" &&
                       `${
                         amount
-                          ? Number(
+                          ? (Number(
                               calculateLSTDue(
                                 BigInt(Number(amount) * 10 ** 6),
                                 BigInt(Math.floor(market.circulatingLST) * 10 ** 6 || 0),
                                 BigInt(Math.floor(market.totalDeposits) * 10 ** 6 || 0)
                               )
-                            ).toFixed(2)
-                          : "0.00"
+                            ) / 10 ** 6).toFixed(6)
+                          : "0.000000"
                       } ${getLSTTokenSymbol(market?.symbol)}`}
                     {activeAction === "redeem" &&
                       `${
                         amount
-                          ? Number(
+                          ? (Number(
                               calculateAssetDue(
                                 BigInt(Number(amount) * 10 ** 6),
                                 BigInt(Math.floor(market?.circulatingLST) * 10 ** 6 || 0),
                                 BigInt(Math.floor(market?.totalDeposits) * 10 ** 6 || 0)
                               )
-                            ).toFixed(2)
-                          : "0.00"
+                            ) / 10 ** 6).toFixed(6)
+                          : "0.000000"
                       } ${getBaseTokenSymbol(market?.symbol)}`}
                   </span>
                 </div>

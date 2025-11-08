@@ -286,7 +286,7 @@ const MarketDetailsPage = () => {
               address: activeAddress as string,
               marketId: Number(market?.id),
               action: "deposit",
-              tokensOut: Number(lstMinted), //LST returned
+              tokensOut: Number(lstMinted) / 10 ** 6, //LST returned (convert from microunits)
               tokensIn: Number(amount), //Base token deposited
               timestamp: Date.now(),
               txnId: txId,
@@ -352,7 +352,7 @@ const MarketDetailsPage = () => {
               address: activeAddress as string,
               marketId: Number(market?.id),
               action: "deposit",
-              tokensOut: Number(lstMinted), //LST returned
+              tokensOut: Number(lstMinted) / 10 ** 6, //LST returned (convert from microunits)
               tokensIn: Number(amount), //Base token deposited
               timestamp: Date.now(),
               txnId: txId,
@@ -439,7 +439,7 @@ const MarketDetailsPage = () => {
             marketId: Number(market?.id),
             action: "redeem",
             tokensOut: Number(amount), //LST returned
-            tokensIn: Number(asaDue), //Base token deposited
+            tokensIn: Number(asaDue) / 10 ** 6, //Base token received (convert from microunits)
             timestamp: Date.now(),
             txnId: txId,
             tokenInId: Number(market?.lstTokenId),
