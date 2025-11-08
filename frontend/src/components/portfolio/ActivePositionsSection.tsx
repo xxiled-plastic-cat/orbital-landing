@@ -213,7 +213,7 @@ const ActivePositionsSection: React.FC = () => {
         borrowedAmount,
         collateralAmount,
         borrowValueUSD,
-        apy: calculateRealTimeBorrowAPR(market),
+        apy: market.borrowApr,
         lastUpdated: new Date(Number(record.lastDebtChange.timestamp) * 1000),
         userIndexWad: record.userIndexWad
       };

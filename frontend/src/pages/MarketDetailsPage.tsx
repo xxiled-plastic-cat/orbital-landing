@@ -873,9 +873,16 @@ const MarketDetailsPage = () => {
     );
   }
 
-  const getUtilizationBgColor = (rate: number) => {
+  const getUtilizationBgColor = (rate: number, market: any) => {
+    // rate is already normalized to the cap (0-100% where 100% = the cap)
+    // kinkNormBps is also normalized (0-10000 where 10000 = 100% of cap)
+    const kinkPercent = (market.kinkNormBps ?? 5000) / 100;
+    
+    // Red zone: 90% or more of the cap
     if (rate >= 90) return "from-red-500 to-red-600";
-    if (rate >= 70) return "from-amber-500 to-amber-600";
+    // Amber zone: at or above the kink point
+    if (rate >= kinkPercent) return "from-amber-500 to-amber-600";
+    // Cyan zone: below the kink point
     return "from-cyan-500 to-blue-500";
   };
 
@@ -1008,7 +1015,7 @@ const MarketDetailsPage = () => {
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
                 <div className="inset-panel cut-corners-sm p-3 md:p-4">
                   <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
                     Total Supply
@@ -1016,11 +1023,26 @@ const MarketDetailsPage = () => {
                       <Info className="w-3 h-3 cursor-help" />
                     </Tooltip>
                   </div>
-                  <div className="text-lg md:text-2xl font-mono font-bold text-white tabular-nums">
+                  <div className="text-base md:text-xl font-mono font-bold text-white tabular-nums">
                     ${market.totalDepositsUSD.toLocaleString()}
                   </div>
-                  <div className="text-xs md:text-sm text-slate-500 font-mono">
+                  <div className="text-xs text-slate-500 font-mono">
                     {market.totalDeposits.toFixed(6)} {market.symbol}
+                  </div>
+                </div>
+
+                <div className="inset-panel cut-corners-sm p-3 md:p-4">
+                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
+                    Total Borrows
+                    <Tooltip content="Total value of all assets currently borrowed from this market" position="top">
+                      <Info className="w-3 h-3 cursor-help" />
+                    </Tooltip>
+                  </div>
+                  <div className="text-base md:text-xl font-mono font-bold text-white tabular-nums">
+                    ${market.totalBorrowsUSD.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono">
+                    {market.totalBorrows.toFixed(6)} {market.symbol}
                   </div>
                 </div>
 
@@ -1066,10 +1088,13 @@ const MarketDetailsPage = () => {
                   <div className="orbital-ring w-full bg-noise-dark">
                     <motion.div
                       className={`h-full bg-gradient-to-r ${getUtilizationBgColor(
-                        market.utilizationRate
+                        market.utilizationRate,
+                        market
                       )} relative rounded-lg`}
                       initial={{ width: 0 }}
-                      animate={{ width: `${market.utilizationRate}%` }}
+                      animate={{ 
+                        width: `${Math.min(market.utilizationRate, 100)}%` 
+                      }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
                       style={{
                         minWidth: market.utilizationRate > 0 ? "14px" : "0px",
@@ -1077,19 +1102,26 @@ const MarketDetailsPage = () => {
                     />
                   </div>
                   <Tooltip content="Interest rates accelerate after kink to incentivize supply" position="top">
-                    <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
+                    <div 
+                      className="absolute top-0 h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"
+                      style={{ 
+                        left: `${(market.kinkNormBps ?? 5000) / 100}%` 
+                      }}
+                    ></div>
                   </Tooltip>
-                  <Tooltip content="Max utilization threshold. No further borrowing at 100%" position="top">
+                  <Tooltip content="Max utilization threshold. No further borrowing beyond this point" position="top">
                     <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
                   </Tooltip>
                 </div>
                 <div className="flex justify-between text-xs font-mono text-slate-500 mt-2">
                   <span>0%</span>
                   <Tooltip content="Kink point: where interest rate slope increases sharply" position="top">
-                    <span className="text-yellow-400">Kink: 50%</span>
+                    <span className="text-yellow-400">
+                      Kink: {((market.kinkNormBps ?? 5000) / 100).toFixed(0)}%
+                    </span>
                   </Tooltip>
                   <Tooltip content="Utilization cap: maximum % that can be borrowed" position="top">
-                    <span className="text-red-400">Cap: 100%</span>
+                    <span className="text-red-400">Cap: {((market.utilCapBps ?? 8000) / 100).toFixed(0)}%</span>
                   </Tooltip>
                 </div>
               </div>

@@ -9,7 +9,7 @@ interface MarketCardProps {
   market: LendingMarket;
   index: number;
   formatNumber: (num: number, decimals?: number) => string;
-  getUtilizationBgColor: (rate: number) => string;
+  getUtilizationBgColor: (rate: number, market?: any) => string;
 }
 
 const MarketCard: React.FC<MarketCardProps> = ({
@@ -158,10 +158,13 @@ const MarketCard: React.FC<MarketCardProps> = ({
             <div className="orbital-ring w-full bg-noise-dark">
               <motion.div
                 className={`h-full bg-gradient-to-r ${getUtilizationBgColor(
-                  market.utilizationRate
+                  market.utilizationRate,
+                  market
                 )} relative rounded-lg`}
                 initial={{ width: 0 }}
-                animate={{ width: `${market.utilizationRate}%` }}
+                animate={{ 
+                  width: `${Math.min(market.utilizationRate, 100)}%` 
+                }}
                 transition={{
                   duration: 1.4,
                   delay: 0.5 + index * 0.1,
@@ -176,10 +179,15 @@ const MarketCard: React.FC<MarketCardProps> = ({
             </div>
 
             {/* Enhanced markers */}
-            <div className="absolute top-0 left-[50%] h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"></div>
+            <div 
+              className="absolute top-0 h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"
+              style={{ 
+                left: `${(market.kinkNormBps ?? 5000) / 100}%` 
+              }}
+            ></div>
             <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
 
-            {/* Kink indicator */}
+            {/* Kink indicator - show when near cap */}
             {market.utilizationRate >= 90 && (
               <motion.div
                 className="absolute -top-1 left-[100%] transform -translate-x-1"
