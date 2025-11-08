@@ -44,7 +44,6 @@ import {
 import { recordUserAction } from "../services/userStats";
 import { useNetwork } from "../context/networkContext";
 import { ExplorerLinks } from "../components/app/explorerlinks";
-import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 import { BuyOnCompxButton } from "../components/app/BuyOnCompxButton";
 
 // Helper component to display network name
@@ -1045,7 +1044,7 @@ const MarketDetailsPage = () => {
                     </Tooltip>
                   </div>
                   <div className="text-lg md:text-2xl font-mono font-bold text-amber-400 tabular-nums">
-                    {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+                    {market.borrowApr.toFixed(2)}%
                   </div>
                 </div>
               </div>

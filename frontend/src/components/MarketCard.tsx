@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { TrendingUp, Radio, AlertCircle } from "lucide-react";
 import { LendingMarket } from "../types/lending";
-import { calculateRealTimeBorrowAPR } from "../utils/interestRateCalculations";
 import Tooltip from "./Tooltip";
 
 interface MarketCardProps {
@@ -137,7 +136,7 @@ const MarketCard: React.FC<MarketCardProps> = ({
               </span>
             </div>
             <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums tracking-tight">
-              {calculateRealTimeBorrowAPR(market).toFixed(2)}%
+              {market.borrowApr.toFixed(2)}%
             </div>
            
           </div>

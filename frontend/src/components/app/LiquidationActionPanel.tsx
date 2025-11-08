@@ -3,6 +3,7 @@ import { DebtPosition } from "../../types/lending";
 import { LendingMarket } from "../../types/lending";
 import MomentumSpinner from "../MomentumSpinner";
 import { BuyOnCompxButton } from "./BuyOnCompxButton";
+import { useNetwork } from "../../context/networkContext";
 
 interface LiquidationActionPanelProps {
   position: DebtPosition;
@@ -27,6 +28,12 @@ const LiquidationActionPanel = ({
   userDebtTokenBalance,
   isLoadingBalance,
 }: LiquidationActionPanelProps) => {
+  const { isTestnet } = useNetwork();
+  
+  // Dynamic premium token based on network
+  const premiumSymbol = isTestnet ? "xUSDt" : "xUSD";
+  const premiumImage = isTestnet ? "/xUSDt.svg" : "/mainnet-tokens/31566704.svg"; // 31566704 is xUSD mainnet asset ID
+  
   // Map token symbols to their image paths
   const getTokenImage = (symbol: string): string => {
     const tokenImages: Record<string, string> = {
@@ -479,15 +486,15 @@ const LiquidationActionPanel = ({
             <div className="bg-slate-700 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-2">
                 <img
-                  src="/xUSDt.svg"
-                  alt="xUSDt"
+                  src={premiumImage}
+                  alt={premiumSymbol}
                   className="w-6 h-6 rounded-full flex-shrink-0"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                   }}
                 />
                 <div className="font-mono font-bold text-lg text-amber-400">
-                  {formatNumber(bufferedPremiumTokens)} xUSDt
+                  {formatNumber(bufferedPremiumTokens)} {premiumSymbol}
                 </div>
               </div>
               <div className="font-mono font-semibold text-slate-300">
@@ -497,7 +504,7 @@ const LiquidationActionPanel = ({
                 Buyout Premium (with 5% buffer)
               </div>
               <div className="text-slate-500 text-xs space-y-1">
-                <div>Base: {formatNumber(position.buyoutPremiumTokens)} xUSDt (50% to borrower, 50% to protocol)</div>
+                <div>Base: {formatNumber(position.buyoutPremiumTokens)} {premiumSymbol} (50% to borrower, 50% to protocol)</div>
                 <div className="text-cyan-400">+5% buffer for debt fluctuations - excess returned to you</div>
               </div>
             </div>
@@ -540,8 +547,8 @@ const LiquidationActionPanel = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <img
-                      src="/xUSDt.svg"
-                      alt="xUSDt"
+                      src={premiumImage}
+                      alt={premiumSymbol}
                       className="w-4 h-4 rounded-full flex-shrink-0"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
@@ -551,7 +558,7 @@ const LiquidationActionPanel = ({
                   </div>
                   <div className="text-right">
                     <div className="font-mono font-semibold text-sm text-amber-400">
-                      {formatNumber(bufferedPremiumTokens)} xUSDt
+                      {formatNumber(bufferedPremiumTokens)} {premiumSymbol}
                     </div>
                     <div className="font-mono text-xs text-slate-400">
                       ${formatUSD(bufferedPremiumUSD)}
@@ -629,7 +636,7 @@ const LiquidationActionPanel = ({
               <>
                 <li>• Buyout debt position</li>
                 <li>• Repay debt: {formatNumber(position.buyoutDebtRepaymentTokens)} {position.debtToken.symbol} (${formatUSD(position.buyoutDebtRepayment)})</li>
-                <li>• Pay premium: {formatNumber(bufferedPremiumTokens)} xUSDt (${formatUSD(bufferedPremiumUSD)})</li>
+                <li>• Pay premium: {formatNumber(bufferedPremiumTokens)} {premiumSymbol} (${formatUSD(bufferedPremiumUSD)})</li>
                 <li className="text-cyan-400 text-xs pl-4">↳ Includes 5% buffer for debt fluctuations</li>
                 <li className="text-cyan-400 text-xs pl-4">↳ Excess premium will be returned to you</li>
                 <li>• Receive collateral: {formatNumber(position.totalCollateralTokens)} {position.collateralToken.symbol} (${formatUSD(position.totalCollateral)})</li>
