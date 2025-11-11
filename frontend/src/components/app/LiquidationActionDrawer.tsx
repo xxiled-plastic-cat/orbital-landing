@@ -13,6 +13,7 @@ interface LiquidationActionDrawerProps {
   onLiquidate: () => void;
   onBuyout: () => void;
   userDebtTokenBalance: string | null;
+  userPremiumTokenBalance: string | null;
   isLoadingBalance: boolean;
 }
 

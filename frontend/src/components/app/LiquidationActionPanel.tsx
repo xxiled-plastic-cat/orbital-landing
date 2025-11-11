@@ -14,6 +14,7 @@ interface LiquidationActionPanelProps {
   onLiquidate: () => void;
   onBuyout: () => void;
   userDebtTokenBalance: string | null;
+  userPremiumTokenBalance: string | null;
   isLoadingBalance: boolean;
 }
 
@@ -26,13 +27,16 @@ const LiquidationActionPanel = ({
   onLiquidate,
   onBuyout,
   userDebtTokenBalance,
+  userPremiumTokenBalance,
   isLoadingBalance,
 }: LiquidationActionPanelProps) => {
   const { isTestnet } = useNetwork();
   
   // Dynamic premium token based on network
   const premiumSymbol = isTestnet ? "xUSDt" : "xUSD";
-  const premiumImage = isTestnet ? "/xUSDt.svg" : "/mainnet-tokens/31566704.svg"; // 31566704 is xUSD mainnet asset ID
+  // Use the buyout token ID from the market to get the correct icon
+  const buyoutTokenId = market?.buyoutTokenId?.toString() || (isTestnet ? "744427912" : "760037151");
+  const premiumImage = isTestnet ? "/xUSDt.svg" : `/mainnet-tokens/${buyoutTokenId}.svg`;
   
   // Map token symbols to their image paths
   const getTokenImage = (symbol: string): string => {
@@ -459,6 +463,60 @@ const LiquidationActionPanel = ({
               )}
             </div>
 
+            {/* Premium Token Balance */}
+            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-slate-400 text-xs uppercase tracking-wide">Your {premiumSymbol} Balance (Premium)</span>
+                {isLoadingBalance && (
+                  <span className="text-slate-500 text-xs">Loading...</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <img
+                  src={premiumImage}
+                  alt={premiumSymbol}
+                  className="w-5 h-5 rounded-full flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+                {userPremiumTokenBalance !== null ? (
+                  <>
+                    <div className="font-mono font-bold text-white">
+                      {formatNumber(parseFloat(userPremiumTokenBalance))} {premiumSymbol}
+                    </div>
+                    <span className="text-slate-400 text-sm">
+                      ≈ ${formatUSD(parseFloat(userPremiumTokenBalance) * 1.0)}
+                    </span>
+                    {parseFloat(userPremiumTokenBalance) < bufferedPremiumTokens && (
+                      <span className="ml-auto text-xs text-red-400 font-semibold">
+                        ⚠️ INSUFFICIENT
+                      </span>
+                    )}
+                    {parseFloat(userPremiumTokenBalance) >= bufferedPremiumTokens && (
+                      <span className="ml-auto text-xs text-green-400 font-semibold">
+                        ✓ SUFFICIENT
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-slate-500 text-sm">
+                    {isLoadingBalance ? "Loading balance..." : "Connect wallet to view balance"}
+                  </div>
+                )}
+              </div>
+              {/* Buy on Compx Button when insufficient premium balance */}
+              {userPremiumTokenBalance !== null && parseFloat(userPremiumTokenBalance) < bufferedPremiumTokens && (
+                <div className="mt-2 flex justify-center">
+                  <BuyOnCompxButton
+                    tokenSymbol={premiumSymbol}
+                    tokenId={buyoutTokenId}
+                    hasBalance={false}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Debt Repayment */}
             <div className="bg-slate-700 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-2">
@@ -573,7 +631,12 @@ const LiquidationActionPanel = ({
         {/* Action Button */}
         <button
           onClick={isLiquidationZone ? onLiquidate : onBuyout}
-          disabled={isExecuting || (isLiquidationZone && !isBadDebtScenario && requestedRepayAmount <= 0)}
+          disabled={
+            isExecuting || 
+            (isLiquidationZone && !isBadDebtScenario && requestedRepayAmount <= 0) ||
+            (!isLiquidationZone && userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < position.buyoutDebtRepaymentTokens) ||
+            (!isLiquidationZone && userPremiumTokenBalance !== null && parseFloat(userPremiumTokenBalance) < bufferedPremiumTokens)
+          }
           className={`w-full py-4 border text-white rounded-lg font-mono text-lg font-semibold transition-all duration-150 flex items-center justify-center gap-3 ${
             isLiquidationZone
               ? "bg-red-600 border-red-500 hover:bg-red-500 disabled:bg-red-400 disabled:border-red-400"

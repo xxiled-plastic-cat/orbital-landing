@@ -303,6 +303,20 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
             ? debtValueUSD / (collateralAmountInTokens * (Number(market.liquidationThreshold) / 100))
             : 0;
 
+        // Fetch live buyout token price from oracle (typically xUSD, but could be other stable tokens)
+        let buyoutTokenPrice = 1.0; // Default fallback
+        if (oracleAppId > 0 && market.buyoutTokenId) {
+          try {
+            buyoutTokenPrice = await priceFetcher.getBaseTokenPrice(
+              market.buyoutTokenId,
+              oracleAppId
+            );
+            console.log(`Fetched live buyout token price for asset ${market.buyoutTokenId}: $${buyoutTokenPrice}`);
+          } catch (error) {
+            console.warn(`Failed to get buyout token price for ${market.buyoutTokenId}, using fallback $1:`, error);
+          }
+        }
+
         // Calculate buyout cost using the optimized bigint function
         const buyoutInputs: BuyoutInputs = {
           collateralAmount: record.collateralAmount,
@@ -310,7 +324,7 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
           debtBaseTokens: currentDebtBigInt,
           baseTokenPriceMicroUSD: BigInt(Math.floor(debtTokenPrice * 1e6)),
           liqThresholdBps: BigInt(Math.floor(Number(market.liquidationThreshold) * 100)),
-          buyoutTokenPriceMicroUSD: 1_000_000n, // Assuming xUSD = $1
+          buyoutTokenPriceMicroUSD: BigInt(Math.floor(buyoutTokenPrice * 1e6)), // Use live oracle price
         };
 
         const buyoutQuote = quoteBuyoutExact(buyoutInputs);
