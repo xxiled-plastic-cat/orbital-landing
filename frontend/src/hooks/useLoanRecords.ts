@@ -32,12 +32,12 @@ export function useLoanRecords() {
   })
 }
 
-// Hook to get debt positions for marketplace
+// Hook to get debt positions for marketplace (global - all users)
 export function useDebtPositions() {
   const { transactionSigner, activeAddress } = useWallet()
 
   return useQuery({
-    queryKey: [...DEBT_POSITIONS_QUERY_KEY, activeAddress],
+    queryKey: DEBT_POSITIONS_QUERY_KEY, // No activeAddress - this is global data for marketplace
     queryFn: async (): Promise<DebtPosition[]> => {
       if (!transactionSigner || !activeAddress) {
         throw new Error('Wallet not connected')
@@ -81,8 +81,9 @@ export function useInvalidateLoanRecords() {
       queryClient.invalidateQueries({
         queryKey: [...LOAN_RECORDS_QUERY_KEY, activeAddress]
       })
+      // Debt positions are global (not per-user), so no activeAddress in key
       queryClient.invalidateQueries({
-        queryKey: [...DEBT_POSITIONS_QUERY_KEY, activeAddress]
+        queryKey: DEBT_POSITIONS_QUERY_KEY
       })
     }
   }
@@ -99,8 +100,9 @@ export function useRefetchLoanRecords() {
       queryClient.refetchQueries({
         queryKey: [...LOAN_RECORDS_QUERY_KEY, activeAddress]
       })
+      // Debt positions are global (not per-user), so no activeAddress in key
       queryClient.refetchQueries({
-        queryKey: [...DEBT_POSITIONS_QUERY_KEY, activeAddress]
+        queryKey: DEBT_POSITIONS_QUERY_KEY
       })
     }
   }

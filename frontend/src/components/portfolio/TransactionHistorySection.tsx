@@ -9,7 +9,8 @@ import {
   ArrowDownLeft,
   ChevronDown,
   ChevronRight,
-  DollarSign
+  DollarSign,
+  ChevronLeft
 } from 'lucide-react';
 import { useWallet } from '@txnlab/use-wallet-react';
 import { ORBITAL_BACKEND_URL } from '../../constants/constants';
@@ -45,6 +46,8 @@ const TransactionHistorySection: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Get unique token IDs from transactions
   const uniqueTokenIds = useMemo(() => {
@@ -58,6 +61,30 @@ const TransactionHistorySection: React.FC = () => {
 
   // Fetch asset metadata for transaction token IDs
   const { data: assetMetadata } = useAssetMetadata(uniqueTokenIds);
+
+  // Sort transactions by timestamp (latest first)
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      const timeA = parseInt(a.timestamp);
+      const timeB = parseInt(b.timestamp);
+      return timeB - timeA; // Descending order (latest first)
+    });
+  }, [transactions]);
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTransactions = sortedTransactions.slice(startIndex, endIndex);
+
+  // Reset to page 1 when transactions change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [transactions.length]);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   const fetchTransactions = useCallback(async () => {
     if (!activeAccount?.address) {
@@ -289,10 +316,15 @@ const TransactionHistorySection: React.FC = () => {
         <div className="text-slate-600 cut-corners-lg bg-noise-dark border-2 border-slate-600 shadow-industrial overflow-hidden">
           {/* Table Header */}
           <div className="p-4 md:p-6 border-b border-slate-600">
-            <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide flex items-center gap-2">
-              <Clock className="w-5 h-5 text-cyan-400" />
-              TRANSACTION LOG
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide flex items-center gap-2">
+                <Clock className="w-5 h-5 text-cyan-400" />
+                TRANSACTION LOG
+              </h2>
+              <div className="text-sm text-slate-400 font-mono">
+                {transactions.length} total entries
+              </div>
+            </div>
           </div>
 
           {/* Desktop Table */}
@@ -311,7 +343,7 @@ const TransactionHistorySection: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx, index) => (
+                {paginatedTransactions.map((tx, index) => (
                   <tr 
                     key={tx.txnId} 
                     className={`border-b border-slate-700/50 hover:bg-slate-800/30 transition-all duration-150 ${
@@ -360,7 +392,7 @@ const TransactionHistorySection: React.FC = () => {
 
           {/* Mobile List */}
           <div className="md:hidden">
-            {transactions.map((tx, index) => {
+            {paginatedTransactions.map((tx, index) => {
               const isExpanded = expandedRows.has(tx.txnId);
               return (
                 <div key={tx.txnId} className={`border-b border-slate-700/50 ${
@@ -472,6 +504,108 @@ const TransactionHistorySection: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="p-4 md:p-6 border-t border-slate-600 bg-slate-800/30">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                {/* Page Info */}
+                <div className="text-sm text-slate-400 font-mono">
+                  Page <span className="text-cyan-400 font-bold">{currentPage}</span> of <span className="text-cyan-400 font-bold">{totalPages}</span>
+                  <span className="hidden sm:inline">
+                    {' '}• Showing {startIndex + 1}-{Math.min(endIndex, transactions.length)} of {transactions.length}
+                  </span>
+                </div>
+
+                {/* Pagination Buttons */}
+                <div className="flex items-center gap-2">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`flex items-center gap-1 px-3 py-2 font-mono text-sm border transition-all duration-150 ${
+                      currentPage === 1
+                        ? 'text-slate-600 border-slate-700 cursor-not-allowed'
+                        : 'text-cyan-400 border-cyan-600 hover:bg-cyan-900/20 hover:border-cyan-500'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">PREV</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {/* First Page */}
+                    {currentPage > 3 && (
+                      <>
+                        <button
+                          onClick={() => goToPage(1)}
+                          className="w-8 h-8 sm:w-10 sm:h-10 font-mono text-sm border border-cyan-600 text-cyan-400 hover:bg-cyan-900/20 hover:border-cyan-500 transition-all duration-150"
+                        >
+                          1
+                        </button>
+                        {currentPage > 4 && (
+                          <span className="text-slate-500 px-1">...</span>
+                        )}
+                      </>
+                    )}
+
+                    {/* Current page and nearby pages */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        return page === currentPage || 
+                               page === currentPage - 1 || 
+                               page === currentPage + 1 ||
+                               (currentPage <= 2 && page <= 3) ||
+                               (currentPage >= totalPages - 1 && page >= totalPages - 2);
+                      })
+                      .map(page => (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`w-8 h-8 sm:w-10 sm:h-10 font-mono text-sm border transition-all duration-150 ${
+                            page === currentPage
+                              ? 'bg-cyan-600 border-cyan-500 text-white font-bold'
+                              : 'border-cyan-600 text-cyan-400 hover:bg-cyan-900/20 hover:border-cyan-500'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+
+                    {/* Last Page */}
+                    {currentPage < totalPages - 2 && (
+                      <>
+                        {currentPage < totalPages - 3 && (
+                          <span className="text-slate-500 px-1">...</span>
+                        )}
+                        <button
+                          onClick={() => goToPage(totalPages)}
+                          className="w-8 h-8 sm:w-10 sm:h-10 font-mono text-sm border border-cyan-600 text-cyan-400 hover:bg-cyan-900/20 hover:border-cyan-500 transition-all duration-150"
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center gap-1 px-3 py-2 font-mono text-sm border transition-all duration-150 ${
+                      currentPage === totalPages
+                        ? 'text-slate-600 border-slate-700 cursor-not-allowed'
+                        : 'text-cyan-400 border-cyan-600 hover:bg-cyan-900/20 hover:border-cyan-500'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">NEXT</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     );
