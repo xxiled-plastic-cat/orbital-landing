@@ -83,30 +83,48 @@ export function decodeDepositRecord(boxValue: Uint8Array): {
  * @returns Decoded loan record
  */
 export function decodeLoanRecord(boxValue: Uint8Array): {
+  borrowerAddress: string;
   collateralTokenId: bigint;
   collateralAmount: bigint;
-  lastDebtChange: bigint;
+  lastDebtChange: {
+    amount: bigint;
+    changeType: number;
+    timestamp: bigint;
+  };
   borrowedTokenId: bigint;
   principal: bigint;
   userIndexWad: bigint;
 } {
   const loanRecordType = new algosdk.ABITupleType([
+    new algosdk.ABIAddressType(), // borrowerAddress
     new algosdk.ABIUintType(64), // collateralTokenId
     new algosdk.ABIUintType(64), // collateralAmount
-    new algosdk.ABIUintType(64), // lastDebtChange
+    new algosdk.ABITupleType([
+      new algosdk.ABIUintType(64), // lastDebtChange.amount
+      new algosdk.ABIUintType(8),  // lastDebtChange.changeType
+      new algosdk.ABIUintType(64), // lastDebtChange.timestamp
+    ]),
     new algosdk.ABIUintType(64), // borrowedTokenId
     new algosdk.ABIUintType(64), // principal
-    new algosdk.ABIUintType(128), // userIndexWad
+    new algosdk.ABIUintType(64), // userIndexWad
   ]);
 
-  const decoded = loanRecordType.decode(boxValue) as bigint[];
+  const decoded = loanRecordType.decode(boxValue) as any[];
+  const borrowerAddressBytes = decoded[0] as Uint8Array;
+  const lastDebtChange = decoded[3] as bigint[];
+
   return {
-    collateralTokenId: decoded[0],
-    collateralAmount: decoded[1],
-    lastDebtChange: decoded[2],
-    borrowedTokenId: decoded[3],
-    principal: decoded[4],
-    userIndexWad: decoded[5],
+    borrowerAddress: algosdk.encodeAddress(borrowerAddressBytes),
+    collateralTokenId: decoded[1],
+    collateralAmount: decoded[2],
+    lastDebtChange: {
+      amount: lastDebtChange[0],
+      changeType: Number(lastDebtChange[1]),
+      timestamp: lastDebtChange[2],
+    },
+    borrowedTokenId: decoded[4],
+    principal: decoded[5],
+    userIndexWad: decoded[6],
   };
 }
 

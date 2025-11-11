@@ -214,6 +214,51 @@ assets.forEach(asset => {
 });
 ```
 
+##### `getMarketLoanRecords(appId: number): Promise<LoanRecord[]>`
+
+Fetches all active loan records from a market. **No wallet required.**
+
+**Parameters:**
+- `appId`: Market application ID
+
+**Returns:** Promise resolving to array of `LoanRecord` objects
+
+**Example:**
+```typescript
+const loanRecords = await sdk.getMarketLoanRecords(12345678);
+console.log(`Found ${loanRecords.length} active loans`);
+```
+
+##### `getAllDebtPositions(marketAppIds: number[]): Promise<DebtPosition[]>`
+
+Fetches all debt positions from multiple markets with calculated metrics. **No wallet required.**
+
+**Parameters:**
+- `marketAppIds`: Array of market application IDs
+
+**Returns:** Promise resolving to array of `DebtPosition` objects with health ratios, totals, etc.
+
+**Example:**
+```typescript
+const positions = await sdk.getAllDebtPositions([12345, 23456]);
+positions.forEach(pos => {
+  console.log(`${pos.borrowerAddress}: Health ${pos.healthRatio}`);
+});
+```
+
+##### `getAllDebtPositionsFromAllMarkets(): Promise<DebtPosition[]>`
+
+Fetches all debt positions from all available markets. **No wallet required.**
+
+**Returns:** Promise resolving to array of all `DebtPosition` objects across all markets
+
+**Example:**
+```typescript
+const allPositions = await sdk.getAllDebtPositionsFromAllMarkets();
+const atRisk = allPositions.filter(p => p.healthRatio < p.liquidationThreshold);
+console.log(`${atRisk.length} positions at risk`);
+```
+
 ## Development
 
 ```bash

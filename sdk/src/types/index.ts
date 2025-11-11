@@ -203,10 +203,44 @@ export interface LoanRecord {
   borrowerAddress: string;
   collateralTokenId: bigint;
   collateralAmount: bigint;
-  lastDebtChange: number;
+  lastDebtChange: {
+    amount: bigint;
+    changeType: number;
+    timestamp: bigint;
+  };
   borrowedTokenId: bigint;
   principal: bigint;
   userIndexWad: bigint;
+}
+
+/**
+ * Debt Position - Formatted debt position for marketplace
+ */
+export interface DebtPosition {
+  /** Unique identifier (borrower + market) */
+  id: string;
+  /** Market app ID */
+  marketId: number;
+  /** Borrower's address */
+  borrowerAddress: string;
+  /** Collateral token ID */
+  collateralTokenId: number;
+  /** Collateral amount in tokens */
+  collateralAmount: number;
+  /** Borrowed (debt) token ID */
+  borrowedTokenId: number;
+  /** Principal debt amount */
+  principal: number;
+  /** Current total debt (with interest) */
+  totalDebt: number;
+  /** User's borrow index */
+  userIndexWad: bigint;
+  /** Health ratio (collateralValue / debtValue) */
+  healthRatio: number;
+  /** Liquidation threshold */
+  liquidationThreshold: number;
+  /** Last debt change timestamp */
+  lastUpdated: Date;
 }
 
 /**

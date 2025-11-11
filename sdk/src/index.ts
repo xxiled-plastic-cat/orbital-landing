@@ -21,6 +21,7 @@ export type {
   OraclePriceMap,
   MarketInfo,
   AssetInfo,
+  DebtPosition,
 } from './types';
 
 // Utility functions

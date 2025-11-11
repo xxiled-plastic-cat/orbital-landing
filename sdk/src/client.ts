@@ -9,6 +9,9 @@ import {
   OraclePrice,
   OraclePriceMap,
   MarketInfo,
+  AssetInfo,
+  LoanRecord,
+  DebtPosition,
 } from './types';
 import {
   currentAprBps,
@@ -536,6 +539,146 @@ export class OrbitalSDK {
 
     // Filter out failed fetches
     return results.filter((asset): asset is AssetInfo => asset !== null);
+  }
+
+  /**
+   * Get all loan records for a specific market
+   * @param appId Market application ID
+   * @returns Array of loan records
+   */
+  async getMarketLoanRecords(appId: number): Promise<LoanRecord[]> {
+    try {
+      // Get all boxes for the application
+      const boxesResponse = await this.algodClient.getApplicationBoxes(appId).do();
+      const boxes = boxesResponse.boxes || [];
+
+      const loanRecords: LoanRecord[] = [];
+      const loanRecordPrefix = new TextEncoder().encode('loan_record');
+
+      // Filter and fetch loan record boxes in parallel
+      const loanBoxPromises = boxes
+        .filter((box: { name: Uint8Array }) => {
+          // Check if box name starts with 'loan_record' prefix
+          const boxName = Buffer.from(box.name);
+          const prefixBuffer = Buffer.from(loanRecordPrefix);
+          return boxName.subarray(0, prefixBuffer.length).equals(prefixBuffer);
+        })
+        .map(async (box: { name: Uint8Array }) => {
+          try {
+            const boxValue = await getBoxValue(this.algodClient, appId, box.name);
+            const decoded = decodeLoanRecord(boxValue);
+            
+            // Skip empty or zero principal records
+            if (!decoded.principal || decoded.principal === 0n) {
+              return null;
+            }
+
+            return decoded;
+          } catch (error) {
+            console.warn(`Failed to decode loan record box:`, error);
+            return null;
+          }
+        });
+
+      const results = await Promise.all(loanBoxPromises);
+      
+      // Filter out null values
+      results.forEach((record) => {
+        if (record) {
+          loanRecords.push(record);
+        }
+      });
+
+      return loanRecords;
+    } catch (error) {
+      console.error(`Failed to fetch loan records for market ${appId}:`, error);
+      throw new Error(`Failed to fetch loan records for market ${appId}`);
+    }
+  }
+
+  /**
+   * Get all debt positions across multiple markets
+   * @param marketAppIds Array of market application IDs
+   * @returns Array of debt positions with calculated metrics
+   */
+  async getAllDebtPositions(marketAppIds: number[]): Promise<DebtPosition[]> {
+    const allPositions: DebtPosition[] = [];
+
+    // Fetch loan records for all markets in parallel
+    const marketPromises = marketAppIds.map(async (appId) => {
+      try {
+        const loanRecords = await this.getMarketLoanRecords(appId);
+        const marketData = await this.getMarket(appId);
+        
+        // Transform loan records to debt positions
+        return loanRecords.map((record) => {
+          // Calculate current debt with interest
+          const currentBorrowIndex = marketData.borrowIndexWad;
+          let totalDebt = Number(record.principal);
+          
+          if (record.userIndexWad > 0n && currentBorrowIndex > 0n) {
+            totalDebt = Number((record.principal * currentBorrowIndex) / record.userIndexWad);
+          }
+
+          // Convert to standard units
+          const principal = microToStandard(record.principal, marketData.baseTokenDecimals);
+          const totalDebtStd = microToStandard(BigInt(Math.floor(totalDebt)), marketData.baseTokenDecimals);
+          const collateralAmount = microToStandard(record.collateralAmount, marketData.baseTokenDecimals);
+
+          // Calculate health ratio (simplified - would need oracle prices for accurate calculation)
+          // healthRatio = collateralValue / debtValue
+          // For now, using token amounts as proxy
+          const healthRatio = collateralAmount > 0 && totalDebtStd > 0 
+            ? collateralAmount / totalDebtStd 
+            : Infinity;
+
+          const position: DebtPosition = {
+            id: `${record.borrowerAddress}-${appId}`,
+            marketId: appId,
+            borrowerAddress: record.borrowerAddress,
+            collateralTokenId: Number(record.collateralTokenId),
+            collateralAmount,
+            borrowedTokenId: Number(record.borrowedTokenId),
+            principal,
+            totalDebt: totalDebtStd,
+            userIndexWad: record.userIndexWad,
+            healthRatio,
+            liquidationThreshold: marketData.liquidationThreshold / 10000, // Convert from bps
+            lastUpdated: new Date(Number(record.lastDebtChange.timestamp) * 1000),
+          };
+
+          return position;
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch debt positions for market ${appId}:`, error);
+        return [];
+      }
+    });
+
+    const results = await Promise.all(marketPromises);
+    
+    // Flatten results
+    results.forEach((positions) => {
+      allPositions.push(...positions);
+    });
+
+    return allPositions;
+  }
+
+  /**
+   * Get all debt positions across all markets from backend API
+   * This is a convenience method that fetches the market list and then gets all positions
+   * @returns Array of all debt positions
+   */
+  async getAllDebtPositionsFromAllMarkets(): Promise<DebtPosition[]> {
+    try {
+      const marketList = await this.getMarketList();
+      const marketAppIds = marketList.map((m) => m.appId);
+      return await this.getAllDebtPositions(marketAppIds);
+    } catch (error) {
+      console.error('Failed to fetch all debt positions:', error);
+      throw new Error('Failed to fetch all debt positions');
+    }
   }
 }
 
