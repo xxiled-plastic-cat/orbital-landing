@@ -110,11 +110,17 @@ export function decodeLoanRecord(boxValue: Uint8Array): {
   ]);
 
   const decoded = loanRecordType.decode(boxValue) as any[];
-  const borrowerAddressBytes = decoded[0] as Uint8Array;
+  
+  // Handle borrower address - could be string or Uint8Array depending on algosdk version
+  const borrowerAddressRaw = decoded[0];
+  const borrowerAddress = typeof borrowerAddressRaw === 'string' 
+    ? borrowerAddressRaw 
+    : algosdk.encodeAddress(borrowerAddressRaw as Uint8Array);
+  
   const lastDebtChange = decoded[3] as bigint[];
 
   return {
-    borrowerAddress: algosdk.encodeAddress(borrowerAddressBytes),
+    borrowerAddress,
     collateralTokenId: decoded[1],
     collateralAmount: decoded[2],
     lastDebtChange: {

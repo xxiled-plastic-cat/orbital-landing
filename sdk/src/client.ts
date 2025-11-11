@@ -1,4 +1,4 @@
-import algosdk from 'algosdk';
+import algosdk from "algosdk";
 import {
   OrbitalSDKConfig,
   MarketData,
@@ -12,12 +12,12 @@ import {
   AssetInfo,
   LoanRecord,
   DebtPosition,
-} from './types';
+} from "./types";
 import {
   currentAprBps,
   calculateLSTPrice,
   microToStandard,
-} from './utils/calculations';
+} from "./utils/calculations";
 import {
   getApplicationGlobalState,
   getBoxValue,
@@ -27,8 +27,8 @@ import {
   createLoanBoxName,
   decodeOraclePrice,
   createOraclePriceBoxName,
-} from './utils/state';
-import { fetchMarketList, fetchMarketInfo } from './utils/api';
+} from "./utils/state";
+import { fetchMarketList } from "./utils/api";
 
 /**
  * Main SDK client for interacting with Orbital Finance
@@ -36,14 +36,14 @@ import { fetchMarketList, fetchMarketInfo } from './utils/api';
 export class OrbitalSDK {
   private algodClient: algosdk.Algodv2;
   private indexerClient?: algosdk.Indexer;
-  private network: 'mainnet' | 'testnet';
+  private network: "mainnet" | "testnet";
   private apiBaseUrl: string;
 
   constructor(config: OrbitalSDKConfig) {
     this.algodClient = config.algodClient;
     this.indexerClient = config.indexerClient;
     this.network = config.network;
-    this.apiBaseUrl = config.apiBaseUrl || 'https://api.orbitalfinance.io';
+    this.apiBaseUrl = config.apiBaseUrl || "https://api.orbitalfinance.io";
   }
 
   /**
@@ -52,20 +52,23 @@ export class OrbitalSDK {
    * @returns Formatted market data
    */
   async getMarket(appId: number): Promise<MarketData> {
-    const globalState = await getApplicationGlobalState(this.algodClient, appId);
+    const globalState = await getApplicationGlobalState(
+      this.algodClient,
+      appId
+    );
 
     // Extract values from global state
     const baseTokenId = Number(globalState.base_token_id || 0n);
     const lstTokenId = Number(globalState.lst_token_id || 0n);
     const oracleAppId = Number(globalState.oracle_app || 0n);
     const buyoutTokenId = Number(globalState.buyout_token_id || 0n);
-    
+
     const totalDeposits = globalState.total_deposits || 0n;
     const totalBorrows = globalState.total_borrows || 0n;
     const circulatingLST = globalState.circulating_lst || 0n;
     const borrowIndexWad = globalState.borrow_index_wad || 0n;
     const lastUpdate = Number(globalState.last_update || 0n);
-    
+
     // Interest rate model parameters
     const baseBps = globalState.base_bps || 200n;
     const utilCapBps = globalState.util_cap_bps || 10000n;
@@ -74,7 +77,7 @@ export class OrbitalSDK {
     const slope2Bps = globalState.slope2_bps || 4000n;
     const maxAprBps = globalState.max_apr_bps || 60000n;
     const rateModelType = globalState.rate_model_type || 0n;
-    
+
     // Fees and risk parameters
     const protocolShareBps = globalState.protocol_share_bps || 500n;
     const originationFeeBps = globalState.origination_fee_bps || 0n;
@@ -135,30 +138,30 @@ export class OrbitalSDK {
       lstTokenId,
       oracleAppId,
       buyoutTokenId,
-      
+
       supplyApy,
       borrowApy,
       utilizationRate,
-      
+
       totalDeposits: totalDepositsStd,
       totalBorrows: totalBorrowsStd,
       availableToBorrow: availableToBorrowStd,
       circulatingLST: circulatingLSTStd,
-      
+
       baseTokenPrice,
       totalDepositsUSD: totalDepositsStd * baseTokenPrice,
       totalBorrowsUSD: totalBorrowsStd * baseTokenPrice,
       availableToBorrowUSD: availableToBorrowStd * baseTokenPrice,
-      
+
       // Default LTV and liquidation threshold - should be fetched from contract
       ltv: 7500, // 75%
       liquidationThreshold: 8500, // 85%
       liqBonusBps: Number(liqBonusBps),
       originationFeeBps: Number(originationFeeBps),
-      
+
       baseTokenDecimals,
       lstTokenDecimals,
-      
+
       rateModel: {
         baseBps: Number(baseBps),
         utilCapBps: Number(utilCapBps),
@@ -168,7 +171,7 @@ export class OrbitalSDK {
         maxAprBps: Number(maxAprBps),
         rateModelType: Number(rateModelType),
       },
-      
+
       contractState,
       protocolShareBps: Number(protocolShareBps),
       borrowIndexWad,
@@ -182,7 +185,10 @@ export class OrbitalSDK {
    * @returns Supply and borrow APYs
    */
   async getAPY(appId: number): Promise<APYData> {
-    const globalState = await getApplicationGlobalState(this.algodClient, appId);
+    const globalState = await getApplicationGlobalState(
+      this.algodClient,
+      appId
+    );
 
     const totalDeposits = globalState.total_deposits || 0n;
     const totalBorrows = globalState.total_borrows || 0n;
@@ -227,7 +233,10 @@ export class OrbitalSDK {
    * @returns LST price information
    */
   async getLSTPrice(appId: number): Promise<LSTPrice> {
-    const globalState = await getApplicationGlobalState(this.algodClient, appId);
+    const globalState = await getApplicationGlobalState(
+      this.algodClient,
+      appId
+    );
 
     const totalDeposits = globalState.total_deposits || 0n;
     const circulatingLST = globalState.circulating_lst || 0n;
@@ -248,35 +257,47 @@ export class OrbitalSDK {
    * @param userAddress User's Algorand address
    * @returns User position data
    */
-  async getUserPosition(appId: number, userAddress: string): Promise<UserPosition> {
-    const globalState = await getApplicationGlobalState(this.algodClient, appId);
+  async getUserPosition(
+    appId: number,
+    userAddress: string
+  ): Promise<UserPosition> {
+    const globalState = await getApplicationGlobalState(
+      this.algodClient,
+      appId
+    );
     const baseTokenId = globalState.base_token_id || 0n;
     const lstTokenId = globalState.lst_token_id || 0n;
-    
+
     const baseTokenDecimals = Number(baseTokenId) === 0 ? 6 : 6;
 
     // Fetch deposit record
     let depositAmount = 0n;
     try {
       const depositBoxName = createDepositBoxName(userAddress, baseTokenId);
-      const depositBoxValue = await getBoxValue(this.algodClient, appId, depositBoxName);
+      const depositBoxValue = await getBoxValue(
+        this.algodClient,
+        appId,
+        depositBoxName
+      );
       const depositRecord = decodeDepositRecord(depositBoxValue);
       depositAmount = depositRecord.depositAmount;
     } catch (error) {
       // Box doesn't exist or error fetching - user has no deposits
-      console.debug('No deposit record found:', error);
+      console.debug("No deposit record found:", error);
     }
 
     // Fetch LST balance
     let lstBalance = 0n;
     try {
-      const accountInfo = await this.algodClient.accountInformation(userAddress).do();
+      const accountInfo = await this.algodClient
+        .accountInformation(userAddress)
+        .do();
       const lstAsset = accountInfo.assets?.find(
-        (a: { 'asset-id': number }) => a['asset-id'] === Number(lstTokenId)
+        (a: { "asset-id": number }) => a["asset-id"] === Number(lstTokenId)
       );
       lstBalance = BigInt(lstAsset?.amount || 0);
     } catch (error) {
-      console.debug('Error fetching LST balance:', error);
+      console.debug("Error fetching LST balance:", error);
     }
 
     // Fetch loan record
@@ -289,9 +310,13 @@ export class OrbitalSDK {
 
     try {
       const loanBoxName = createLoanBoxName(userAddress);
-      const loanBoxValue = await getBoxValue(this.algodClient, appId, loanBoxName);
+      const loanBoxValue = await getBoxValue(
+        this.algodClient,
+        appId,
+        loanBoxName
+      );
       const loanRecord = decodeLoanRecord(loanBoxValue);
-      
+
       collateralAssetId = loanRecord.collateralTokenId;
       collateral = loanRecord.collateralAmount;
       lastDebtChange = Number(loanRecord.lastDebtChange);
@@ -307,7 +332,7 @@ export class OrbitalSDK {
       }
     } catch (error) {
       // Box doesn't exist or error fetching - user has no loan
-      console.debug('No loan record found:', error);
+      console.debug("No loan record found:", error);
     }
 
     // Convert to standard units
@@ -320,7 +345,8 @@ export class OrbitalSDK {
     const ltv = 0.75; // 75% - should be fetched from contract
     const collateralValue = collateralStd; // Should multiply by price
     const maxBorrowValue = collateralValue * ltv;
-    const healthFactor = borrowedStd > 0 ? maxBorrowValue / borrowedStd : Infinity;
+    const healthFactor =
+      borrowedStd > 0 ? maxBorrowValue / borrowedStd : Infinity;
 
     return {
       address: userAddress,
@@ -352,7 +378,7 @@ export class OrbitalSDK {
    * Get the network type being used
    * @returns Network type ('mainnet' or 'testnet')
    */
-  getNetwork(): 'mainnet' | 'testnet' {
+  getNetwork(): "mainnet" | "testnet" {
     return this.network;
   }
 
@@ -387,15 +413,15 @@ export class OrbitalSDK {
     try {
       // 1. Fetch market list from backend API
       const marketInfos = await fetchMarketList(this.network, this.apiBaseUrl);
-      
+
       console.log(`Found ${marketInfos.length} markets on ${this.network}`);
-      
+
       // 2. Fetch on-chain data for each market in parallel
       const appIds = marketInfos.map((m) => m.appId);
       return await this.getMarkets(appIds);
     } catch (error) {
-      console.error('Failed to fetch all markets:', error);
-      throw new Error('Failed to fetch all markets');
+      console.error("Failed to fetch all markets:", error);
+      throw new Error("Failed to fetch all markets");
     }
   }
 
@@ -408,8 +434,8 @@ export class OrbitalSDK {
     try {
       return await fetchMarketList(this.network, this.apiBaseUrl);
     } catch (error) {
-      console.error('Failed to fetch market list:', error);
-      throw new Error('Failed to fetch market list');
+      console.error("Failed to fetch market list:", error);
+      throw new Error("Failed to fetch market list");
     }
   }
 
@@ -419,10 +445,17 @@ export class OrbitalSDK {
    * @param assetId Asset ID to get price for
    * @returns Oracle price data
    */
-  async getOraclePrice(oracleAppId: number, assetId: number): Promise<OraclePrice> {
+  async getOraclePrice(
+    oracleAppId: number,
+    assetId: number
+  ): Promise<OraclePrice> {
     try {
       const boxName = createOraclePriceBoxName(assetId);
-      const boxValue = await getBoxValue(this.algodClient, oracleAppId, boxName);
+      const boxValue = await getBoxValue(
+        this.algodClient,
+        oracleAppId,
+        boxName
+      );
       const decoded = decodeOraclePrice(boxValue);
 
       // Oracle stores prices with 6 decimals (e.g., 1.23 = 1230000)
@@ -437,7 +470,10 @@ export class OrbitalSDK {
         lastUpdatedDate: new Date(lastUpdated * 1000),
       };
     } catch (error) {
-      console.error(`Failed to fetch oracle price for asset ${assetId}:`, error);
+      console.error(
+        `Failed to fetch oracle price for asset ${assetId}:`,
+        error
+      );
       throw new Error(`Failed to fetch oracle price for asset ${assetId}`);
     }
   }
@@ -448,9 +484,12 @@ export class OrbitalSDK {
    * @param assetIds Array of asset IDs to get prices for
    * @returns Map of asset ID to oracle price data
    */
-  async getOraclePrices(oracleAppId: number, assetIds: number[]): Promise<OraclePriceMap> {
+  async getOraclePrices(
+    oracleAppId: number,
+    assetIds: number[]
+  ): Promise<OraclePriceMap> {
     const priceMap = new Map<number, OraclePrice>();
-    
+
     // Fetch prices in parallel
     const pricePromises = assetIds.map(async (assetId) => {
       try {
@@ -485,13 +524,13 @@ export class OrbitalSDK {
       if (assetId === 0) {
         return {
           id: 0,
-          name: 'Algorand',
-          unitName: 'ALGO',
+          name: "Algorand",
+          unitName: "ALGO",
           decimals: 6,
           total: 10000000000000000n, // 10 billion ALGO
           frozen: false,
-          creator: '',
-          url: 'https://algorand.com',
+          creator: "",
+          url: "https://algorand.com",
         };
       }
 
@@ -501,12 +540,12 @@ export class OrbitalSDK {
 
       return {
         id: assetId,
-        name: params.name || '',
-        unitName: params['unit-name'] || params.unitName || '',
+        name: params.name || "",
+        unitName: params["unit-name"] || params.unitName || "",
         url: params.url,
         decimals: params.decimals,
         total: BigInt(params.total),
-        frozen: params['default-frozen'] || params.defaultFrozen || false,
+        frozen: params["default-frozen"] || params.defaultFrozen || false,
         creator: params.creator,
         manager: params.manager,
         reserve: params.reserve,
@@ -549,11 +588,13 @@ export class OrbitalSDK {
   async getMarketLoanRecords(appId: number): Promise<LoanRecord[]> {
     try {
       // Get all boxes for the application
-      const boxesResponse = await this.algodClient.getApplicationBoxes(appId).do();
+      const boxesResponse = await this.algodClient
+        .getApplicationBoxes(appId)
+        .do();
       const boxes = boxesResponse.boxes || [];
 
       const loanRecords: LoanRecord[] = [];
-      const loanRecordPrefix = new TextEncoder().encode('loan_record');
+      const loanRecordPrefix = new TextEncoder().encode("loan_record");
 
       // Filter and fetch loan record boxes in parallel
       const loanBoxPromises = boxes
@@ -565,9 +606,13 @@ export class OrbitalSDK {
         })
         .map(async (box: { name: Uint8Array }) => {
           try {
-            const boxValue = await getBoxValue(this.algodClient, appId, box.name);
+            const boxValue = await getBoxValue(
+              this.algodClient,
+              appId,
+              box.name
+            );
             const decoded = decodeLoanRecord(boxValue);
-            
+
             // Skip empty or zero principal records
             if (!decoded.principal || decoded.principal === 0n) {
               return null;
@@ -581,7 +626,7 @@ export class OrbitalSDK {
         });
 
       const results = await Promise.all(loanBoxPromises);
-      
+
       // Filter out null values
       results.forEach((record) => {
         if (record) {
@@ -609,28 +654,40 @@ export class OrbitalSDK {
       try {
         const loanRecords = await this.getMarketLoanRecords(appId);
         const marketData = await this.getMarket(appId);
-        
+
         // Transform loan records to debt positions
         return loanRecords.map((record) => {
           // Calculate current debt with interest
           const currentBorrowIndex = marketData.borrowIndexWad;
           let totalDebt = Number(record.principal);
-          
+
           if (record.userIndexWad > 0n && currentBorrowIndex > 0n) {
-            totalDebt = Number((record.principal * currentBorrowIndex) / record.userIndexWad);
+            totalDebt = Number(
+              (record.principal * currentBorrowIndex) / record.userIndexWad
+            );
           }
 
           // Convert to standard units
-          const principal = microToStandard(record.principal, marketData.baseTokenDecimals);
-          const totalDebtStd = microToStandard(BigInt(Math.floor(totalDebt)), marketData.baseTokenDecimals);
-          const collateralAmount = microToStandard(record.collateralAmount, marketData.baseTokenDecimals);
+          const principal = microToStandard(
+            record.principal,
+            marketData.baseTokenDecimals
+          );
+          const totalDebtStd = microToStandard(
+            BigInt(Math.floor(totalDebt)),
+            marketData.baseTokenDecimals
+          );
+          const collateralAmount = microToStandard(
+            record.collateralAmount,
+            marketData.baseTokenDecimals
+          );
 
           // Calculate health ratio (simplified - would need oracle prices for accurate calculation)
           // healthRatio = collateralValue / debtValue
           // For now, using token amounts as proxy
-          const healthRatio = collateralAmount > 0 && totalDebtStd > 0 
-            ? collateralAmount / totalDebtStd 
-            : Infinity;
+          const healthRatio =
+            collateralAmount > 0 && totalDebtStd > 0
+              ? collateralAmount / totalDebtStd
+              : Infinity;
 
           const position: DebtPosition = {
             id: `${record.borrowerAddress}-${appId}`,
@@ -644,19 +701,24 @@ export class OrbitalSDK {
             userIndexWad: record.userIndexWad,
             healthRatio,
             liquidationThreshold: marketData.liquidationThreshold / 10000, // Convert from bps
-            lastUpdated: new Date(Number(record.lastDebtChange.timestamp) * 1000),
+            lastUpdated: new Date(
+              Number(record.lastDebtChange.timestamp) * 1000
+            ),
           };
 
           return position;
         });
       } catch (error) {
-        console.warn(`Failed to fetch debt positions for market ${appId}:`, error);
+        console.warn(
+          `Failed to fetch debt positions for market ${appId}:`,
+          error
+        );
         return [];
       }
     });
 
     const results = await Promise.all(marketPromises);
-    
+
     // Flatten results
     results.forEach((positions) => {
       allPositions.push(...positions);
@@ -676,9 +738,8 @@ export class OrbitalSDK {
       const marketAppIds = marketList.map((m) => m.appId);
       return await this.getAllDebtPositions(marketAppIds);
     } catch (error) {
-      console.error('Failed to fetch all debt positions:', error);
-      throw new Error('Failed to fetch all debt positions');
+      console.error("Failed to fetch all debt positions:", error);
+      throw new Error("Failed to fetch all debt positions");
     }
   }
 }
-

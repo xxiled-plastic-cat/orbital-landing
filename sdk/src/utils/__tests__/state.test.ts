@@ -67,25 +67,33 @@ describe('state utilities', () => {
   describe('decodeLoanRecord', () => {
     it('should decode loan record correctly', () => {
       const loanRecordType = new algosdk.ABITupleType([
+        new algosdk.ABIAddressType(), // borrowerAddress
         new algosdk.ABIUintType(64), // collateralTokenId
         new algosdk.ABIUintType(64), // collateralAmount
-        new algosdk.ABIUintType(64), // lastDebtChange
+        new algosdk.ABITupleType([
+          new algosdk.ABIUintType(64), // lastDebtChange.amount
+          new algosdk.ABIUintType(8),  // lastDebtChange.changeType
+          new algosdk.ABIUintType(64), // lastDebtChange.timestamp
+        ]),
         new algosdk.ABIUintType(64), // borrowedTokenId
         new algosdk.ABIUintType(64), // principal
-        new algosdk.ABIUintType(128), // userIndexWad
+        new algosdk.ABIUintType(64), // userIndexWad
       ]);
 
       const collateralTokenId = 31566704n;
       const collateralAmount = 1000000n;
-      const lastDebtChange = 1234567890n;
+      const lastDebtChangeAmount = 500000n;
+      const lastDebtChangeType = 1;
+      const lastDebtChangeTimestamp = 1234567890n;
       const borrowedTokenId = 0n;
       const principal = 500000n;
       const userIndexWad = 1000000000000000000n; // 1e18
 
       const encoded = loanRecordType.encode([
+        algosdk.decodeAddress(testAddress1).publicKey,
         collateralTokenId,
         collateralAmount,
-        lastDebtChange,
+        [lastDebtChangeAmount, lastDebtChangeType, lastDebtChangeTimestamp],
         borrowedTokenId,
         principal,
         userIndexWad,
@@ -93,9 +101,12 @@ describe('state utilities', () => {
 
       const result = decodeLoanRecord(encoded);
 
+      expect(result.borrowerAddress).toBe(testAddress1);
       expect(result.collateralTokenId).toBe(collateralTokenId);
       expect(result.collateralAmount).toBe(collateralAmount);
-      expect(result.lastDebtChange).toBe(lastDebtChange);
+      expect(result.lastDebtChange.amount).toBe(lastDebtChangeAmount);
+      expect(result.lastDebtChange.changeType).toBe(lastDebtChangeType);
+      expect(result.lastDebtChange.timestamp).toBe(lastDebtChangeTimestamp);
       expect(result.borrowedTokenId).toBe(borrowedTokenId);
       expect(result.principal).toBe(principal);
       expect(result.userIndexWad).toBe(userIndexWad);
@@ -103,19 +114,33 @@ describe('state utilities', () => {
 
     it('should handle zero principal', () => {
       const loanRecordType = new algosdk.ABITupleType([
+        new algosdk.ABIAddressType(),
+        new algosdk.ABIUintType(64),
+        new algosdk.ABIUintType(64),
+        new algosdk.ABITupleType([
+          new algosdk.ABIUintType(64),
+          new algosdk.ABIUintType(8),
+          new algosdk.ABIUintType(64),
+        ]),
         new algosdk.ABIUintType(64),
         new algosdk.ABIUintType(64),
         new algosdk.ABIUintType(64),
-        new algosdk.ABIUintType(64),
-        new algosdk.ABIUintType(64),
-        new algosdk.ABIUintType(128),
       ]);
 
-      const encoded = loanRecordType.encode([0n, 0n, 0n, 0n, 0n, 0n]);
+      const encoded = loanRecordType.encode([
+        algosdk.decodeAddress(testAddress2).publicKey,
+        0n,
+        0n,
+        [0n, 0, 0n],
+        0n,
+        0n,
+        0n,
+      ]);
       const result = decodeLoanRecord(encoded);
 
       expect(result.principal).toBe(0n);
       expect(result.userIndexWad).toBe(0n);
+      expect(result.borrowerAddress).toBe(testAddress2);
     });
   });
 
@@ -182,4 +207,5 @@ describe('state utilities', () => {
     });
   });
 });
+
 
