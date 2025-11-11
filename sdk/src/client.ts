@@ -6,6 +6,9 @@ import {
   LSTPrice,
   UserPosition,
   GlobalState,
+  OraclePrice,
+  OraclePriceMap,
+  MarketInfo,
 } from './types';
 import {
   currentAprBps,
@@ -19,7 +22,10 @@ import {
   decodeLoanRecord,
   createDepositBoxName,
   createLoanBoxName,
+  decodeOraclePrice,
+  createOraclePriceBoxName,
 } from './utils/state';
+import { fetchMarketList, fetchMarketInfo } from './utils/api';
 
 /**
  * Main SDK client for interacting with Orbital Finance
@@ -28,11 +34,13 @@ export class OrbitalSDK {
   private algodClient: algosdk.Algodv2;
   private indexerClient?: algosdk.Indexer;
   private network: 'mainnet' | 'testnet';
+  private apiBaseUrl: string;
 
   constructor(config: OrbitalSDKConfig) {
     this.algodClient = config.algodClient;
     this.indexerClient = config.indexerClient;
     this.network = config.network;
+    this.apiBaseUrl = config.apiBaseUrl || 'https://api.orbitalfinance.io';
   }
 
   /**
@@ -343,6 +351,191 @@ export class OrbitalSDK {
    */
   getNetwork(): 'mainnet' | 'testnet' {
     return this.network;
+  }
+
+  /**
+   * Get multiple markets in parallel
+   * @param appIds Array of market application IDs
+   * @returns Array of market data
+   */
+  async getMarkets(appIds: number[]): Promise<MarketData[]> {
+    // Fetch all markets in parallel
+    const marketPromises = appIds.map(async (appId) => {
+      try {
+        return await this.getMarket(appId);
+      } catch (error) {
+        console.warn(`Failed to fetch market ${appId}:`, error);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(marketPromises);
+
+    // Filter out failed fetches
+    return results.filter((market): market is MarketData => market !== null);
+  }
+
+  /**
+   * Get all markets for the current network from the backend API
+   * This fetches the market list from Orbital's API and then retrieves on-chain data
+   * @returns Array of all available markets
+   */
+  async getAllMarkets(): Promise<MarketData[]> {
+    try {
+      // 1. Fetch market list from backend API
+      const marketInfos = await fetchMarketList(this.network, this.apiBaseUrl);
+      
+      console.log(`Found ${marketInfos.length} markets on ${this.network}`);
+      
+      // 2. Fetch on-chain data for each market in parallel
+      const appIds = marketInfos.map((m) => m.appId);
+      return await this.getMarkets(appIds);
+    } catch (error) {
+      console.error('Failed to fetch all markets:', error);
+      throw new Error('Failed to fetch all markets');
+    }
+  }
+
+  /**
+   * Get market list (basic info) from backend API without fetching on-chain data
+   * This is faster than getAllMarkets() if you only need market IDs and token IDs
+   * @returns Array of basic market information
+   */
+  async getMarketList(): Promise<MarketInfo[]> {
+    try {
+      return await fetchMarketList(this.network, this.apiBaseUrl);
+    } catch (error) {
+      console.error('Failed to fetch market list:', error);
+      throw new Error('Failed to fetch market list');
+    }
+  }
+
+  /**
+   * Get price for a single asset from oracle contract
+   * @param oracleAppId Oracle application ID
+   * @param assetId Asset ID to get price for
+   * @returns Oracle price data
+   */
+  async getOraclePrice(oracleAppId: number, assetId: number): Promise<OraclePrice> {
+    try {
+      const boxName = createOraclePriceBoxName(assetId);
+      const boxValue = await getBoxValue(this.algodClient, oracleAppId, boxName);
+      const decoded = decodeOraclePrice(boxValue);
+
+      // Oracle stores prices with 6 decimals (e.g., 1.23 = 1230000)
+      const price = Number(decoded.price) / 1e6;
+      const lastUpdated = Number(decoded.lastUpdated);
+
+      return {
+        assetId,
+        price,
+        priceRaw: decoded.price,
+        lastUpdated,
+        lastUpdatedDate: new Date(lastUpdated * 1000),
+      };
+    } catch (error) {
+      console.error(`Failed to fetch oracle price for asset ${assetId}:`, error);
+      throw new Error(`Failed to fetch oracle price for asset ${assetId}`);
+    }
+  }
+
+  /**
+   * Get prices for multiple assets from oracle contract
+   * @param oracleAppId Oracle application ID
+   * @param assetIds Array of asset IDs to get prices for
+   * @returns Map of asset ID to oracle price data
+   */
+  async getOraclePrices(oracleAppId: number, assetIds: number[]): Promise<OraclePriceMap> {
+    const priceMap = new Map<number, OraclePrice>();
+    
+    // Fetch prices in parallel
+    const pricePromises = assetIds.map(async (assetId) => {
+      try {
+        const price = await this.getOraclePrice(oracleAppId, assetId);
+        return { assetId, price };
+      } catch (error) {
+        console.warn(`Failed to fetch price for asset ${assetId}:`, error);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(pricePromises);
+
+    // Add successful results to map
+    results.forEach((result) => {
+      if (result) {
+        priceMap.set(result.assetId, result.price);
+      }
+    });
+
+    return priceMap;
+  }
+
+  /**
+   * Get asset information from Algorand blockchain
+   * @param assetId Asset ID to get info for (use 0 for ALGO)
+   * @returns Asset information
+   */
+  async getAssetInfo(assetId: number): Promise<AssetInfo> {
+    try {
+      // Special case for ALGO (asset ID 0)
+      if (assetId === 0) {
+        return {
+          id: 0,
+          name: 'Algorand',
+          unitName: 'ALGO',
+          decimals: 6,
+          total: 10000000000000000n, // 10 billion ALGO
+          frozen: false,
+          creator: '',
+          url: 'https://algorand.com',
+        };
+      }
+
+      // Fetch asset info from Algorand
+      const assetInfo = await this.algodClient.getAssetByID(assetId).do();
+      const params = assetInfo.params;
+
+      return {
+        id: assetId,
+        name: params.name || '',
+        unitName: params['unit-name'] || params.unitName || '',
+        url: params.url,
+        decimals: params.decimals,
+        total: BigInt(params.total),
+        frozen: params['default-frozen'] || params.defaultFrozen || false,
+        creator: params.creator,
+        manager: params.manager,
+        reserve: params.reserve,
+        freeze: params.freeze,
+        clawback: params.clawback,
+      };
+    } catch (error) {
+      console.error(`Failed to fetch asset info for ${assetId}:`, error);
+      throw new Error(`Failed to fetch asset info for ${assetId}`);
+    }
+  }
+
+  /**
+   * Get information for multiple assets in parallel
+   * @param assetIds Array of asset IDs to get info for
+   * @returns Array of asset information
+   */
+  async getAssetsInfo(assetIds: number[]): Promise<AssetInfo[]> {
+    // Fetch all assets in parallel
+    const assetPromises = assetIds.map(async (assetId) => {
+      try {
+        return await this.getAssetInfo(assetId);
+      } catch (error) {
+        console.warn(`Failed to fetch asset info for ${assetId}:`, error);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(assetPromises);
+
+    // Filter out failed fetches
+    return results.filter((asset): asset is AssetInfo => asset !== null);
   }
 }
 

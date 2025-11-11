@@ -140,3 +140,43 @@ export function createLoanBoxName(userAddress: string): Uint8Array {
   return new Uint8Array([...prefix, ...addressBytes]);
 }
 
+/**
+ * Decode oracle price box
+ * @param boxValue Raw box value
+ * @returns Decoded oracle price data
+ */
+export function decodeOraclePrice(boxValue: Uint8Array): {
+  assetId: bigint;
+  price: bigint;
+  lastUpdated: bigint;
+} {
+  const oraclePriceType = new algosdk.ABITupleType([
+    new algosdk.ABIUintType(64), // assetId
+    new algosdk.ABIUintType(64), // price
+    new algosdk.ABIUintType(64), // lastUpdated
+  ]);
+
+  const decoded = oraclePriceType.decode(boxValue) as bigint[];
+  return {
+    assetId: decoded[0],
+    price: decoded[1],
+    lastUpdated: decoded[2],
+  };
+}
+
+/**
+ * Create oracle price box name
+ * @param assetId Asset ID to get price for
+ * @returns Box name as Uint8Array
+ */
+export function createOraclePriceBoxName(assetId: number): Uint8Array {
+  const prefix = new TextEncoder().encode('prices');
+  
+  // Encode assetId as uint64 (8 bytes, big-endian)
+  const assetIdBytes = new Uint8Array(8);
+  const view = new DataView(assetIdBytes.buffer);
+  view.setBigUint64(0, BigInt(assetId), false); // false = big-endian
+  
+  return new Uint8Array([...prefix, ...assetIdBytes]);
+}
+

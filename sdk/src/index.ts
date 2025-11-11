@@ -17,6 +17,10 @@ export type {
   DepositRecord,
   LoanRecord,
   CollateralInfo,
+  OraclePrice,
+  OraclePriceMap,
+  MarketInfo,
+  AssetInfo,
 } from './types';
 
 // Utility functions
@@ -38,5 +42,9 @@ export {
   decodeLoanRecord,
   createDepositBoxName,
   createLoanBoxName,
+  decodeOraclePrice,
+  createOraclePriceBoxName,
 } from './utils/state';
+
+export { fetchMarketList, fetchMarketInfo } from './utils/api';
 

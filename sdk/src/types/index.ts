@@ -10,6 +10,8 @@ export interface OrbitalSDKConfig {
   network: 'mainnet' | 'testnet';
   /** Optional indexer client for historical data queries */
   indexerClient?: algosdk.Indexer;
+  /** Optional API base URL for Orbital backend (defaults to production API) */
+  apiBaseUrl?: string;
 }
 
 /**
@@ -216,5 +218,61 @@ export interface CollateralInfo {
   marketBaseAssetId: bigint;
   totalCollateral: bigint;
   originatingAppId: bigint;
+}
+
+/**
+ * Oracle Price - Price information from oracle contract
+ */
+export interface OraclePrice {
+  assetId: number;
+  price: number;
+  priceRaw: bigint;
+  lastUpdated: number;
+  lastUpdatedDate: Date;
+}
+
+/**
+ * Oracle Price Map - Multiple prices indexed by asset ID
+ */
+export type OraclePriceMap = Map<number, OraclePrice>;
+
+/**
+ * Market Info - Basic market information from backend API
+ */
+export interface MarketInfo {
+  appId: number;
+  baseTokenId: number;
+  lstTokenId: number;
+  network: 'mainnet' | 'testnet';
+}
+
+/**
+ * Asset Info - Asset metadata from Algorand blockchain
+ */
+export interface AssetInfo {
+  /** Asset ID */
+  id: number;
+  /** Asset name */
+  name: string;
+  /** Asset unit name (symbol) */
+  unitName: string;
+  /** Asset URL */
+  url?: string;
+  /** Number of decimals */
+  decimals: number;
+  /** Total supply */
+  total: bigint;
+  /** Is the asset frozen */
+  frozen: boolean;
+  /** Creator address */
+  creator: string;
+  /** Manager address */
+  manager?: string;
+  /** Reserve address */
+  reserve?: string;
+  /** Freeze address */
+  freeze?: string;
+  /** Clawback address */
+  clawback?: string;
 }
 
