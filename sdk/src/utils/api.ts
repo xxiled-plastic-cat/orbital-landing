@@ -23,7 +23,7 @@ export async function fetchMarketList(
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const markets = await response.json();
+    const markets = (await response.json()) as MarketInfo[];
     
     // Filter by network
     return markets.filter((m: MarketInfo) => m.network === network);
@@ -50,7 +50,7 @@ export async function fetchMarketInfo(
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    return (await response.json()) as MarketInfo;
   } catch (error) {
     console.error(`Failed to fetch market info for ${appId}:`, error);
     throw new Error(`Failed to fetch market info for ${appId}`);
