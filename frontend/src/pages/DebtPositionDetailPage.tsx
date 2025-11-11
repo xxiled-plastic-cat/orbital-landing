@@ -57,6 +57,23 @@ const DebtPositionDetailPage: React.FC = () => {
     return asset ? (parseFloat(asset.balance) / 1e6).toString() : "0";
   }, [position, userAssets, algoBalance, isLoadingAssets]);
 
+  // Calculate user's balance for the premium token (buyout token, typically xUSD)
+  const userPremiumTokenBalance = useMemo(() => {
+    if (!market || isLoadingAssets) return null;
+    
+    const buyoutTokenId = market.buyoutTokenId?.toString();
+    if (!buyoutTokenId) return null;
+    
+    // Check if it's ALGO (id === "0")
+    if (buyoutTokenId === "0") {
+      return algoBalance ? (parseFloat(algoBalance) / 1e6).toString() : "0";
+    }
+    
+    // Find the asset in user's assets
+    const asset = userAssets?.assets.find(a => a.assetId === buyoutTokenId);
+    return asset ? (parseFloat(asset.balance) / 1e6).toString() : "0";
+  }, [market, userAssets, algoBalance, isLoadingAssets]);
+
   // Fetch NFD data for the user address
   const { nfdName, nfdAvatar, isLoadingNFD } = useNFD(
     position?.userAddress || ""
@@ -895,6 +912,7 @@ const DebtPositionDetailPage: React.FC = () => {
             onLiquidate={handleLiquidate}
             onBuyout={handleBUYOUT}
             userDebtTokenBalance={userDebtTokenBalance}
+            userPremiumTokenBalance={userPremiumTokenBalance}
             isLoadingBalance={isLoadingAssets}
           />
         </div>

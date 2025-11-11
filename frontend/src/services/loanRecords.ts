@@ -385,13 +385,30 @@ export async function transformLoanRecordsToDebtPositions(
             ? debtValueUSD / (collateralAmountInTokens * (Number(market.liquidationThreshold) / 100))
             : 0;
 
+        // Fetch live buyout token price from oracle (typically xUSD, but could be other stable tokens)
+        let buyoutTokenPrice = 1.0; // Default fallback
+        if (oracleAppId > 0 && market.buyoutTokenId) {
+          try {
+            buyoutTokenPrice = await getPricing({
+              tokenId: market.buyoutTokenId,
+              address,
+              signer,
+              appId: oracleAppId,
+            });
+            console.log(`Fetched live buyout token price for asset ${market.buyoutTokenId}: $${buyoutTokenPrice}`);
+          } catch (error) {
+            console.warn(`Failed to get buyout token price for ${market.buyoutTokenId}, using fallback $1:`, error);
+          }
+        }
+
         // Calculate buyout cost using the correct contract formula
         const buyoutCalculation = calculateBuyoutCost(
           debtValueUSD,
           collateralValueUSD,
           healthRatio,
           Number(market.liquidationThreshold) / 100,
-          currentDebt // Pass the debt token amount
+          currentDebt, // Pass the debt token amount
+          buyoutTokenPrice // Pass the live buyout token price from oracle
         );
 
         const debtPosition: DebtPosition = {
