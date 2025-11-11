@@ -1,0 +1,23 @@
+src/
+node_modules/
+coverage/
+*.log
+.DS_Store
+.env
+
+# Config files
+tsconfig.json
+vitest.config.ts
+.eslintrc.json
+
+# Test files
+**/__tests__/
+**/*.test.ts
+**/*.spec.ts
+
+# Examples
+src/examples/
+
+# Documentation
+README.md
+
