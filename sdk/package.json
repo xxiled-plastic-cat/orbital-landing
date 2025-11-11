@@ -1,7 +1,7 @@
 {
-  "name": "@orbital-finance/sdk",
-  "version": "0.1.0",
-  "description": "TypeScript SDK for Orbital Finance lending protocol",
+  "name": "@compx/orbital-lending-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for Orbital Lending protocol, by CompX",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "module": "dist/index.mjs",
