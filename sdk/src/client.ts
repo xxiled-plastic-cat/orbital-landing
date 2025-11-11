@@ -35,13 +35,11 @@ import { fetchMarketList } from "./utils/api";
  */
 export class OrbitalSDK {
   private algodClient: algosdk.Algodv2;
-  private indexerClient?: algosdk.Indexer;
   private network: "mainnet" | "testnet";
   private apiBaseUrl: string;
 
   constructor(config: OrbitalSDKConfig) {
     this.algodClient = config.algodClient;
-    this.indexerClient = config.indexerClient;
     this.network = config.network;
     this.apiBaseUrl = config.apiBaseUrl || "https://api.orbitalfinance.io";
   }
