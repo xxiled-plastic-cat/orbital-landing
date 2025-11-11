@@ -34,7 +34,8 @@ const TESTNET_COLLATERAL_TOKENS: Record<
 };
 
 /**
- * Fetches all active loan records across all markets
+ * Fetches all active loan records across all markets (for the current user only)
+ * Used by Portfolio/Logbook to show user's own positions
  */
 export async function fetchAllLoanRecords(
   signer: TransactionSigner,
@@ -46,10 +47,10 @@ export async function fetchAllLoanRecords(
 
     const allLoanRecords: LoanRecordData[] = [];
 
-    // 2. For each market, get all loan records
+    // 2. For each market, get user's loan records
     for (const market of markets) {
       try {
-        const marketLoanRecords = await fetchMarketLoanRecords(
+        const marketLoanRecords = await fetchMarketLoanRecordsForUser(
           signer,
           address,
           Number(market.id),
@@ -79,9 +80,55 @@ export async function fetchAllLoanRecords(
 }
 
 /**
- * Fetches loan records for a specific market
+ * Fetches ALL active loan records across all markets (all users)
+ * Used by Marketplace to show all tradeable debt positions
  */
-async function fetchMarketLoanRecords(
+export async function fetchAllLoanRecordsForMarketplace(
+  signer: TransactionSigner,
+  address: string
+): Promise<LoanRecordData[]> {
+  try {
+    // 1. Get all markets first
+    const markets = await fetchMarkets(signer, address);
+
+    const allLoanRecords: LoanRecordData[] = [];
+
+    // 2. For each market, get ALL loan records (all users)
+    for (const market of markets) {
+      try {
+        const marketLoanRecords = await fetchMarketLoanRecordsAll(
+          signer,
+          address,
+          Number(market.id),
+        );
+
+        // Add market ID to each record
+        const recordsWithMarket = marketLoanRecords.map((record) => ({
+          ...record,
+          marketId: market.id,
+        }));
+
+        allLoanRecords.push(...recordsWithMarket);
+      } catch (error) {
+        console.warn(
+          `Failed to fetch loan records for market ${market.id}:`,
+          error
+        );
+        // Continue with other markets even if one fails
+      }
+    }
+
+    return allLoanRecords;
+  } catch (error) {
+    console.error("Failed to fetch loan records:", error);
+    throw new Error("Failed to fetch loan records");
+  }
+}
+
+/**
+ * Fetches loan records for a specific market (current user only)
+ */
+async function fetchMarketLoanRecordsForUser(
   signer: TransactionSigner,
   address: string,
   appId: number
@@ -101,6 +148,57 @@ async function fetchMarketLoanRecords(
         continue;
       }
 
+      // Only include records for the current user
+      if (borrowerAddress !== address) {
+        continue;
+      }
+
+      loanRecords.push({
+        borrowerAddress,
+        collateralTokenId: record.collateralTokenId,
+        collateralAmount: record.collateralAmount,
+        lastDebtChange: {
+          amount: record.lastDebtChange.amount,
+          changeType: record.lastDebtChange.changeType,
+          timestamp: record.lastDebtChange.timestamp,
+        },
+        borrowedTokenId: record.borrowedTokenId,
+        principal: record.principal,
+        userIndexWad: record.userIndexWad,
+      });
+    }
+
+    return loanRecords;
+  } catch (error) {
+    console.error(`Failed to fetch loan records for market ${appId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches loan records for a specific market (all users)
+ */
+async function fetchMarketLoanRecordsAll(
+  signer: TransactionSigner,
+  address: string,
+  appId: number
+): Promise<Omit<LoanRecordData, "marketId">[]> {
+  try {
+    const appClient = await getExistingClient(signer, address, appId);
+
+    // Get all loan records from the box map
+    const loanRecordsMap = await appClient.state.box.loanRecord.getMap();
+
+    const loanRecords: Omit<LoanRecordData, "marketId">[] = [];
+
+    // Convert Map entries to our LoanRecordData format
+    for (const [borrowerAddress, record] of loanRecordsMap.entries()) {
+      // Skip empty or invalid records
+      if (!record || !record.principal || record.principal === 0n) {
+        continue;
+      }
+
+      // Include ALL records (no filtering by address)
       loanRecords.push({
         borrowerAddress,
         collateralTokenId: record.collateralTokenId,
@@ -572,15 +670,15 @@ function calculateBuyoutCost(
 }
 
 /**
- * Fetches debt positions ready for marketplace display
+ * Fetches debt positions ready for marketplace display (all users)
  */
 export async function fetchDebtPositions(
   signer: TransactionSigner,
   address: string
 ): Promise<DebtPosition[]> {
   try {
-    // 1. Fetch all loan records
-    const loanRecords = await fetchAllLoanRecords(signer, address);
+    // 1. Fetch all loan records (from all users for marketplace)
+    const loanRecords = await fetchAllLoanRecordsForMarketplace(signer, address);
 
     // 2. Transform to debt positions
     const debtPositions = await transformLoanRecordsToDebtPositions(

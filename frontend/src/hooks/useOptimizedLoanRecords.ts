@@ -1,19 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useWallet } from '@txnlab/use-wallet-react'
-import { fetchAllLoanRecords } from '../services/loanRecords'
+import { fetchAllLoanRecordsForMarketplace } from '../services/loanRecords'
 import { transformLoanRecordsToDebtPositionsOptimized } from '../services/optimizedLoanRecords'
 import { usePriceContext } from '../context/priceContext'
 import { DebtPosition } from '../types/lending'
 
 const OPTIMIZED_DEBT_POSITIONS_QUERY_KEY = ['optimized-debt-positions'] as const
 
-// Hook to get debt positions for marketplace with optimized pricing
+// Hook to get debt positions for marketplace with optimized pricing (global - all users)
 export function useOptimizedDebtPositions() {
   const { transactionSigner, activeAddress } = useWallet()
   const priceContext = usePriceContext()
 
   return useQuery({
-    queryKey: [...OPTIMIZED_DEBT_POSITIONS_QUERY_KEY, activeAddress],
+    queryKey: OPTIMIZED_DEBT_POSITIONS_QUERY_KEY, // No activeAddress - this is global data for marketplace
     queryFn: async (): Promise<DebtPosition[]> => {
       if (!transactionSigner || !activeAddress) {
         throw new Error('Wallet not connected')
@@ -21,8 +21,8 @@ export function useOptimizedDebtPositions() {
 
       console.log('Fetching debt positions with optimized pricing...')
       
-      // 1. Fetch all loan records
-      const loanRecords = await fetchAllLoanRecords(transactionSigner, activeAddress)
+      // 1. Fetch all loan records (from all users for marketplace)
+      const loanRecords = await fetchAllLoanRecordsForMarketplace(transactionSigner, activeAddress)
       
       // 2. Transform to debt positions using cached pricing
       const debtPositions = await transformLoanRecordsToDebtPositionsOptimized(
