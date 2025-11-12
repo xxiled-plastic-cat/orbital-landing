@@ -12,6 +12,7 @@ import {
   AssetInfo,
   LoanRecord,
   DebtPosition,
+  UserAllPositions,
 } from "./types";
 import {
   currentAprBps,
@@ -41,7 +42,7 @@ export class OrbitalSDK {
   constructor(config: OrbitalSDKConfig) {
     this.algodClient = config.algodClient;
     this.network = config.network;
-    this.apiBaseUrl = config.apiBaseUrl || "https://api.orbitalfinance.io";
+    this.apiBaseUrl = config.apiBaseUrl || "https://orbital-backend-nssb4.ondigitalocean.app";
   }
 
   /**
@@ -263,7 +264,30 @@ export class OrbitalSDK {
       this.algodClient,
       appId
     );
-    const baseTokenId = globalState.base_token_id || 0n;
+    // Extract baseTokenId - handle both bigint and Buffer cases
+    let baseTokenId: bigint;
+    const baseTokenIdRaw = globalState.base_token_id;
+    
+    // Check if it's a Buffer/Uint8Array (stored as bytes)
+    if (baseTokenIdRaw && typeof baseTokenIdRaw !== 'bigint' && typeof baseTokenIdRaw !== 'number') {
+      // Check if it has byteLength property (Buffer/Uint8Array)
+      const bufferLike = baseTokenIdRaw as { byteLength?: number; buffer?: ArrayBuffer; byteOffset?: number };
+      if (bufferLike.byteLength !== undefined) {
+        // If stored as bytes, convert to bigint (assuming big-endian uint64)
+        const buffer = baseTokenIdRaw as Uint8Array;
+        const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+        baseTokenId = view.getBigUint64(0, false); // false = big-endian
+      } else {
+        // Fallback: try to convert to bigint
+        baseTokenId = BigInt(baseTokenIdRaw || 0);
+      }
+    } else {
+      // It's already a bigint or number
+      baseTokenId = typeof baseTokenIdRaw === 'bigint' 
+        ? baseTokenIdRaw 
+        : BigInt(baseTokenIdRaw || 0);
+    }
+    
     const lstTokenId = globalState.lst_token_id || 0n;
 
     const baseTokenDecimals = Number(baseTokenId) === 0 ? 6 : 6;
@@ -279,9 +303,15 @@ export class OrbitalSDK {
       );
       const depositRecord = decodeDepositRecord(depositBoxValue);
       depositAmount = depositRecord.depositAmount;
+      console.log(
+        `[getUserPosition] Market ${appId}: Found deposit amount: ${depositAmount}`
+      );
     } catch (error) {
       // Box doesn't exist or error fetching - user has no deposits
-      console.debug("No deposit record found:", error);
+      console.debug(
+        `[getUserPosition] Market ${appId}: No deposit record found:`,
+        error
+      );
     }
 
     // Fetch LST balance
@@ -430,10 +460,16 @@ export class OrbitalSDK {
    */
   async getMarketList(): Promise<MarketInfo[]> {
     try {
-      return await fetchMarketList(this.network, this.apiBaseUrl);
+      console.log(
+        `[getMarketList] Fetching from ${this.apiBaseUrl} for network: ${this.network}`
+      );
+      const markets = await fetchMarketList(this.network, this.apiBaseUrl);
+      console.log(`[getMarketList] Successfully fetched ${markets.length} markets`);
+      return markets;
     } catch (error) {
-      console.error("Failed to fetch market list:", error);
-      throw new Error("Failed to fetch market list");
+      console.error("[getMarketList] Failed to fetch market list:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fetch market list: ${errorMessage}`);
     }
   }
 
@@ -528,7 +564,7 @@ export class OrbitalSDK {
           total: 10000000000000000n, // 10 billion ALGO
           frozen: false,
           creator: "",
-          url: "https://algorand.com",
+          url: "https://algorand.co",
         };
       }
 
@@ -738,6 +774,285 @@ export class OrbitalSDK {
     } catch (error) {
       console.error("Failed to fetch all debt positions:", error);
       throw new Error("Failed to fetch all debt positions");
+    }
+  }
+
+  /**
+   * Get all positions (deposits and borrows) for a user across all markets
+   * This fetches deposit and loan records from all active markets
+   * @param userAddress User's Algorand address
+   * @returns Aggregated position data across all markets
+   */
+  async getAllUserPositions(userAddress: string): Promise<UserAllPositions> {
+    try {
+      // 1. Fetch market list from backend API
+      console.log(`[getAllUserPositions] Fetching market list...`);
+      const marketList = await this.getMarketList();
+      console.log(
+        `[getAllUserPositions] Fetching positions for ${userAddress} across ${marketList.length} markets`
+      );
+
+      // 2. Fetch user position for each market in parallel
+      const positionPromises = marketList.map(async (market) => {
+        try {
+          return await this.getUserPosition(market.appId, userAddress);
+        } catch (error) {
+          // Log as warning instead of debug so it's visible
+          console.warn(
+            `[getAllUserPositions] Failed to fetch position for market ${market.appId}:`,
+            error
+          );
+          return null;
+        }
+      });
+
+      const allPositions = await Promise.all(positionPromises);
+      console.log(
+        `[getAllUserPositions] Fetched ${allPositions.filter((p) => p !== null).length} positions (${allPositions.filter((p) => p === null).length} failed)`
+      );
+
+      // 3. Filter out null values and positions with no activity
+      const activePositions = allPositions.filter(
+        (pos): pos is UserPosition =>
+          pos !== null &&
+          (pos.supplied > 0 ||
+            pos.lstBalance > 0 ||
+            pos.borrowed > 0 ||
+            pos.collateral > 0)
+      );
+
+      console.log(
+        `[getAllUserPositions] Found ${activePositions.length} active positions`
+      );
+
+      // 4. Fetch market data and prices for USD value calculation
+      console.log(
+        `[getAllUserPositions] Fetching market data and prices for USD calculations...`
+      );
+      const marketDataPromises = activePositions.map((pos) =>
+        this.getMarket(pos.appId).catch((err) => {
+          console.warn(`Failed to fetch market data for ${pos.appId}:`, err);
+          return null;
+        })
+      );
+      const marketsData = await Promise.all(marketDataPromises);
+
+      // Get unique oracle app IDs and base token IDs
+      const priceMap = new Map<number, number>();
+      
+      for (let i = 0; i < marketsData.length; i++) {
+        const market = marketsData[i];
+        if (!market) continue;
+
+        const baseTokenId = market.baseTokenId;
+        
+        // Skip if we already have this price
+        if (priceMap.has(baseTokenId)) continue;
+
+        try {
+          const price = await this.getOraclePrice(market.oracleAppId, baseTokenId);
+          priceMap.set(baseTokenId, price.price);
+          console.log(`[getAllUserPositions] Price for asset ${baseTokenId}: $${price.price}`);
+        } catch (error) {
+          console.warn(`Failed to fetch price for asset ${baseTokenId}:`, error);
+          priceMap.set(baseTokenId, 0); // Default to 0 if price fetch fails
+        }
+      }
+
+      // 5. Calculate aggregated totals
+      let totalSupplied = 0;
+      let totalBorrowed = 0;
+      let totalCollateral = 0;
+      let totalValueUSD = 0;
+      let minHealthFactor = Infinity;
+
+      activePositions.forEach((pos, idx) => {
+        totalSupplied += pos.supplied;
+        totalBorrowed += pos.borrowed;
+        totalCollateral += pos.collateral;
+
+        // Calculate USD value for this position
+        const market = marketsData[idx];
+        if (market) {
+          const price = priceMap.get(market.baseTokenId) || 0;
+          const suppliedUSD = pos.supplied * price;
+          const borrowedUSD = pos.borrowed * price;
+          const collateralUSD = pos.collateral * price;
+          totalValueUSD += suppliedUSD + borrowedUSD + collateralUSD;
+        }
+
+        // Track minimum health factor (most risky position)
+        if (pos.borrowed > 0 && pos.healthFactor < minHealthFactor) {
+          minHealthFactor = pos.healthFactor;
+        }
+      });
+
+      // If no borrows, health factor is infinite (no risk)
+      const overallHealthFactor =
+        totalBorrowed > 0 && minHealthFactor !== Infinity
+          ? minHealthFactor
+          : Infinity;
+
+      console.log(
+        `[getAllUserPositions] Total Value: $${totalValueUSD.toFixed(2)}`
+      );
+
+      return {
+        address: userAddress,
+        positions: activePositions,
+        totalSupplied,
+        totalBorrowed,
+        totalCollateral,
+        totalValueUSD,
+        overallHealthFactor,
+        activeMarkets: activePositions.length,
+      };
+    } catch (error) {
+      console.error(
+        `[getAllUserPositions] Failed to fetch all positions for ${userAddress}:`,
+        error
+      );
+      // Include the original error for better debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to fetch all positions for ${userAddress}: ${errorMessage}`
+      );
+    }
+  }
+
+  /**
+   * Get all positions for a user across specific markets
+   * @param userAddress User's Algorand address
+   * @param marketAppIds Array of market application IDs to check
+   * @returns Aggregated position data across specified markets
+   */
+  async getUserPositionsForMarkets(
+    userAddress: string,
+    marketAppIds: number[]
+  ): Promise<UserAllPositions> {
+    try {
+      console.log(
+        `[getUserPositionsForMarkets] Fetching positions for ${userAddress} across ${marketAppIds.length} specified markets`
+      );
+
+      // Fetch user position for each market in parallel
+      const positionPromises = marketAppIds.map(async (appId) => {
+        try {
+          return await this.getUserPosition(appId, userAddress);
+        } catch (error) {
+          console.warn(
+            `[getUserPositionsForMarkets] Failed to fetch position for market ${appId}:`,
+            error
+          );
+          return null;
+        }
+      });
+
+      const allPositions = await Promise.all(positionPromises);
+      console.log(
+        `[getUserPositionsForMarkets] Fetched ${allPositions.filter((p) => p !== null).length} positions (${allPositions.filter((p) => p === null).length} failed)`
+      );
+
+      // Filter out null values and positions with no activity
+      const activePositions = allPositions.filter(
+        (pos): pos is UserPosition =>
+          pos !== null &&
+          (pos.supplied > 0 ||
+            pos.lstBalance > 0 ||
+            pos.borrowed > 0 ||
+            pos.collateral > 0)
+      );
+
+      console.log(
+        `[getUserPositionsForMarkets] Found ${activePositions.length} active positions`
+      );
+
+      // Fetch market data and prices for USD value calculation
+      console.log(
+        `[getUserPositionsForMarkets] Fetching market data and prices for USD calculations...`
+      );
+      const marketDataPromises = activePositions.map((pos) =>
+        this.getMarket(pos.appId).catch((err) => {
+          console.warn(`Failed to fetch market data for ${pos.appId}:`, err);
+          return null;
+        })
+      );
+      const marketsData = await Promise.all(marketDataPromises);
+
+      // Get unique oracle app IDs and base token IDs
+      const priceMap = new Map<number, number>();
+      
+      for (let i = 0; i < marketsData.length; i++) {
+        const market = marketsData[i];
+        if (!market) continue;
+
+        const baseTokenId = market.baseTokenId;
+        
+        // Skip if we already have this price
+        if (priceMap.has(baseTokenId)) continue;
+
+        try {
+          const price = await this.getOraclePrice(market.oracleAppId, baseTokenId);
+          priceMap.set(baseTokenId, price.price);
+        } catch (error) {
+          console.warn(`Failed to fetch price for asset ${baseTokenId}:`, error);
+          priceMap.set(baseTokenId, 0);
+        }
+      }
+
+      // Calculate aggregated totals
+      let totalSupplied = 0;
+      let totalBorrowed = 0;
+      let totalCollateral = 0;
+      let totalValueUSD = 0;
+      let minHealthFactor = Infinity;
+
+      activePositions.forEach((pos, idx) => {
+        totalSupplied += pos.supplied;
+        totalBorrowed += pos.borrowed;
+        totalCollateral += pos.collateral;
+
+        // Calculate USD value for this position
+        const market = marketsData[idx];
+        if (market) {
+          const price = priceMap.get(market.baseTokenId) || 0;
+          const suppliedUSD = pos.supplied * price;
+          const borrowedUSD = pos.borrowed * price;
+          const collateralUSD = pos.collateral * price;
+          totalValueUSD += suppliedUSD + borrowedUSD + collateralUSD;
+        }
+
+        // Track minimum health factor (most risky position)
+        if (pos.borrowed > 0 && pos.healthFactor < minHealthFactor) {
+          minHealthFactor = pos.healthFactor;
+        }
+      });
+
+      // If no borrows, health factor is infinite (no risk)
+      const overallHealthFactor =
+        totalBorrowed > 0 && minHealthFactor !== Infinity
+          ? minHealthFactor
+          : Infinity;
+
+      return {
+        address: userAddress,
+        positions: activePositions,
+        totalSupplied,
+        totalBorrowed,
+        totalCollateral,
+        totalValueUSD,
+        overallHealthFactor,
+        activeMarkets: activePositions.length,
+      };
+    } catch (error) {
+      console.error(
+        `[getUserPositionsForMarkets] Failed to fetch positions for ${userAddress}:`,
+        error
+      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to fetch positions for ${userAddress}: ${errorMessage}`
+      );
     }
   }
 }

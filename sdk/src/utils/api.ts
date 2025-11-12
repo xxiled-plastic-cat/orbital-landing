@@ -4,7 +4,7 @@
 
 import { MarketInfo } from '../types';
 
-const DEFAULT_API_BASE_URL = 'https://api.orbitalfinance.io';
+const DEFAULT_API_BASE_URL = 'https://orbital-backend-nssb4.ondigitalocean.app';
 
 /**
  * Fetch market list from Orbital backend API
@@ -16,20 +16,34 @@ export async function fetchMarketList(
   network: 'mainnet' | 'testnet',
   apiBaseUrl: string = DEFAULT_API_BASE_URL
 ): Promise<MarketInfo[]> {
+  const url = `${apiBaseUrl}/api/orbital/markets`;
+  console.log(`[fetchMarketList] Requesting: ${url} for network: ${network}`);
+  
   try {
-    const response = await fetch(`${apiBaseUrl}/orbital/markets`);
+    const response = await fetch(url);
+    console.log(`[fetchMarketList] Response status: ${response.status}`);
     
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => 'Unable to read response');
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText}. Response: ${errorText}`
+      );
     }
 
     const markets = (await response.json()) as MarketInfo[];
+    console.log(`[fetchMarketList] Received ${markets.length} total markets`);
     
     // Filter by network
-    return markets.filter((m: MarketInfo) => m.network === network);
+    const filtered = markets.filter((m: MarketInfo) => m.network === network);
+    console.log(`[fetchMarketList] Filtered to ${filtered.length} markets for ${network}`);
+    
+    return filtered;
   } catch (error) {
-    console.error('Failed to fetch market list from API:', error);
-    throw new Error('Failed to fetch market list from Orbital API');
+    console.error('[fetchMarketList] Failed to fetch market list from API:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to fetch market list from Orbital API (${url}): ${errorMessage}`
+    );
   }
 }
 
@@ -44,7 +58,7 @@ export async function fetchMarketInfo(
   apiBaseUrl: string = DEFAULT_API_BASE_URL
 ): Promise<MarketInfo> {
   try {
-    const response = await fetch(`${apiBaseUrl}/orbital/markets/${appId}`);
+    const response = await fetch(`${apiBaseUrl}/api/orbital/markets/${appId}`);
     
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);

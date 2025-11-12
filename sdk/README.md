@@ -259,6 +259,78 @@ const atRisk = allPositions.filter(p => p.healthRatio < p.liquidationThreshold);
 console.log(`${atRisk.length} positions at risk`);
 ```
 
+##### `getUserPosition(appId: number, userAddress: string): Promise<UserPosition>`
+
+Fetches a user's position in a specific market, including deposits, LST balance, borrows, and collateral.
+
+**Parameters:**
+- `appId`: Market application ID
+- `userAddress`: User's Algorand address
+
+**Returns:** Promise resolving to `UserPosition` object with user's complete position
+
+**Example:**
+```typescript
+const position = await sdk.getUserPosition(12345678, 'USERADDRESS...');
+console.log(`Supplied: ${position.supplied}`);
+console.log(`Borrowed: ${position.borrowed}`);
+console.log(`Health Factor: ${position.healthFactor}`);
+```
+
+##### `getAllUserPositions(userAddress: string): Promise<UserAllPositions>`
+
+Fetches all positions (deposits and borrows) for a user across all active markets. This method checks deposit records and loan records across all markets and aggregates the results.
+
+**Parameters:**
+- `userAddress`: User's Algorand address
+
+**Returns:** Promise resolving to `UserAllPositions` object containing:
+- `address`: User's address
+- `positions`: Array of individual market positions
+- `totalSupplied`: Sum of supplied amounts across all markets
+- `totalBorrowed`: Sum of borrowed amounts across all markets
+- `totalCollateral`: Sum of collateral across all markets
+- `overallHealthFactor`: Minimum health factor across all positions
+- `activeMarkets`: Number of markets with active positions
+
+**Example:**
+```typescript
+const allPositions = await sdk.getAllUserPositions('USERADDRESS...');
+
+console.log(`Active in ${allPositions.activeMarkets} markets`);
+console.log(`Total Supplied: ${allPositions.totalSupplied}`);
+console.log(`Total Borrowed: ${allPositions.totalBorrowed}`);
+console.log(`Health Factor: ${allPositions.overallHealthFactor}`);
+
+// Check individual positions
+allPositions.positions.forEach(pos => {
+  console.log(`Market ${pos.appId}:`);
+  console.log(`  Supplied: ${pos.supplied}`);
+  console.log(`  Borrowed: ${pos.borrowed}`);
+});
+```
+
+##### `getUserPositionsForMarkets(userAddress: string, marketAppIds: number[]): Promise<UserAllPositions>`
+
+Fetches user positions across specific markets. Similar to `getAllUserPositions()` but only checks the specified markets.
+
+**Parameters:**
+- `userAddress`: User's Algorand address
+- `marketAppIds`: Array of market application IDs to check
+
+**Returns:** Promise resolving to `UserAllPositions` object with positions from specified markets
+
+**Example:**
+```typescript
+const positions = await sdk.getUserPositionsForMarkets(
+  'USERADDRESS...',
+  [12345678, 23456789]
+);
+
+console.log(`Total across ${positions.activeMarkets} specified markets`);
+console.log(`Total Borrowed: ${positions.totalBorrowed}`);
+```
+
 ## Development
 
 ```bash

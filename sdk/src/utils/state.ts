@@ -53,7 +53,33 @@ export async function getBoxValue(
   boxName: Uint8Array
 ): Promise<Uint8Array> {
   const boxResponse = await algodClient.getApplicationBoxByName(appId, boxName).do();
-  return new Uint8Array(boxResponse.value);
+  
+  // The API returns the value as a base64-encoded string
+  // We need to decode it to get the raw bytes
+  if (typeof boxResponse.value === 'string') {
+    try {
+      return new Uint8Array(Buffer.from(boxResponse.value, 'base64'));
+    } catch (error) {
+      throw new Error(
+        `Failed to decode box value from base64: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  
+  // If it's already a Uint8Array, return it directly
+  if (boxResponse.value instanceof Uint8Array) {
+    return boxResponse.value;
+  }
+  
+  // If it's an array-like object, convert it
+  const value = boxResponse.value;
+  if (Array.isArray(value) || (value && typeof value === 'object' && 'length' in value)) {
+    return new Uint8Array(value as ArrayLike<number>);
+  }
+  
+  throw new Error(
+    `Unexpected box value type: ${typeof boxResponse.value}. Expected string (base64) or Uint8Array.`
+  );
 }
 
 /**
@@ -140,17 +166,41 @@ export function decodeLoanRecord(boxValue: Uint8Array): {
  * @param assetId Asset ID
  * @returns Box name as Uint8Array
  */
-export function createDepositBoxName(userAddress: string, assetId: bigint): Uint8Array {
+export function createDepositBoxName(userAddress: string, assetId: bigint | number): Uint8Array {
+  // Ensure assetId is a bigint and within uint64 range
+  const assetIdBigInt = typeof assetId === 'number' ? BigInt(assetId) : assetId;
+  
+  // Validate uint64 range (0 to 2^64 - 1)
+  if (assetIdBigInt < 0n || assetIdBigInt > 18446744073709551615n) {
+    throw new Error(`Asset ID ${assetIdBigInt} is out of uint64 range`);
+  }
+  
   const depositKeyType = new algosdk.ABITupleType([
     new algosdk.ABIAddressType(),
     new algosdk.ABIUintType(64), // assetId
   ]);
   const prefix = new TextEncoder().encode('deposit_record');
-  const encodedKey = depositKeyType.encode([
-    algosdk.decodeAddress(userAddress).publicKey,
-    assetId,
-  ]);
-  return new Uint8Array([...prefix, ...encodedKey]);
+  
+  try {
+    // Decode address and ensure publicKey is a Uint8Array
+    const decodedAddress = algosdk.decodeAddress(userAddress);
+    const publicKey = decodedAddress.publicKey instanceof Uint8Array
+      ? decodedAddress.publicKey
+      : new Uint8Array(decodedAddress.publicKey);
+    
+    // Encode the tuple: [address publicKey, assetId]
+    const encodedKey = depositKeyType.encode([
+      publicKey,
+      assetIdBigInt,
+    ]);
+    return new Uint8Array([...prefix, ...encodedKey]);
+  } catch (error) {
+    throw new Error(
+      `Failed to encode deposit box name for address ${userAddress}, assetId ${assetIdBigInt}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 }
 
 /**

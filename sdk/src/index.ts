@@ -13,6 +13,7 @@ export type {
   APYData,
   LSTPrice,
   UserPosition,
+  UserAllPositions,
   GlobalState,
   DepositRecord,
   LoanRecord,
