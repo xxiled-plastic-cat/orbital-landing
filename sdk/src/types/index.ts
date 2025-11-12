@@ -310,3 +310,25 @@ export interface AssetInfo {
   clawback?: string;
 }
 
+/**
+ * User All Positions - Aggregated view of all user positions across markets
+ */
+export interface UserAllPositions {
+  /** User's Algorand address */
+  address: string;
+  /** Array of positions across all markets */
+  positions: UserPosition[];
+  /** Total supplied value across all markets (in base token units) */
+  totalSupplied: number;
+  /** Total borrowed value across all markets (in base token units) */
+  totalBorrowed: number;
+  /** Total collateral value across all markets (in base token units) */
+  totalCollateral: number;
+  /** Total USD value of all positions (supplied + borrowed + collateral) */
+  totalValueUSD: number;
+  /** Overall health factor (weighted average or minimum) */
+  overallHealthFactor: number;
+  /** Number of markets with active positions */
+  activeMarkets: number;
+}
+

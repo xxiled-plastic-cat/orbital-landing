@@ -1,0 +1,97 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug SDK",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "debug", "--"],
+      "args": [],
+      "cwd": "${workspaceFolder}/sdk",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/sdk/**",
+        "!**/node_modules/**"
+      ],
+      "outputCapture": "std"
+    },
+    {
+      "name": "Debug SDK (with User)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "debug", "--"],
+      "args": ["--user", "${input:userAddress}", "--method", "${input:method}"],
+      "cwd": "${workspaceFolder}/sdk",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/sdk/**",
+        "!**/node_modules/**"
+      ],
+      "outputCapture": "std"
+    },
+    {
+      "name": "Debug SDK (Current File)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "debug:file", "${file}"],
+      "cwd": "${workspaceFolder}/sdk",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/sdk/**",
+        "!**/node_modules/**"
+      ],
+      "outputCapture": "std"
+    },
+    {
+      "name": "Debug SDK (Attach)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "localRoot": "${workspaceFolder}/sdk",
+      "remoteRoot": "${workspaceFolder}/sdk",
+      "protocol": "inspector",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/sdk/**",
+        "!**/node_modules/**"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "userAddress",
+      "type": "promptString",
+      "description": "Enter Algorand user address",
+      "default": ""
+    },
+    {
+      "id": "method",
+      "type": "pickString",
+      "description": "Select method to debug",
+      "options": [
+        "",
+        "getUserPosition",
+        "getAllUserPositions",
+        "getMarket",
+        "getAPY",
+        "getLSTPrice"
+      ],
+      "default": ""
+    }
+  ]
+}
+

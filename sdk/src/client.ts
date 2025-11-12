@@ -12,6 +12,7 @@ import {
   AssetInfo,
   LoanRecord,
   DebtPosition,
+  UserAllPositions,
 } from "./types";
 import {
   currentAprBps,
@@ -31,6 +32,103 @@ import {
 import { fetchMarketList } from "./utils/api";
 
 /**
+ * Helper function to recursively convert all bigint values to numbers
+ * This is useful for JSON serialization since JSON doesn't support bigint
+ */
+function convertBigIntsToNumbers<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  // Handle bigint directly
+  if (typeof obj === 'bigint') {
+    return Number(obj) as unknown as T;
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(convertBigIntsToNumbers) as unknown as T;
+  }
+
+  // Handle objects (but not Date objects)
+  if (typeof obj === 'object' && obj.constructor === Object) {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = convertBigIntsToNumbers(value);
+    }
+    return result as unknown as T;
+  }
+
+  // Handle Date objects - keep them as is
+  if (obj instanceof Date) {
+    return obj;
+  }
+
+  // Return primitives and other types as-is
+  return obj;
+}
+
+/**
+ * Helper function to safely extract a number from global state
+ * Handles both bigint and Buffer/Uint8Array cases
+ */
+function extractNumberFromGlobalState(
+  value: bigint | Uint8Array | Buffer | string | undefined | null,
+  defaultValue: number = 0
+): number {
+  if (!value) {
+    return defaultValue;
+  }
+
+  // If it's already a number, return it
+  if (typeof value === 'number') {
+    return isNaN(value) ? defaultValue : value;
+  }
+
+  // If it's a bigint, convert to number
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+
+  // If it's a Buffer/Uint8Array, convert to bigint first, then number
+  if (typeof value !== 'string' && 'byteLength' in value) {
+    const buffer = value instanceof Uint8Array 
+      ? value 
+      : new Uint8Array(value as ArrayLike<number>);
+    
+    // Handle different buffer sizes
+    if (buffer.byteLength <= 8) {
+      // For uint64 or smaller, read as big-endian uint64
+      const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      if (buffer.byteLength === 8) {
+        return Number(view.getBigUint64(0, false)); // false = big-endian
+      } else if (buffer.byteLength === 4) {
+        return view.getUint32(0, false);
+      } else if (buffer.byteLength === 2) {
+        return view.getUint16(0, false);
+      } else if (buffer.byteLength === 1) {
+        return view.getUint8(0);
+      }
+    }
+    
+    // Fallback: try to convert buffer to number via string
+    try {
+      return Number(BigInt('0x' + Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('')));
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  // If it's a string, try to parse it
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  }
+
+  return defaultValue;
+}
+
+/**
  * Main SDK client for interacting with Orbital Finance
  */
 export class OrbitalSDK {
@@ -41,7 +139,7 @@ export class OrbitalSDK {
   constructor(config: OrbitalSDKConfig) {
     this.algodClient = config.algodClient;
     this.network = config.network;
-    this.apiBaseUrl = config.apiBaseUrl || "https://api.orbitalfinance.io";
+    this.apiBaseUrl = config.apiBaseUrl || "https://orbital-backend-nssb4.ondigitalocean.app";
   }
 
   /**
@@ -55,17 +153,17 @@ export class OrbitalSDK {
       appId
     );
 
-    // Extract values from global state
-    const baseTokenId = Number(globalState.base_token_id || 0n);
-    const lstTokenId = Number(globalState.lst_token_id || 0n);
-    const oracleAppId = Number(globalState.oracle_app || 0n);
-    const buyoutTokenId = Number(globalState.buyout_token_id || 0n);
+    // Extract values from global state (safely handle Buffer/bigint cases)
+    const baseTokenId = extractNumberFromGlobalState(globalState.base_token_id, 0);
+    const lstTokenId = extractNumberFromGlobalState(globalState.lst_token_id, 0);
+    const oracleAppId = extractNumberFromGlobalState(globalState.oracle_app, 0);
+    const buyoutTokenId = extractNumberFromGlobalState(globalState.buyout_token_id, 0);
 
     const totalDeposits = globalState.total_deposits || 0n;
     const totalBorrows = globalState.total_borrows || 0n;
     const circulatingLST = globalState.circulating_lst || 0n;
     const borrowIndexWad = globalState.borrow_index_wad || 0n;
-    const lastUpdate = Number(globalState.last_update || 0n);
+    const lastUpdate = extractNumberFromGlobalState(globalState.last_update, 0);
 
     // Interest rate model parameters
     const baseBps = globalState.base_bps || 200n;
@@ -80,7 +178,7 @@ export class OrbitalSDK {
     const protocolShareBps = globalState.protocol_share_bps || 500n;
     const originationFeeBps = globalState.origination_fee_bps || 0n;
     const liqBonusBps = globalState.liq_bonus_bps || 750n;
-    const contractState = Number(globalState.contract_state || 1n);
+    const contractState = extractNumberFromGlobalState(globalState.contract_state, 1);
 
     // Determine decimals based on asset type
     // ALGO (0) has 6 decimals, most ASAs have 6 decimals
@@ -263,7 +361,30 @@ export class OrbitalSDK {
       this.algodClient,
       appId
     );
-    const baseTokenId = globalState.base_token_id || 0n;
+    // Extract baseTokenId - handle both bigint and Buffer cases
+    let baseTokenId: bigint;
+    const baseTokenIdRaw = globalState.base_token_id;
+    
+    // Check if it's a Buffer/Uint8Array (stored as bytes)
+    if (baseTokenIdRaw && typeof baseTokenIdRaw !== 'bigint' && typeof baseTokenIdRaw !== 'number') {
+      // Check if it has byteLength property (Buffer/Uint8Array)
+      const bufferLike = baseTokenIdRaw as { byteLength?: number; buffer?: ArrayBuffer; byteOffset?: number };
+      if (bufferLike.byteLength !== undefined) {
+        // If stored as bytes, convert to bigint (assuming big-endian uint64)
+        const buffer = baseTokenIdRaw as Uint8Array;
+        const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+        baseTokenId = view.getBigUint64(0, false); // false = big-endian
+      } else {
+        // Fallback: try to convert to bigint
+        baseTokenId = BigInt(baseTokenIdRaw || 0);
+      }
+    } else {
+      // It's already a bigint or number
+      baseTokenId = typeof baseTokenIdRaw === 'bigint' 
+        ? baseTokenIdRaw 
+        : BigInt(baseTokenIdRaw || 0);
+    }
+    
     const lstTokenId = globalState.lst_token_id || 0n;
 
     const baseTokenDecimals = Number(baseTokenId) === 0 ? 6 : 6;
@@ -271,17 +392,35 @@ export class OrbitalSDK {
     // Fetch deposit record
     let depositAmount = 0n;
     try {
+      console.log(
+        `[getUserPosition] Market ${appId}: Fetching deposit record for baseTokenId: ${baseTokenId.toString()}`
+      );
       const depositBoxName = createDepositBoxName(userAddress, baseTokenId);
+      console.log(
+        `[getUserPosition] Market ${appId}: Deposit box name created, length: ${depositBoxName.length}`
+      );
       const depositBoxValue = await getBoxValue(
         this.algodClient,
         appId,
         depositBoxName
       );
+      console.log(
+        `[getUserPosition] Market ${appId}: Deposit box value retrieved, length: ${depositBoxValue.length}`
+      );
       const depositRecord = decodeDepositRecord(depositBoxValue);
       depositAmount = depositRecord.depositAmount;
+      console.log(
+        `[getUserPosition] Market ${appId}: Decoded deposit record - Amount: ${depositAmount.toString()}, AssetId: ${depositRecord.assetId.toString()}`
+      );
+      console.log(
+        `[getUserPosition] Market ${appId}: Found deposit amount: ${depositAmount}`
+      );
     } catch (error) {
       // Box doesn't exist or error fetching - user has no deposits
-      console.debug("No deposit record found:", error);
+      console.debug(
+        `[getUserPosition] Market ${appId}: No deposit record found:`,
+        error
+      );
     }
 
     // Fetch LST balance
@@ -430,10 +569,16 @@ export class OrbitalSDK {
    */
   async getMarketList(): Promise<MarketInfo[]> {
     try {
-      return await fetchMarketList(this.network, this.apiBaseUrl);
+      console.log(
+        `[getMarketList] Fetching from ${this.apiBaseUrl} for network: ${this.network}`
+      );
+      const markets = await fetchMarketList(this.network, this.apiBaseUrl);
+      console.log(`[getMarketList] Successfully fetched ${markets.length} markets`);
+      return markets;
     } catch (error) {
-      console.error("Failed to fetch market list:", error);
-      throw new Error("Failed to fetch market list");
+      console.error("[getMarketList] Failed to fetch market list:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fetch market list: ${errorMessage}`);
     }
   }
 
@@ -528,7 +673,7 @@ export class OrbitalSDK {
           total: 10000000000000000n, // 10 billion ALGO
           frozen: false,
           creator: "",
-          url: "https://algorand.com",
+          url: "https://algorand.co",
         };
       }
 
@@ -738,6 +883,365 @@ export class OrbitalSDK {
     } catch (error) {
       console.error("Failed to fetch all debt positions:", error);
       throw new Error("Failed to fetch all debt positions");
+    }
+  }
+
+  /**
+   * Get all positions (deposits and borrows) for a user across all markets
+   * This fetches deposit and loan records from all active markets
+   * @param userAddress User's Algorand address
+   * @returns Aggregated position data across all markets
+   */
+  async getAllUserPositions(userAddress: string): Promise<UserAllPositions> {
+    try {
+      // 1. Fetch market list from backend API
+      console.log(`[getAllUserPositions] Fetching market list...`);
+      const marketList = await this.getMarketList();
+      console.log(
+        `[getAllUserPositions] Fetching positions for ${userAddress} across ${marketList.length} markets`
+      );
+
+      // 2. Fetch user position for each market in parallel
+      const positionPromises = marketList.map(async (market) => {
+        try {
+          return await this.getUserPosition(market.appId, userAddress);
+        } catch (error) {
+          // Log as warning instead of debug so it's visible
+          console.warn(
+            `[getAllUserPositions] Failed to fetch position for market ${market.appId}:`,
+            error
+          );
+          return null;
+        }
+      });
+
+      const allPositions = await Promise.all(positionPromises);
+      console.log(
+        `[getAllUserPositions] Fetched ${allPositions.filter((p) => p !== null).length} positions (${allPositions.filter((p) => p === null).length} failed)`
+      );
+
+      // 3. Filter out null values and positions with no activity
+      const activePositions = allPositions.filter(
+        (pos): pos is UserPosition =>
+          pos !== null &&
+          (pos.supplied > 0 ||
+            pos.lstBalance > 0 ||
+            pos.borrowed > 0 ||
+            pos.collateral > 0)
+      );
+
+      console.log(
+        `[getAllUserPositions] Found ${activePositions.length} active positions`
+      );
+
+      // 4. Fetch market data and prices for USD value calculation
+      console.log(
+        `[getAllUserPositions] Fetching market data and prices for USD calculations...`
+      );
+      const marketDataPromises = activePositions.map((pos) =>
+        this.getMarket(pos.appId).catch((err) => {
+          console.warn(`Failed to fetch market data for ${pos.appId}:`, err);
+          return null;
+        })
+      );
+      const marketsData = await Promise.all(marketDataPromises);
+
+      // Collect unique base token IDs and their oracle app IDs for parallel price fetching
+      const priceFetchMap = new Map<number, { oracleAppId: number; baseTokenId: number }>();
+      
+      for (const market of marketsData) {
+        if (!market) continue;
+        const baseTokenId = market.baseTokenId;
+        
+        // Only add if we haven't seen this baseTokenId yet
+        if (!priceFetchMap.has(baseTokenId)) {
+          priceFetchMap.set(baseTokenId, {
+            oracleAppId: market.oracleAppId,
+            baseTokenId: baseTokenId,
+          });
+        }
+      }
+
+      // Fetch all prices in parallel by grouping by oracle app ID
+      const priceMap = new Map<number, number>();
+      const oracleGroups = new Map<number, number[]>();
+      
+      // Group asset IDs by oracle app ID
+      for (const { oracleAppId, baseTokenId } of priceFetchMap.values()) {
+        if (!oracleGroups.has(oracleAppId)) {
+          oracleGroups.set(oracleAppId, []);
+        }
+        oracleGroups.get(oracleAppId)!.push(baseTokenId);
+      }
+
+      // Fetch prices for each oracle in parallel
+      const pricePromises = Array.from(oracleGroups.entries()).map(
+        async ([oracleAppId, assetIds]) => {
+          try {
+            const prices = await this.getOraclePrices(oracleAppId, assetIds);
+            return prices;
+          } catch (error) {
+            console.warn(`Failed to fetch prices from oracle ${oracleAppId}:`, error);
+            // Return empty map on error
+            return new Map<number, OraclePrice>();
+          }
+        }
+      );
+
+      const priceResults = await Promise.all(pricePromises);
+      
+      // Merge all price results into a single map
+      for (const prices of priceResults) {
+        for (const [assetId, price] of prices.entries()) {
+          priceMap.set(assetId, price.price);
+          console.log(`[getAllUserPositions] Price for asset ${assetId}: $${price.price}`);
+        }
+      }
+
+      // Set default price of 0 for any assets that failed to fetch
+      for (const { baseTokenId } of priceFetchMap.values()) {
+        if (!priceMap.has(baseTokenId)) {
+          priceMap.set(baseTokenId, 0);
+        }
+      }
+
+      // 5. Calculate aggregated totals
+      let totalSupplied = 0;
+      let totalBorrowed = 0;
+      let totalCollateral = 0;
+      let totalValueUSD = 0;
+      let minHealthFactor = Infinity;
+
+      activePositions.forEach((pos, idx) => {
+        totalSupplied += pos.supplied;
+        totalBorrowed += pos.borrowed;
+        totalCollateral += pos.collateral;
+
+        // Calculate USD value for this position
+        const market = marketsData[idx];
+        if (market) {
+          const price = priceMap.get(market.baseTokenId) || 0;
+          const suppliedUSD = pos.supplied * price;
+          const borrowedUSD = pos.borrowed * price;
+          const collateralUSD = pos.collateral * price;
+          totalValueUSD += suppliedUSD + borrowedUSD + collateralUSD;
+        }
+
+        // Track minimum health factor (most risky position)
+        if (pos.borrowed > 0 && pos.healthFactor < minHealthFactor) {
+          minHealthFactor = pos.healthFactor;
+        }
+      });
+
+      // If no borrows, health factor is infinite (no risk)
+      const overallHealthFactor =
+        totalBorrowed > 0 && minHealthFactor !== Infinity
+          ? minHealthFactor
+          : Infinity;
+
+      console.log(
+        `[getAllUserPositions] Total Value: $${totalValueUSD.toFixed(2)}`
+      );
+
+      const result = {
+        address: userAddress,
+        positions: activePositions,
+        totalSupplied,
+        totalBorrowed,
+        totalCollateral,
+        totalValueUSD,
+        overallHealthFactor,
+        activeMarkets: activePositions.length,
+      };
+
+      // Convert all bigint values to numbers for JSON serialization
+      return convertBigIntsToNumbers(result);
+    } catch (error) {
+      console.error(
+        `[getAllUserPositions] Failed to fetch all positions for ${userAddress}:`,
+        error
+      );
+      // Include the original error for better debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to fetch all positions for ${userAddress}: ${errorMessage}`
+      );
+    }
+  }
+
+  /**
+   * Get all positions for a user across specific markets
+   * @param userAddress User's Algorand address
+   * @param marketAppIds Array of market application IDs to check
+   * @returns Aggregated position data across specified markets
+   */
+  async getUserPositionsForMarkets(
+    userAddress: string,
+    marketAppIds: number[]
+  ): Promise<UserAllPositions> {
+    try {
+      console.log(
+        `[getUserPositionsForMarkets] Fetching positions for ${userAddress} across ${marketAppIds.length} specified markets`
+      );
+
+      // Fetch user position for each market in parallel
+      const positionPromises = marketAppIds.map(async (appId) => {
+        try {
+          return await this.getUserPosition(appId, userAddress);
+        } catch (error) {
+          console.warn(
+            `[getUserPositionsForMarkets] Failed to fetch position for market ${appId}:`,
+            error
+          );
+          return null;
+        }
+      });
+
+      const allPositions = await Promise.all(positionPromises);
+      console.log(
+        `[getUserPositionsForMarkets] Fetched ${allPositions.filter((p) => p !== null).length} positions (${allPositions.filter((p) => p === null).length} failed)`
+      );
+
+      // Filter out null values and positions with no activity
+      const activePositions = allPositions.filter(
+        (pos): pos is UserPosition =>
+          pos !== null &&
+          (pos.supplied > 0 ||
+            pos.lstBalance > 0 ||
+            pos.borrowed > 0 ||
+            pos.collateral > 0)
+      );
+
+      console.log(
+        `[getUserPositionsForMarkets] Found ${activePositions.length} active positions`
+      );
+
+      // Fetch market data and prices for USD value calculation
+      console.log(
+        `[getUserPositionsForMarkets] Fetching market data and prices for USD calculations...`
+      );
+      const marketDataPromises = activePositions.map((pos) =>
+        this.getMarket(pos.appId).catch((err) => {
+          console.warn(`Failed to fetch market data for ${pos.appId}:`, err);
+          return null;
+        })
+      );
+      const marketsData = await Promise.all(marketDataPromises);
+
+      // Collect unique base token IDs and their oracle app IDs for parallel price fetching
+      const priceFetchMap = new Map<number, { oracleAppId: number; baseTokenId: number }>();
+      
+      for (const market of marketsData) {
+        if (!market) continue;
+        const baseTokenId = market.baseTokenId;
+        
+        // Only add if we haven't seen this baseTokenId yet
+        if (!priceFetchMap.has(baseTokenId)) {
+          priceFetchMap.set(baseTokenId, {
+            oracleAppId: market.oracleAppId,
+            baseTokenId: baseTokenId,
+          });
+        }
+      }
+
+      // Fetch all prices in parallel by grouping by oracle app ID
+      const priceMap = new Map<number, number>();
+      const oracleGroups = new Map<number, number[]>();
+      
+      // Group asset IDs by oracle app ID
+      for (const { oracleAppId, baseTokenId } of priceFetchMap.values()) {
+        if (!oracleGroups.has(oracleAppId)) {
+          oracleGroups.set(oracleAppId, []);
+        }
+        oracleGroups.get(oracleAppId)!.push(baseTokenId);
+      }
+
+      // Fetch prices for each oracle in parallel
+      const pricePromises = Array.from(oracleGroups.entries()).map(
+        async ([oracleAppId, assetIds]) => {
+          try {
+            const prices = await this.getOraclePrices(oracleAppId, assetIds);
+            return prices;
+          } catch (error) {
+            console.warn(`Failed to fetch prices from oracle ${oracleAppId}:`, error);
+            // Return empty map on error
+            return new Map<number, OraclePrice>();
+          }
+        }
+      );
+
+      const priceResults = await Promise.all(pricePromises);
+      
+      // Merge all price results into a single map
+      for (const prices of priceResults) {
+        for (const [assetId, price] of prices.entries()) {
+          priceMap.set(assetId, price.price);
+        }
+      }
+
+      // Set default price of 0 for any assets that failed to fetch
+      for (const { baseTokenId } of priceFetchMap.values()) {
+        if (!priceMap.has(baseTokenId)) {
+          priceMap.set(baseTokenId, 0);
+        }
+      }
+
+      // Calculate aggregated totals
+      let totalSupplied = 0;
+      let totalBorrowed = 0;
+      let totalCollateral = 0;
+      let totalValueUSD = 0;
+      let minHealthFactor = Infinity;
+
+      activePositions.forEach((pos, idx) => {
+        totalSupplied += pos.supplied;
+        totalBorrowed += pos.borrowed;
+        totalCollateral += pos.collateral;
+
+        // Calculate USD value for this position
+        const market = marketsData[idx];
+        if (market) {
+          const price = priceMap.get(market.baseTokenId) || 0;
+          const suppliedUSD = pos.supplied * price;
+          const borrowedUSD = pos.borrowed * price;
+          const collateralUSD = pos.collateral * price;
+          totalValueUSD += suppliedUSD + borrowedUSD + collateralUSD;
+        }
+
+        // Track minimum health factor (most risky position)
+        if (pos.borrowed > 0 && pos.healthFactor < minHealthFactor) {
+          minHealthFactor = pos.healthFactor;
+        }
+      });
+
+      // If no borrows, health factor is infinite (no risk)
+      const overallHealthFactor =
+        totalBorrowed > 0 && minHealthFactor !== Infinity
+          ? minHealthFactor
+          : Infinity;
+
+      const result = {
+        address: userAddress,
+        positions: activePositions,
+        totalSupplied,
+        totalBorrowed,
+        totalCollateral,
+        totalValueUSD,
+        overallHealthFactor,
+        activeMarkets: activePositions.length,
+      };
+
+      // Convert all bigint values to numbers for JSON serialization
+      return convertBigIntsToNumbers(result);
+    } catch (error) {
+      console.error(
+        `[getUserPositionsForMarkets] Failed to fetch positions for ${userAddress}:`,
+        error
+      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to fetch positions for ${userAddress}: ${errorMessage}`
+      );
     }
   }
 }
