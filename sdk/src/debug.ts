@@ -10,6 +10,7 @@
  *   pnpm run debug -- --user ABC123...
  *   pnpm run debug -- --user ABC123... --network testnet
  *   pnpm run debug -- --user ABC123... --method getUserPosition
+ *   pnpm run debug -- --user ABC123... --method getUserPosition --market 123456789
  *   pnpm run debug -- --user ABC123... --method getAllUserPositions
  */
 
@@ -23,6 +24,7 @@ function parseArgs() {
     userAddress?: string;
     network: 'mainnet' | 'testnet';
     method?: string;
+    marketAppId?: number;
   } = {
     network: 'mainnet',
   };
@@ -40,6 +42,13 @@ function parseArgs() {
       }
     } else if (arg === '--method' && i + 1 < args.length) {
       config.method = args[++i];
+    } else if (arg === '--market' && i + 1 < args.length) {
+      const marketId = parseInt(args[++i], 10);
+      if (!isNaN(marketId)) {
+        config.marketAppId = marketId;
+      } else {
+        console.warn(`⚠️  Invalid market ID: ${args[i]}. Ignoring.`);
+      }
     }
   }
 
@@ -56,6 +65,9 @@ async function debugSDK() {
   }
   if (config.method) {
     console.log(`   Method: ${config.method}`);
+  }
+  if (config.marketAppId) {
+    console.log(`   Market App ID: ${config.marketAppId}`);
   }
   console.log('');
 
@@ -82,24 +94,43 @@ async function debugSDK() {
     // SET BREAKPOINTS BELOW TO DEBUG
     // ============================================
 
-    // Fetch market list first (needed for most operations)
-    console.log('📋 Fetching market list...');
-    const marketList = await sdk.getMarketList();
-    console.log(`Found ${marketList.length} markets`);
+    // Determine which market to use
+    let marketAppId: number;
     
-    if (marketList.length === 0) {
-      console.log('⚠️  No markets found. Exiting.');
-      return;
-    }
+    if (config.marketAppId) {
+      // Use specified market
+      marketAppId = config.marketAppId;
+      console.log(`📋 Using specified market: ${marketAppId}`);
+      
+      // Verify market exists by fetching its data
+      try {
+        const marketData = await sdk.getMarket(marketAppId);
+        console.log(`✅ Market found: ${marketData.baseTokenId} (LST: ${marketData.lstTokenId})`);
+      } catch (error) {
+        console.error(`❌ Failed to fetch market ${marketAppId}:`, error);
+        throw new Error(`Market ${marketAppId} not found or invalid`);
+      }
+    } else {
+      // Fetch market list and use first market
+      console.log('📋 Fetching market list...');
+      const marketList = await sdk.getMarketList();
+      console.log(`Found ${marketList.length} markets`);
+      
+      if (marketList.length === 0) {
+        console.log('⚠️  No markets found. Exiting.');
+        return;
+      }
 
-    const firstMarket = marketList[0];
-    console.log(`\n🎯 Using market: ${firstMarket.appId} (base token: ${firstMarket.baseTokenId})`);
+      const firstMarket = marketList[0];
+      marketAppId = firstMarket.appId;
+      console.log(`\n🎯 Using first market: ${marketAppId} (base token: ${firstMarket.baseTokenId})`);
+    }
 
     // Run specific method if requested, otherwise run all
     if (config.method) {
-      await runSpecificMethod(sdk, config.method, firstMarket.appId, config.userAddress);
+      await runSpecificMethod(sdk, config.method, marketAppId, config.userAddress);
     } else {
-      await runAllMethods(sdk, firstMarket.appId, config.userAddress);
+      await runAllMethods(sdk, marketAppId, config.userAddress);
     }
 
     console.log('\n✅ Debug session completed successfully!');
@@ -312,8 +343,30 @@ async function runSpecificMethod(
       console.log('Testing: getUserPosition()');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(`Market: ${marketAppId}, User: ${userAddress}`);
+      
+      // First, get market info to show what we're looking for
+      const marketInfo = await sdk.getMarket(marketAppId);
+      console.log(`\n📊 Market Info:`);
+      console.log(`   Base Token ID: ${marketInfo.baseTokenId}`);
+      console.log(`   LST Token ID: ${marketInfo.lstTokenId}`);
+      console.log(`   Oracle App ID: ${marketInfo.oracleAppId}`);
+      
       const position = await sdk.getUserPosition(marketAppId, userAddress);
-      console.log('User Position:', JSON.stringify(position, (_key, value) => 
+      console.log('\n👤 User Position Details:');
+      console.log(`   Supplied: ${position.supplied.toFixed(6)}`);
+      console.log(`   LST Balance: ${position.lstBalance.toFixed(6)}`);
+      console.log(`   Borrowed: ${position.borrowed.toFixed(6)}`);
+      console.log(`   Collateral: ${position.collateral.toFixed(6)}`);
+      console.log(`   Collateral Asset ID: ${position.collateralAssetId}`);
+      console.log(`   Health Factor: ${position.healthFactor === Infinity ? '∞' : position.healthFactor.toFixed(4)}`);
+      console.log(`   Max Borrow: ${position.maxBorrow.toFixed(6)}`);
+      console.log(`   Is Liquidatable: ${position.isLiquidatable}`);
+      console.log(`   User Index WAD: ${position.userIndexWad.toString()}`);
+      console.log(`   Principal: ${position.principal.toString()}`);
+      console.log(`   Last Debt Change: ${position.lastDebtChange}`);
+      
+      console.log('\n📋 Full Position JSON:');
+      console.log(JSON.stringify(position, (_key, value) => 
         typeof value === 'bigint' ? value.toString() : value
       , 2));
       break;

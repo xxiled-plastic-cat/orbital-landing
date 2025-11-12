@@ -32,6 +32,66 @@ import {
 import { fetchMarketList } from "./utils/api";
 
 /**
+ * Helper function to safely extract a number from global state
+ * Handles both bigint and Buffer/Uint8Array cases
+ */
+function extractNumberFromGlobalState(
+  value: bigint | Uint8Array | Buffer | string | undefined | null,
+  defaultValue: number = 0
+): number {
+  if (!value) {
+    return defaultValue;
+  }
+
+  // If it's already a number, return it
+  if (typeof value === 'number') {
+    return isNaN(value) ? defaultValue : value;
+  }
+
+  // If it's a bigint, convert to number
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+
+  // If it's a Buffer/Uint8Array, convert to bigint first, then number
+  if (typeof value !== 'string' && 'byteLength' in value) {
+    const buffer = value instanceof Uint8Array 
+      ? value 
+      : new Uint8Array(value as ArrayLike<number>);
+    
+    // Handle different buffer sizes
+    if (buffer.byteLength <= 8) {
+      // For uint64 or smaller, read as big-endian uint64
+      const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      if (buffer.byteLength === 8) {
+        return Number(view.getBigUint64(0, false)); // false = big-endian
+      } else if (buffer.byteLength === 4) {
+        return view.getUint32(0, false);
+      } else if (buffer.byteLength === 2) {
+        return view.getUint16(0, false);
+      } else if (buffer.byteLength === 1) {
+        return view.getUint8(0);
+      }
+    }
+    
+    // Fallback: try to convert buffer to number via string
+    try {
+      return Number(BigInt('0x' + Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('')));
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  // If it's a string, try to parse it
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+  }
+
+  return defaultValue;
+}
+
+/**
  * Main SDK client for interacting with Orbital Finance
  */
 export class OrbitalSDK {
@@ -56,17 +116,17 @@ export class OrbitalSDK {
       appId
     );
 
-    // Extract values from global state
-    const baseTokenId = Number(globalState.base_token_id || 0n);
-    const lstTokenId = Number(globalState.lst_token_id || 0n);
-    const oracleAppId = Number(globalState.oracle_app || 0n);
-    const buyoutTokenId = Number(globalState.buyout_token_id || 0n);
+    // Extract values from global state (safely handle Buffer/bigint cases)
+    const baseTokenId = extractNumberFromGlobalState(globalState.base_token_id, 0);
+    const lstTokenId = extractNumberFromGlobalState(globalState.lst_token_id, 0);
+    const oracleAppId = extractNumberFromGlobalState(globalState.oracle_app, 0);
+    const buyoutTokenId = extractNumberFromGlobalState(globalState.buyout_token_id, 0);
 
     const totalDeposits = globalState.total_deposits || 0n;
     const totalBorrows = globalState.total_borrows || 0n;
     const circulatingLST = globalState.circulating_lst || 0n;
     const borrowIndexWad = globalState.borrow_index_wad || 0n;
-    const lastUpdate = Number(globalState.last_update || 0n);
+    const lastUpdate = extractNumberFromGlobalState(globalState.last_update, 0);
 
     // Interest rate model parameters
     const baseBps = globalState.base_bps || 200n;
@@ -81,7 +141,7 @@ export class OrbitalSDK {
     const protocolShareBps = globalState.protocol_share_bps || 500n;
     const originationFeeBps = globalState.origination_fee_bps || 0n;
     const liqBonusBps = globalState.liq_bonus_bps || 750n;
-    const contractState = Number(globalState.contract_state || 1n);
+    const contractState = extractNumberFromGlobalState(globalState.contract_state, 1);
 
     // Determine decimals based on asset type
     // ALGO (0) has 6 decimals, most ASAs have 6 decimals
@@ -295,14 +355,26 @@ export class OrbitalSDK {
     // Fetch deposit record
     let depositAmount = 0n;
     try {
+      console.log(
+        `[getUserPosition] Market ${appId}: Fetching deposit record for baseTokenId: ${baseTokenId.toString()}`
+      );
       const depositBoxName = createDepositBoxName(userAddress, baseTokenId);
+      console.log(
+        `[getUserPosition] Market ${appId}: Deposit box name created, length: ${depositBoxName.length}`
+      );
       const depositBoxValue = await getBoxValue(
         this.algodClient,
         appId,
         depositBoxName
       );
+      console.log(
+        `[getUserPosition] Market ${appId}: Deposit box value retrieved, length: ${depositBoxValue.length}`
+      );
       const depositRecord = decodeDepositRecord(depositBoxValue);
       depositAmount = depositRecord.depositAmount;
+      console.log(
+        `[getUserPosition] Market ${appId}: Decoded deposit record - Amount: ${depositAmount.toString()}, AssetId: ${depositRecord.assetId.toString()}`
+      );
       console.log(
         `[getUserPosition] Market ${appId}: Found deposit amount: ${depositAmount}`
       );

@@ -91,15 +91,17 @@ export function decodeDepositRecord(boxValue: Uint8Array): {
   assetId: bigint;
   depositAmount: bigint;
 } {
+  // Note: The deposit record structure is [depositAmount, assetId]
+  // This matches the contract's ABI structure
   const depositRecordType = new algosdk.ABITupleType([
-    new algosdk.ABIUintType(64), // assetId
-    new algosdk.ABIUintType(64), // depositAmount
+    new algosdk.ABIUintType(64), // depositAmount (first)
+    new algosdk.ABIUintType(64), // assetId (second)
   ]);
 
   const decoded = depositRecordType.decode(boxValue) as bigint[];
   return {
-    assetId: decoded[0],
-    depositAmount: decoded[1],
+    depositAmount: decoded[0], // First element is depositAmount
+    assetId: decoded[1],       // Second element is assetId
   };
 }
 
