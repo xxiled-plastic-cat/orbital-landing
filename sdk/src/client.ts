@@ -946,25 +946,62 @@ export class OrbitalSDK {
       );
       const marketsData = await Promise.all(marketDataPromises);
 
-      // Get unique oracle app IDs and base token IDs
-      const priceMap = new Map<number, number>();
+      // Collect unique base token IDs and their oracle app IDs for parallel price fetching
+      const priceFetchMap = new Map<number, { oracleAppId: number; baseTokenId: number }>();
       
-      for (let i = 0; i < marketsData.length; i++) {
-        const market = marketsData[i];
+      for (const market of marketsData) {
         if (!market) continue;
-
         const baseTokenId = market.baseTokenId;
         
-        // Skip if we already have this price
-        if (priceMap.has(baseTokenId)) continue;
+        // Only add if we haven't seen this baseTokenId yet
+        if (!priceFetchMap.has(baseTokenId)) {
+          priceFetchMap.set(baseTokenId, {
+            oracleAppId: market.oracleAppId,
+            baseTokenId: baseTokenId,
+          });
+        }
+      }
 
-        try {
-          const price = await this.getOraclePrice(market.oracleAppId, baseTokenId);
-          priceMap.set(baseTokenId, price.price);
-          console.log(`[getAllUserPositions] Price for asset ${baseTokenId}: $${price.price}`);
-        } catch (error) {
-          console.warn(`Failed to fetch price for asset ${baseTokenId}:`, error);
-          priceMap.set(baseTokenId, 0); // Default to 0 if price fetch fails
+      // Fetch all prices in parallel by grouping by oracle app ID
+      const priceMap = new Map<number, number>();
+      const oracleGroups = new Map<number, number[]>();
+      
+      // Group asset IDs by oracle app ID
+      for (const { oracleAppId, baseTokenId } of priceFetchMap.values()) {
+        if (!oracleGroups.has(oracleAppId)) {
+          oracleGroups.set(oracleAppId, []);
+        }
+        oracleGroups.get(oracleAppId)!.push(baseTokenId);
+      }
+
+      // Fetch prices for each oracle in parallel
+      const pricePromises = Array.from(oracleGroups.entries()).map(
+        async ([oracleAppId, assetIds]) => {
+          try {
+            const prices = await this.getOraclePrices(oracleAppId, assetIds);
+            return prices;
+          } catch (error) {
+            console.warn(`Failed to fetch prices from oracle ${oracleAppId}:`, error);
+            // Return empty map on error
+            return new Map<number, OraclePrice>();
+          }
+        }
+      );
+
+      const priceResults = await Promise.all(pricePromises);
+      
+      // Merge all price results into a single map
+      for (const prices of priceResults) {
+        for (const [assetId, price] of prices.entries()) {
+          priceMap.set(assetId, price.price);
+          console.log(`[getAllUserPositions] Price for asset ${assetId}: $${price.price}`);
+        }
+      }
+
+      // Set default price of 0 for any assets that failed to fetch
+      for (const { baseTokenId } of priceFetchMap.values()) {
+        if (!priceMap.has(baseTokenId)) {
+          priceMap.set(baseTokenId, 0);
         }
       }
 
@@ -1091,23 +1128,60 @@ export class OrbitalSDK {
       );
       const marketsData = await Promise.all(marketDataPromises);
 
-      // Get unique oracle app IDs and base token IDs
-      const priceMap = new Map<number, number>();
+      // Collect unique base token IDs and their oracle app IDs for parallel price fetching
+      const priceFetchMap = new Map<number, { oracleAppId: number; baseTokenId: number }>();
       
-      for (let i = 0; i < marketsData.length; i++) {
-        const market = marketsData[i];
+      for (const market of marketsData) {
         if (!market) continue;
-
         const baseTokenId = market.baseTokenId;
         
-        // Skip if we already have this price
-        if (priceMap.has(baseTokenId)) continue;
+        // Only add if we haven't seen this baseTokenId yet
+        if (!priceFetchMap.has(baseTokenId)) {
+          priceFetchMap.set(baseTokenId, {
+            oracleAppId: market.oracleAppId,
+            baseTokenId: baseTokenId,
+          });
+        }
+      }
 
-        try {
-          const price = await this.getOraclePrice(market.oracleAppId, baseTokenId);
-          priceMap.set(baseTokenId, price.price);
-        } catch (error) {
-          console.warn(`Failed to fetch price for asset ${baseTokenId}:`, error);
+      // Fetch all prices in parallel by grouping by oracle app ID
+      const priceMap = new Map<number, number>();
+      const oracleGroups = new Map<number, number[]>();
+      
+      // Group asset IDs by oracle app ID
+      for (const { oracleAppId, baseTokenId } of priceFetchMap.values()) {
+        if (!oracleGroups.has(oracleAppId)) {
+          oracleGroups.set(oracleAppId, []);
+        }
+        oracleGroups.get(oracleAppId)!.push(baseTokenId);
+      }
+
+      // Fetch prices for each oracle in parallel
+      const pricePromises = Array.from(oracleGroups.entries()).map(
+        async ([oracleAppId, assetIds]) => {
+          try {
+            const prices = await this.getOraclePrices(oracleAppId, assetIds);
+            return prices;
+          } catch (error) {
+            console.warn(`Failed to fetch prices from oracle ${oracleAppId}:`, error);
+            // Return empty map on error
+            return new Map<number, OraclePrice>();
+          }
+        }
+      );
+
+      const priceResults = await Promise.all(pricePromises);
+      
+      // Merge all price results into a single map
+      for (const prices of priceResults) {
+        for (const [assetId, price] of prices.entries()) {
+          priceMap.set(assetId, price.price);
+        }
+      }
+
+      // Set default price of 0 for any assets that failed to fetch
+      for (const { baseTokenId } of priceFetchMap.values()) {
+        if (!priceMap.has(baseTokenId)) {
           priceMap.set(baseTokenId, 0);
         }
       }
