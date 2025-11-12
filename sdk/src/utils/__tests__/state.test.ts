@@ -22,14 +22,17 @@ beforeAll(() => {
 describe('state utilities', () => {
   describe('decodeDepositRecord', () => {
     it('should decode deposit record correctly', () => {
+      // Note: The deposit record structure is [depositAmount, assetId]
+      // This matches the contract's ABI structure
       const depositRecordType = new algosdk.ABITupleType([
-        new algosdk.ABIUintType(64), // assetId
-        new algosdk.ABIUintType(64), // depositAmount
+        new algosdk.ABIUintType(64), // depositAmount (first)
+        new algosdk.ABIUintType(64), // assetId (second)
       ]);
 
       const assetId = 31566704n;
       const depositAmount = 1000000n;
-      const encoded = depositRecordType.encode([assetId, depositAmount]);
+      // Encode in the correct order: [depositAmount, assetId]
+      const encoded = depositRecordType.encode([depositAmount, assetId]);
 
       const result = decodeDepositRecord(encoded);
 
@@ -38,29 +41,35 @@ describe('state utilities', () => {
     });
 
     it('should handle zero values', () => {
+      // Note: The deposit record structure is [depositAmount, assetId]
       const depositRecordType = new algosdk.ABITupleType([
-        new algosdk.ABIUintType(64),
-        new algosdk.ABIUintType(64),
+        new algosdk.ABIUintType(64), // depositAmount (first)
+        new algosdk.ABIUintType(64), // assetId (second)
       ]);
 
+      // Encode in the correct order: [depositAmount, assetId]
       const encoded = depositRecordType.encode([0n, 0n]);
       const result = decodeDepositRecord(encoded);
 
-      expect(result.assetId).toBe(0n);
       expect(result.depositAmount).toBe(0n);
+      expect(result.assetId).toBe(0n);
     });
 
     it('should handle large values', () => {
+      // Note: The deposit record structure is [depositAmount, assetId]
       const depositRecordType = new algosdk.ABITupleType([
-        new algosdk.ABIUintType(64),
-        new algosdk.ABIUintType(64),
+        new algosdk.ABIUintType(64), // depositAmount (first)
+        new algosdk.ABIUintType(64), // assetId (second)
       ]);
 
       const largeAmount = 18446744073709551615n; // Max uint64
-      const encoded = depositRecordType.encode([0n, largeAmount]);
+      const assetId = 31566704n;
+      // Encode in the correct order: [depositAmount, assetId]
+      const encoded = depositRecordType.encode([largeAmount, assetId]);
       const result = decodeDepositRecord(encoded);
 
       expect(result.depositAmount).toBe(largeAmount);
+      expect(result.assetId).toBe(assetId);
     });
   });
 

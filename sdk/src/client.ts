@@ -32,6 +32,43 @@ import {
 import { fetchMarketList } from "./utils/api";
 
 /**
+ * Helper function to recursively convert all bigint values to numbers
+ * This is useful for JSON serialization since JSON doesn't support bigint
+ */
+function convertBigIntsToNumbers<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  // Handle bigint directly
+  if (typeof obj === 'bigint') {
+    return Number(obj) as unknown as T;
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(convertBigIntsToNumbers) as unknown as T;
+  }
+
+  // Handle objects (but not Date objects)
+  if (typeof obj === 'object' && obj.constructor === Object) {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = convertBigIntsToNumbers(value);
+    }
+    return result as unknown as T;
+  }
+
+  // Handle Date objects - keep them as is
+  if (obj instanceof Date) {
+    return obj;
+  }
+
+  // Return primitives and other types as-is
+  return obj;
+}
+
+/**
  * Helper function to safely extract a number from global state
  * Handles both bigint and Buffer/Uint8Array cases
  */
@@ -969,7 +1006,7 @@ export class OrbitalSDK {
         `[getAllUserPositions] Total Value: $${totalValueUSD.toFixed(2)}`
       );
 
-      return {
+      const result = {
         address: userAddress,
         positions: activePositions,
         totalSupplied,
@@ -979,6 +1016,9 @@ export class OrbitalSDK {
         overallHealthFactor,
         activeMarkets: activePositions.length,
       };
+
+      // Convert all bigint values to numbers for JSON serialization
+      return convertBigIntsToNumbers(result);
     } catch (error) {
       console.error(
         `[getAllUserPositions] Failed to fetch all positions for ${userAddress}:`,
@@ -1106,7 +1146,7 @@ export class OrbitalSDK {
           ? minHealthFactor
           : Infinity;
 
-      return {
+      const result = {
         address: userAddress,
         positions: activePositions,
         totalSupplied,
@@ -1116,6 +1156,9 @@ export class OrbitalSDK {
         overallHealthFactor,
         activeMarkets: activePositions.length,
       };
+
+      // Convert all bigint values to numbers for JSON serialization
+      return convertBigIntsToNumbers(result);
     } catch (error) {
       console.error(
         `[getUserPositionsForMarkets] Failed to fetch positions for ${userAddress}:`,
