@@ -111,19 +111,24 @@ const GovernanceRewardsButtons: React.FC<GovernanceRewardsButtonsProps> = ({
                 "noopener,noreferrer"
               );
             }}
-            className="w-full h-14 px-2 bg-transparent border-2 border-slate-600   hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center justify-center gap-1"
+            className="w-full h-14 px-2 py-2 bg-transparent border-2 border-slate-600   hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex flex-col items-center justify-center gap-1"
           >
             {loadingFluxTier ? (
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-cyan-400 border-t-transparent"></div>
             ) : (
               <>
-                <img
-                  src="/FLUX-LOGO.png"
-                  alt="FLUX"
-                  className="w-10 h-10 object-contain rounded-full"
-                />
-                <span className="text-md font-mono font-bold text-white uppercase tracking-wide">
-                  T-{fluxTier}
+                <div className="flex items-center justify-center gap-2">
+                  <img
+                    src="/FLUX-LOGO.png"
+                    alt="FLUX"
+                    className="w-8 h-8 object-contain rounded-full"
+                  />
+                  <span className="text-base font-mono font-bold text-white uppercase tracking-wide">
+                    T-{fluxTier}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-semibold text-slate-400 uppercase tracking-wide">
+                  GOVERNANCE
                 </span>
               </>
             )}
@@ -145,22 +150,34 @@ const GovernanceRewardsButtons: React.FC<GovernanceRewardsButtonsProps> = ({
                 "noopener,noreferrer"
               );
             }}
-            className={`w-full h-14 bg-transparent border-2 border-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex items-center justify-center relative overflow-hidden ${
-              galaxyCardImageUrl ? "p-0" : "px-2"
+            className={`w-full h-14 bg-transparent border-2 border-slate-600 hover:border-cyan-500 transition-all duration-150 shadow-top-highlight flex flex-col items-center justify-center gap-1 relative overflow-hidden ${
+              galaxyCardImageUrl ? "py-2" : "px-2 py-2"
             }`}
           >
             {loadingGalaxyCard ? (
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-400 border-t-transparent"></div>
             ) : galaxyCardImageUrl ? (
-              <img
-                src={galaxyCardImageUrl}
-                alt="Galaxy Card"
-                className="w-full h-full object-cover absolute inset-0"
-              />
+              <>
+                <div className="flex-1 flex items-center justify-center">
+                  <img
+                    src={galaxyCardImageUrl}
+                    alt="Galaxy Card"
+                    className="h-10 w-auto object-contain"
+                  />
+                </div>
+                <span className="text-[10px] font-mono font-semibold text-slate-400 uppercase tracking-wide">
+                  REWARDS
+                </span>
+              </>
             ) : (
-              <span className="text-xs font-mono font-bold text-white uppercase tracking-wide text-center">
-                Earn CompX Rewards
-              </span>
+              <>
+                <span className="text-xs font-mono font-bold text-white uppercase tracking-wide text-center">
+                  Earn CompX Rewards
+                </span>
+                <span className="text-[10px] font-mono font-semibold text-slate-400 uppercase tracking-wide">
+                  REWARDS
+                </span>
+              </>
             )}
           </button>
           {/* Tooltip */}
