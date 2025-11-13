@@ -30,6 +30,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "algosdk": "^2.7.0"
   },
