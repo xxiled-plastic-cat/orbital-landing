@@ -403,19 +403,32 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
           continue;
         }
 
-        const symbol = assetSymbol;
+        // CRITICAL: ALWAYS override symbol and decimals for ALGO (asset ID 0)
+        const finalSymbol = assetId === 0 ? "ALGO" : assetSymbol;
+        const finalDecimals = assetId === 0 ? 6 : decimals;
+        
+        // If ALGO, also ensure we're reading price with correct decimals
+        let finalCurrentPrice = currentPrice;
+        if (assetId === 0 && rawPrice > 0 && currentPrice < 0.01) {
+          // Try reading with 6 decimals if current price seems wrong
+          const correctedPrice = rawPrice / Math.pow(10, 6);
+          if (correctedPrice > 0.01) {
+            console.log(`  🔧 Correcting ALGO price: ${currentPrice} → ${correctedPrice}`);
+            finalCurrentPrice = correctedPrice;
+          }
+        }
 
         console.log(
-          `  ✅ Asset ID ${assetId} (${symbol}): $${currentPrice.toFixed(
-            decimals
-          )} [${decimals} decimals]`
+          `  ✅ Asset ID ${assetId} (${finalSymbol}): $${finalCurrentPrice.toFixed(
+            finalDecimals
+          )} [${finalDecimals} decimals]`
         );
 
         assets.push({
           assetId,
-          symbol,
-          currentPrice,
-          decimals,
+          symbol: finalSymbol,
+          currentPrice: finalCurrentPrice,
+          decimals: finalDecimals,
         });
       } catch (err) {
         console.error(`Error processing entry:`, err);
@@ -736,8 +749,15 @@ export async function updateOracleContract(
     algorand.setDefaultSigner(account);
 
     // Get the correct decimals for this asset
-    // Special handling for ALGO (asset ID 0) - always use 6 decimals
-    const decimals = assetId === 0 ? 6 : getAssetDecimals(assetId);
+    // CRITICAL: ALWAYS use 6 decimals for ALGO (asset ID 0), regardless of cached metadata
+    const assetIdNum = typeof assetId === 'string' ? Number(assetId) : assetId;
+    let decimals: number;
+    if (assetIdNum === 0) {
+      decimals = 6;
+      console.log(`  🔧 ALGO detected (assetId: ${assetIdNum}), forcing 6 decimals`);
+    } else {
+      decimals = getAssetDecimals(assetIdNum);
+    }
     const priceScaleFactor = Math.pow(10, decimals);
 
     // Convert price to the correct scale based on asset decimals
@@ -795,16 +815,20 @@ export async function processPriceUpdate(
 ): Promise<UpdateResult> {
   const { assetId, symbol, currentPrice } = asset;
 
-  console.log(`\n🔍 Processing ${symbol} (Asset ID: ${assetId})`);
+  // ALWAYS override symbol and ensure correct handling for ALGO (asset ID 0)
+  const effectiveSymbol = assetId === 0 ? "ALGO" : symbol;
+  const effectiveAssetId = assetId;
+
+  console.log(`\n🔍 Processing ${effectiveSymbol} (Asset ID: ${effectiveAssetId})`);
   console.log(`  Current oracle price: $${formatPrice(currentPrice)}`);
 
   try {
-    // Fetch median price from all sources
-    const newPrice = await getMedianPrice(symbol, assetId);
+    // Fetch median price from all sources - use ALGO symbol for asset ID 0
+    const newPrice = await getMedianPrice(effectiveSymbol, effectiveAssetId);
 
     if (!newPrice) {
       return {
-        asset: symbol,
+        asset: effectiveSymbol,
         success: false,
         reason: "No valid prices available",
         updated: false,
@@ -821,7 +845,7 @@ export async function processPriceUpdate(
       );
 
       return {
-        asset: symbol,
+        asset: effectiveSymbol,
         success: true,
         reason: "Price change below threshold",
         updated: false,
@@ -830,7 +854,7 @@ export async function processPriceUpdate(
       };
     }
 
-    // Update needed
+    // Update needed - use effectiveSymbol (ALGO for asset ID 0)
     const change = Math.abs(((newPrice - currentPrice) / currentPrice) * 100);
     console.log(
       `  📈 Price change (${change.toFixed(
@@ -838,10 +862,10 @@ export async function processPriceUpdate(
       )}%) exceeds threshold - updating...`
     );
 
-    const updateSuccess = await updateOracleContract(assetId, symbol, newPrice);
+    const updateSuccess = await updateOracleContract(effectiveAssetId, effectiveSymbol, newPrice);
 
     return {
-      asset: symbol,
+      asset: effectiveSymbol,
       success: updateSuccess,
       reason: updateSuccess ? "Price updated successfully" : "Update failed",
       updated: updateSuccess,
@@ -851,10 +875,10 @@ export async function processPriceUpdate(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`  ❌ Error processing ${symbol}:`, errorMessage);
+    console.error(`  ❌ Error processing ${effectiveSymbol}:`, errorMessage);
 
     return {
-      asset: symbol,
+      asset: effectiveSymbol,
       success: false,
       reason: errorMessage,
       updated: false,
