@@ -158,7 +158,12 @@ export async function fetchAssetMetadata(
   try {
     // Map testnet assets to mainnet for metadata fetching
     const isTestnet = process.env.ALGORAND_NETWORK === "testnet";
-    const mainnetAssetIds = assetIds.map((id) => {
+    
+    // CRITICAL: Filter out asset ID 0 (ALGO) - we'll use hardcoded values instead
+    const assetIdsWithoutAlgo = assetIds.filter(id => id !== 0 && Number(id) !== 0);
+    const hasAlgo = assetIds.length !== assetIdsWithoutAlgo.length;
+    
+    const mainnetAssetIds = assetIdsWithoutAlgo.map((id) => {
       const mainnetId = getMainnetAssetId(id);
       if (isTestnet && mainnetId !== id) {
         console.log(
@@ -168,8 +173,12 @@ export async function fetchAssetMetadata(
       return mainnetId;
     });
 
-    // Convert to strings, handle ALGO (0 -> "0")
+    // Convert to strings - asset ID 0 is already filtered out
     const assetIdStrings = mainnetAssetIds.map((id) => id.toString());
+
+    if (hasAlgo) {
+      console.log(`  ℹ️  Skipping ALGO (asset ID 0) from API request - using hardcoded values`);
+    }
 
     console.log(
       `  📡 Requesting metadata from CompX for mainnet assets: [${assetIdStrings.join(
@@ -177,57 +186,67 @@ export async function fetchAssetMetadata(
       )}]`
     );
 
-    const response = await fetch("https://api-general.compx.io/api/assets", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        assetIds: assetIdStrings,
-      }),
-    });
+    // Only make API request if there are assets other than ALGO
+    let assetsData: CompXAssetsResponse = {};
+    if (assetIdStrings.length > 0) {
+      const response = await fetch("https://api-general.compx.io/api/assets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assetIds: assetIdStrings,
+        }),
+      });
 
-    if (!response.ok) {
-      console.error(
-        `  ❌ CompX Assets API error: ${response.status} ${response.statusText}`
-      );
-      return new Map();
+      if (!response.ok) {
+        console.error(
+          `  ❌ CompX Assets API error: ${response.status} ${response.statusText}`
+        );
+        return new Map();
+      }
+
+      assetsData = (await response.json()) as CompXAssetsResponse;
+      
+      // CRITICAL: Remove asset ID 0 from API response if present (we use hardcoded values)
+      if (assetsData["0"]) {
+        console.log(`  ⚠️  Ignoring API metadata for asset ID 0 (ALGO) - using hardcoded values instead`);
+        delete assetsData["0"];
+      }
     }
-
-    const assetsData = (await response.json()) as CompXAssetsResponse;
+    
     console.log(
       `  📦 Received metadata for ${
         Object.keys(assetsData).length
-      } mainnet assets`
+      } mainnet assets${hasAlgo ? ' (ALGO excluded, using hardcoded)' : ''}`
     );
 
     // Map response back to original (testnet) asset IDs for caching
     // Note: Response uses mainnet IDs as keys, we cache using original (testnet) IDs
     const metadataMap = new Map<number, CompXAssetMetadata>();
 
-    assetIds.forEach((originalAssetId, index) => {
+    // Process ALGO first (if present) with hardcoded values
+    if (hasAlgo) {
+      const algoMetadata: CompXAssetMetadata = {
+        index: 0,
+        params: {
+          decimals: 6,
+          name: "Algorand",
+          "name-b64": "",
+          "unit-name": "ALGO",
+          "unit-name-b64": "",
+          total: 10000000000, // 10 billion ALGO
+        },
+      };
+      metadataMap.set(0, algoMetadata);
+      assetMetadataCache.set(0, algoMetadata);
+      console.log(`  ✅ Asset 0 - ALGO: 6 decimals (hardcoded, not from API)`);
+    }
+
+    // Process non-ALGO assets from API response
+    // Note: ALGO (asset ID 0) is already handled above with hardcoded values
+    assetIdsWithoutAlgo.forEach((originalAssetId, index) => {
       const mainnetAssetId = mainnetAssetIds[index];
-      
-      // Special handling for ALGO (asset ID 0) - CompX API doesn't return it
-      if (originalAssetId === 0 || mainnetAssetId === 0) {
-        const algoMetadata: CompXAssetMetadata = {
-          index: 0,
-          params: {
-            decimals: 6,
-            name: "Algorand",
-            "name-b64": "",
-            "unit-name": "ALGO",
-            "unit-name-b64": "",
-            total: 10000000000, // 10 billion ALGO
-          },
-        };
-        metadataMap.set(originalAssetId, algoMetadata);
-        assetMetadataCache.set(originalAssetId, algoMetadata);
-        console.log(
-          `  ✅ Asset ${originalAssetId} - ALGO: 6 decimals (hardcoded)`
-        );
-        return; // Skip API lookup for ALGO
-      }
       
       // Look up metadata using MAINNET asset ID (the key in the response)
       const metadata = assetsData[mainnetAssetId.toString()];
