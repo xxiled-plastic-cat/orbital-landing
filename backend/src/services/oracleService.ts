@@ -347,6 +347,7 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
         
         if (assetId === 0) {
           // ALGO doesn't come from metadata API, use hardcoded values
+          // ALWAYS use 6 decimals for ALGO, regardless of what's stored in oracle
           assetSymbol = "ALGO";
           decimals = 6;
           // Create a mock metadata object for ALGO
@@ -363,7 +364,7 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
           };
           // Cache it for future use
           assetMetadataCache.set(assetId, metadata);
-          console.log(`  ℹ️  Using hardcoded metadata for ALGO (asset ID 0)`);
+          console.log(`  ℹ️  Using hardcoded metadata for ALGO (asset ID 0) - forcing 6 decimals`);
         } else {
           // Check if we have metadata for this asset
           metadata = assetMetadataCache.get(assetId);
@@ -379,11 +380,21 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
           assetSymbol = metadata.params["unit-name"] || metadata.params.name || `Asset-${assetId}`;
         }
         
-        const priceScaleFactor = Math.pow(10, decimals);
+        // ALWAYS use 6 decimals for ALGO when reading price, even if oracle has wrong data
+        const priceScaleFactor = assetId === 0 ? Math.pow(10, 6) : Math.pow(10, decimals);
 
         // Convert the stored price using the correct decimals
         const rawPrice = Number(priceValue.price);
         const currentPrice = rawPrice / priceScaleFactor;
+        
+        // For ALGO, if the stored price seems wrong (too small), try reading with 6 decimals
+        if (assetId === 0 && currentPrice < 0.01 && rawPrice > 0) {
+          // Try reading as if it was stored with 6 decimals
+          const correctedPrice = rawPrice / Math.pow(10, 6);
+          if (correctedPrice > 0.01) {
+            console.log(`  ⚠️  ALGO price appears to be stored with wrong decimals. Raw: ${rawPrice}, Corrected: ${correctedPrice}`);
+          }
+        }
 
         if (isNaN(assetId) || isNaN(currentPrice) || currentPrice < 0) {
           console.warn(
@@ -725,7 +736,8 @@ export async function updateOracleContract(
     algorand.setDefaultSigner(account);
 
     // Get the correct decimals for this asset
-    const decimals = getAssetDecimals(assetId);
+    // Special handling for ALGO (asset ID 0) - always use 6 decimals
+    const decimals = assetId === 0 ? 6 : getAssetDecimals(assetId);
     const priceScaleFactor = Math.pow(10, decimals);
 
     // Convert price to the correct scale based on asset decimals
@@ -734,6 +746,11 @@ export async function updateOracleContract(
     console.log(
       `  📊 Scaling price: $${newPrice} × 10^${decimals} = ${scaledPrice}`
     );
+    
+    // Validate scaled price is not zero
+    if (scaledPrice === 0n && newPrice > 0) {
+      throw new Error(`Invalid price scaling: price ${newPrice} with ${decimals} decimals resulted in 0`);
+    }
     try {
       await appClient.send.updateTokenPrice({
         args: {
