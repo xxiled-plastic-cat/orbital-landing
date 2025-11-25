@@ -158,7 +158,12 @@ export async function fetchAssetMetadata(
   try {
     // Map testnet assets to mainnet for metadata fetching
     const isTestnet = process.env.ALGORAND_NETWORK === "testnet";
-    const mainnetAssetIds = assetIds.map((id) => {
+    
+    // CRITICAL: Filter out asset ID 0 (ALGO) - we'll use hardcoded values instead
+    const assetIdsWithoutAlgo = assetIds.filter(id => id !== 0 && Number(id) !== 0);
+    const hasAlgo = assetIds.length !== assetIdsWithoutAlgo.length;
+    
+    const mainnetAssetIds = assetIdsWithoutAlgo.map((id) => {
       const mainnetId = getMainnetAssetId(id);
       if (isTestnet && mainnetId !== id) {
         console.log(
@@ -168,8 +173,12 @@ export async function fetchAssetMetadata(
       return mainnetId;
     });
 
-    // Convert to strings, handle ALGO (0 -> "0")
+    // Convert to strings - asset ID 0 is already filtered out
     const assetIdStrings = mainnetAssetIds.map((id) => id.toString());
+
+    if (hasAlgo) {
+      console.log(`  ℹ️  Skipping ALGO (asset ID 0) from API request - using hardcoded values`);
+    }
 
     console.log(
       `  📡 Requesting metadata from CompX for mainnet assets: [${assetIdStrings.join(
@@ -177,36 +186,68 @@ export async function fetchAssetMetadata(
       )}]`
     );
 
-    const response = await fetch("https://api-general.compx.io/api/assets", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        assetIds: assetIdStrings,
-      }),
-    });
+    // Only make API request if there are assets other than ALGO
+    let assetsData: CompXAssetsResponse = {};
+    if (assetIdStrings.length > 0) {
+      const response = await fetch("https://api-general.compx.io/api/assets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assetIds: assetIdStrings,
+        }),
+      });
 
-    if (!response.ok) {
-      console.error(
-        `  ❌ CompX Assets API error: ${response.status} ${response.statusText}`
-      );
-      return new Map();
+      if (!response.ok) {
+        console.error(
+          `  ❌ CompX Assets API error: ${response.status} ${response.statusText}`
+        );
+        return new Map();
+      }
+
+      assetsData = (await response.json()) as CompXAssetsResponse;
+      
+      // CRITICAL: Remove asset ID 0 from API response if present (we use hardcoded values)
+      if (assetsData["0"]) {
+        console.log(`  ⚠️  Ignoring API metadata for asset ID 0 (ALGO) - using hardcoded values instead`);
+        delete assetsData["0"];
+      }
     }
-
-    const assetsData = (await response.json()) as CompXAssetsResponse;
+    
     console.log(
       `  📦 Received metadata for ${
         Object.keys(assetsData).length
-      } mainnet assets`
+      } mainnet assets${hasAlgo ? ' (ALGO excluded, using hardcoded)' : ''}`
     );
 
     // Map response back to original (testnet) asset IDs for caching
     // Note: Response uses mainnet IDs as keys, we cache using original (testnet) IDs
     const metadataMap = new Map<number, CompXAssetMetadata>();
 
-    assetIds.forEach((originalAssetId, index) => {
+    // Process ALGO first (if present) with hardcoded values
+    if (hasAlgo) {
+      const algoMetadata: CompXAssetMetadata = {
+        index: 0,
+        params: {
+          decimals: 6,
+          name: "Algorand",
+          "name-b64": "",
+          "unit-name": "ALGO",
+          "unit-name-b64": "",
+          total: 10000000000, // 10 billion ALGO
+        },
+      };
+      metadataMap.set(0, algoMetadata);
+      assetMetadataCache.set(0, algoMetadata);
+      console.log(`  ✅ Asset 0 - ALGO: 6 decimals (hardcoded, not from API)`);
+    }
+
+    // Process non-ALGO assets from API response
+    // Note: ALGO (asset ID 0) is already handled above with hardcoded values
+    assetIdsWithoutAlgo.forEach((originalAssetId, index) => {
       const mainnetAssetId = mainnetAssetIds[index];
+      
       // Look up metadata using MAINNET asset ID (the key in the response)
       const metadata = assetsData[mainnetAssetId.toString()];
 
@@ -244,6 +285,11 @@ export async function fetchAssetMetadata(
  * @returns Number of decimals
  */
 function getAssetDecimals(assetId: number): number {
+  // Special case for ALGO (asset ID 0)
+  if (assetId === 0) {
+    return 6; // ALGO has 6 decimals
+  }
+  
   const cached = assetMetadataCache.get(assetId);
   if (cached) {
     return cached.params.decimals;
@@ -313,23 +359,61 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
       try {
         const assetId = Number(assetIdKey.assetId);
 
-        // Check if we have metadata for this asset
-        const metadata = assetMetadataCache.get(assetId);
-        if (!metadata) {
-          console.warn(
-            `  ⚠️  No metadata cached for asset ${assetId} - skipping`
-          );
-          continue;
+        // Special handling for ALGO (asset ID 0)
+        let metadata: CompXAssetMetadata | undefined;
+        let assetSymbol: string;
+        let decimals: number;
+        
+        if (assetId === 0) {
+          // ALGO doesn't come from metadata API, use hardcoded values
+          // ALWAYS use 6 decimals for ALGO, regardless of what's stored in oracle
+          assetSymbol = "ALGO";
+          decimals = 6;
+          // Create a mock metadata object for ALGO
+          metadata = {
+            index: 0,
+            params: {
+              decimals: 6,
+              name: "Algorand",
+              "name-b64": "",
+              "unit-name": "ALGO",
+              "unit-name-b64": "",
+              total: 10000000000,
+            },
+          };
+          // Cache it for future use
+          assetMetadataCache.set(assetId, metadata);
+          console.log(`  ℹ️  Using hardcoded metadata for ALGO (asset ID 0) - forcing 6 decimals`);
+        } else {
+          // Check if we have metadata for this asset
+          metadata = assetMetadataCache.get(assetId);
+          if (!metadata) {
+            console.warn(
+              `  ⚠️  No metadata cached for asset ${assetId} - skipping`
+            );
+            continue;
+          }
+          
+          // Get the correct decimals for this asset
+          decimals = getAssetDecimals(assetId);
+          assetSymbol = metadata.params["unit-name"] || metadata.params.name || `Asset-${assetId}`;
         }
-
-        // Get the correct decimals for this asset
-        const decimals = getAssetDecimals(assetId);
-        const assetSymbol = metadata.params["unit-name"] || metadata.params.name || `Asset-${assetId}`;
-        const priceScaleFactor = Math.pow(10, decimals);
+        
+        // ALWAYS use 6 decimals for ALGO when reading price, even if oracle has wrong data
+        const priceScaleFactor = assetId === 0 ? Math.pow(10, 6) : Math.pow(10, decimals);
 
         // Convert the stored price using the correct decimals
         const rawPrice = Number(priceValue.price);
         const currentPrice = rawPrice / priceScaleFactor;
+        
+        // For ALGO, if the stored price seems wrong (too small), try reading with 6 decimals
+        if (assetId === 0 && currentPrice < 0.01 && rawPrice > 0) {
+          // Try reading as if it was stored with 6 decimals
+          const correctedPrice = rawPrice / Math.pow(10, 6);
+          if (correctedPrice > 0.01) {
+            console.log(`  ⚠️  ALGO price appears to be stored with wrong decimals. Raw: ${rawPrice}, Corrected: ${correctedPrice}`);
+          }
+        }
 
         if (isNaN(assetId) || isNaN(currentPrice) || currentPrice < 0) {
           console.warn(
@@ -338,19 +422,32 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
           continue;
         }
 
-        const symbol = assetSymbol;
+        // CRITICAL: ALWAYS override symbol and decimals for ALGO (asset ID 0)
+        const finalSymbol = assetId === 0 ? "ALGO" : assetSymbol;
+        const finalDecimals = assetId === 0 ? 6 : decimals;
+        
+        // If ALGO, also ensure we're reading price with correct decimals
+        let finalCurrentPrice = currentPrice;
+        if (assetId === 0 && rawPrice > 0 && currentPrice < 0.01) {
+          // Try reading with 6 decimals if current price seems wrong
+          const correctedPrice = rawPrice / Math.pow(10, 6);
+          if (correctedPrice > 0.01) {
+            console.log(`  🔧 Correcting ALGO price: ${currentPrice} → ${correctedPrice}`);
+            finalCurrentPrice = correctedPrice;
+          }
+        }
 
         console.log(
-          `  ✅ Asset ID ${assetId} (${symbol}): $${currentPrice.toFixed(
-            decimals
-          )} [${decimals} decimals]`
+          `  ✅ Asset ID ${assetId} (${finalSymbol}): $${finalCurrentPrice.toFixed(
+            finalDecimals
+          )} [${finalDecimals} decimals]`
         );
 
         assets.push({
           assetId,
-          symbol,
-          currentPrice,
-          decimals,
+          symbol: finalSymbol,
+          currentPrice: finalCurrentPrice,
+          decimals: finalDecimals,
         });
       } catch (err) {
         console.error(`Error processing entry:`, err);
@@ -671,7 +768,15 @@ export async function updateOracleContract(
     algorand.setDefaultSigner(account);
 
     // Get the correct decimals for this asset
-    const decimals = getAssetDecimals(assetId);
+    // CRITICAL: ALWAYS use 6 decimals for ALGO (asset ID 0), regardless of cached metadata
+    const assetIdNum = typeof assetId === 'string' ? Number(assetId) : assetId;
+    let decimals: number;
+    if (assetIdNum === 0) {
+      decimals = 6;
+      console.log(`  🔧 ALGO detected (assetId: ${assetIdNum}), forcing 6 decimals`);
+    } else {
+      decimals = getAssetDecimals(assetIdNum);
+    }
     const priceScaleFactor = Math.pow(10, decimals);
 
     // Convert price to the correct scale based on asset decimals
@@ -680,6 +785,11 @@ export async function updateOracleContract(
     console.log(
       `  📊 Scaling price: $${newPrice} × 10^${decimals} = ${scaledPrice}`
     );
+    
+    // Validate scaled price is not zero
+    if (scaledPrice === 0n && newPrice > 0) {
+      throw new Error(`Invalid price scaling: price ${newPrice} with ${decimals} decimals resulted in 0`);
+    }
     try {
       await appClient.send.updateTokenPrice({
         args: {
@@ -724,16 +834,20 @@ export async function processPriceUpdate(
 ): Promise<UpdateResult> {
   const { assetId, symbol, currentPrice } = asset;
 
-  console.log(`\n🔍 Processing ${symbol} (Asset ID: ${assetId})`);
+  // ALWAYS override symbol and ensure correct handling for ALGO (asset ID 0)
+  const effectiveSymbol = assetId === 0 ? "ALGO" : symbol;
+  const effectiveAssetId = assetId;
+
+  console.log(`\n🔍 Processing ${effectiveSymbol} (Asset ID: ${effectiveAssetId})`);
   console.log(`  Current oracle price: $${formatPrice(currentPrice)}`);
 
   try {
-    // Fetch median price from all sources
-    const newPrice = await getMedianPrice(symbol, assetId);
+    // Fetch median price from all sources - use ALGO symbol for asset ID 0
+    const newPrice = await getMedianPrice(effectiveSymbol, effectiveAssetId);
 
     if (!newPrice) {
       return {
-        asset: symbol,
+        asset: effectiveSymbol,
         success: false,
         reason: "No valid prices available",
         updated: false,
@@ -750,7 +864,7 @@ export async function processPriceUpdate(
       );
 
       return {
-        asset: symbol,
+        asset: effectiveSymbol,
         success: true,
         reason: "Price change below threshold",
         updated: false,
@@ -759,7 +873,7 @@ export async function processPriceUpdate(
       };
     }
 
-    // Update needed
+    // Update needed - use effectiveSymbol (ALGO for asset ID 0)
     const change = Math.abs(((newPrice - currentPrice) / currentPrice) * 100);
     console.log(
       `  📈 Price change (${change.toFixed(
@@ -767,10 +881,10 @@ export async function processPriceUpdate(
       )}%) exceeds threshold - updating...`
     );
 
-    const updateSuccess = await updateOracleContract(assetId, symbol, newPrice);
+    const updateSuccess = await updateOracleContract(effectiveAssetId, effectiveSymbol, newPrice);
 
     return {
-      asset: symbol,
+      asset: effectiveSymbol,
       success: updateSuccess,
       reason: updateSuccess ? "Price updated successfully" : "Update failed",
       updated: updateSuccess,
@@ -780,10 +894,10 @@ export async function processPriceUpdate(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`  ❌ Error processing ${symbol}:`, errorMessage);
+    console.error(`  ❌ Error processing ${effectiveSymbol}:`, errorMessage);
 
     return {
-      asset: symbol,
+      asset: effectiveSymbol,
       success: false,
       reason: errorMessage,
       updated: false,
