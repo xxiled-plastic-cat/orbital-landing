@@ -207,6 +207,28 @@ export async function fetchAssetMetadata(
 
     assetIds.forEach((originalAssetId, index) => {
       const mainnetAssetId = mainnetAssetIds[index];
+      
+      // Special handling for ALGO (asset ID 0) - CompX API doesn't return it
+      if (originalAssetId === 0 || mainnetAssetId === 0) {
+        const algoMetadata: CompXAssetMetadata = {
+          index: 0,
+          params: {
+            decimals: 6,
+            name: "Algorand",
+            "name-b64": "",
+            "unit-name": "ALGO",
+            "unit-name-b64": "",
+            total: 10000000000, // 10 billion ALGO
+          },
+        };
+        metadataMap.set(originalAssetId, algoMetadata);
+        assetMetadataCache.set(originalAssetId, algoMetadata);
+        console.log(
+          `  ✅ Asset ${originalAssetId} - ALGO: 6 decimals (hardcoded)`
+        );
+        return; // Skip API lookup for ALGO
+      }
+      
       // Look up metadata using MAINNET asset ID (the key in the response)
       const metadata = assetsData[mainnetAssetId.toString()];
 
@@ -244,6 +266,11 @@ export async function fetchAssetMetadata(
  * @returns Number of decimals
  */
 function getAssetDecimals(assetId: number): number {
+  // Special case for ALGO (asset ID 0)
+  if (assetId === 0) {
+    return 6; // ALGO has 6 decimals
+  }
+  
   const cached = assetMetadataCache.get(assetId);
   if (cached) {
     return cached.params.decimals;
@@ -313,18 +340,45 @@ export async function getOracleAssets(): Promise<OracleAsset[]> {
       try {
         const assetId = Number(assetIdKey.assetId);
 
-        // Check if we have metadata for this asset
-        const metadata = assetMetadataCache.get(assetId);
-        if (!metadata) {
-          console.warn(
-            `  ⚠️  No metadata cached for asset ${assetId} - skipping`
-          );
-          continue;
+        // Special handling for ALGO (asset ID 0)
+        let metadata: CompXAssetMetadata | undefined;
+        let assetSymbol: string;
+        let decimals: number;
+        
+        if (assetId === 0) {
+          // ALGO doesn't come from metadata API, use hardcoded values
+          assetSymbol = "ALGO";
+          decimals = 6;
+          // Create a mock metadata object for ALGO
+          metadata = {
+            index: 0,
+            params: {
+              decimals: 6,
+              name: "Algorand",
+              "name-b64": "",
+              "unit-name": "ALGO",
+              "unit-name-b64": "",
+              total: 10000000000,
+            },
+          };
+          // Cache it for future use
+          assetMetadataCache.set(assetId, metadata);
+          console.log(`  ℹ️  Using hardcoded metadata for ALGO (asset ID 0)`);
+        } else {
+          // Check if we have metadata for this asset
+          metadata = assetMetadataCache.get(assetId);
+          if (!metadata) {
+            console.warn(
+              `  ⚠️  No metadata cached for asset ${assetId} - skipping`
+            );
+            continue;
+          }
+          
+          // Get the correct decimals for this asset
+          decimals = getAssetDecimals(assetId);
+          assetSymbol = metadata.params["unit-name"] || metadata.params.name || `Asset-${assetId}`;
         }
-
-        // Get the correct decimals for this asset
-        const decimals = getAssetDecimals(assetId);
-        const assetSymbol = metadata.params["unit-name"] || metadata.params.name || `Asset-${assetId}`;
+        
         const priceScaleFactor = Math.pow(10, decimals);
 
         // Convert the stored price using the correct decimals
