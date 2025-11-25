@@ -120,7 +120,7 @@ export async function depositAlgo({
 
     const mbrTxn = appClient.algorand.createTransaction.payment({
       sender: address,
-      amount: AlgoAmount.MicroAlgos(1000n),
+      amount: AlgoAmount.MicroAlgos(10_000n),
       receiver: appClient.appAddress,
       maxFee: AlgoAmount.MicroAlgos(250_000),
     });
@@ -141,6 +141,7 @@ export async function depositAlgo({
       group.addTransaction(optInTxn);
     }
 
+    console.log("upscaledAmount", upscaledAmount);
     const result = await group
       .depositAlgo({
         args: [depositTxn, upscaledAmount, mbrTxn],
@@ -151,7 +152,7 @@ export async function depositAlgo({
       .send({
         coverAppCallInnerTransactionFees: true,
         populateAppCallResources: true,
-        suppressLog: true,
+        suppressLog: false,
       });
     return result.txIds[0];
   } catch (error) {

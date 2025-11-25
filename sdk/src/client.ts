@@ -1023,8 +1023,8 @@ export class OrbitalSDK {
           const price = priceMap.get(market.baseTokenId) || 0;
           const suppliedUSD = pos.supplied * price;
           const borrowedUSD = pos.borrowed * price;
-          const collateralUSD = pos.collateral * price;
-          totalValueUSD += suppliedUSD + borrowedUSD + collateralUSD;
+
+          totalValueUSD += suppliedUSD + borrowedUSD;
         }
 
         // Track minimum health factor (most risky position)
