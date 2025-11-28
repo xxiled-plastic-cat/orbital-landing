@@ -361,7 +361,8 @@ export async function withdrawCollateral({
   amount,
   appId,
   collateralAssetId,
-  lstAppId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  lstAppId, // Unused - lstAppId is fetched from acceptedCollaterals box
   signer,
 }: WithdrawCollateralParams) {
   try {
@@ -369,13 +370,31 @@ export async function withdrawCollateral({
     appClient.algorand.setDefaultSigner(signer);
     const upscaledAmount = amount * 10 ** 6;
 
+    // Fetch the accepted collateral record to get the correct lstAppId (market ID)
+    const acceptedCollateral = await appClient.state.box.acceptedCollaterals.value({
+      assetId: BigInt(collateralAssetId),
+    });
+
+    if (!acceptedCollateral) {
+      throw new Error(
+        `Collateral asset ${collateralAssetId} not found in accepted collaterals`
+      );
+    }
+
+    // Use the originatingAppId from the collateral record as the lstAppId
+    const correctLstAppId = Number(acceptedCollateral.originatingAppId);
+
+    console.log("upscaledAmount", upscaledAmount);
+    console.log("collateralAssetId", collateralAssetId);
+    console.log("lstAppId (from acceptedCollaterals)", correctLstAppId);
+
     const result = await appClient
       .newGroup()
       .gas()
       .withdrawCollateral({
-        args: [upscaledAmount, collateralAssetId, lstAppId],
+        args: [upscaledAmount, collateralAssetId, correctLstAppId],
         assetReferences: [BigInt(collateralAssetId)],
-        appReferences: [BigInt(lstAppId)],
+        appReferences: [BigInt(correctLstAppId)],
         sender: address,
       })
       .send({
