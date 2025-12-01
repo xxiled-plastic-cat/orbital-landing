@@ -306,7 +306,12 @@ const ActionPanel = ({
     } else if (activeAction === "open") {
       onBorrow(selectedCollateral, collateralAmount, borrowAmount);
     } else if (activeAction === "repay") {
-      onRepay(repayAmount);
+      // Add 10,000 micro-units buffer to cover interest accrual during repayment
+      const repayAmountMicro = BigInt(Math.floor(parseFloat(repayAmount || "0") * 10 ** market.baseTokenDecimals));
+      const bufferMicro = 10_000n;
+      const repayAmountWithBuffer = repayAmountMicro + bufferMicro;
+      const repayAmountWithBufferDisplay = (Number(repayAmountWithBuffer) / 10 ** market.baseTokenDecimals).toString();
+      onRepay(repayAmountWithBufferDisplay);
     } else if (activeAction === "withdraw" && onWithdrawCollateral) {
       onWithdrawCollateral(withdrawCollateralAssetId, withdrawAmount);
     }
