@@ -289,6 +289,7 @@ export async function repayDebtAsa({
   try {
     const appClient = await getExistingClientAsa(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
+    // Amount already includes 10,000 micro-units buffer added in frontend
     const upscaledAmount = amount * 10 ** 6;
 
     const repayTxn = appClient.algorand.createTransaction.assetTransfer({
@@ -328,6 +329,7 @@ export async function repayDebtAlgo({
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
+    // Amount already includes 10,000 micro-units buffer added in frontend
     const upscaledAmount = amount * 10 ** 6;
 
     const repayTxn = appClient.algorand.createTransaction.payment({
