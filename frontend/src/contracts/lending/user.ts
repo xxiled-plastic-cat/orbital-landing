@@ -716,7 +716,7 @@ export async function liquidatePartialASA({
     appClient.algorand.setDefaultSigner(signer);
 
     // Scale amount to micro units
-    const upscaledRepayAmount = repayAmount * 10 ** 6;
+    const upscaledRepayAmount = Math.floor(repayAmount * 10 ** 6);
 
     const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
       assetId: BigInt(collateralTokenId),

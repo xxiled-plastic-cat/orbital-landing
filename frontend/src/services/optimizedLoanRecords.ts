@@ -104,15 +104,67 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
     const markets = await fetchMarkets(signer, address);
     const marketsMap = new Map(markets.map((m) => [m.id, m]));
 
-    // We'll fetch oracle prices fresh for each position since they're quick to get
+    // OPTIMIZATION: Pre-fetch accepted collateral for all markets in parallel
+    console.log('Pre-fetching accepted collateral for all markets...');
+    const acceptedCollateralCache = new Map<string, Map<string, any>>();
+    const collateralPromises = Array.from(marketsMap.keys()).map(async (marketId) => {
+      try {
+        const acceptedCollaterals = await getAcceptedCollateral(
+          address,
+          Number(marketId),
+          signer
+        );
+        acceptedCollateralCache.set(marketId, acceptedCollaterals);
+      } catch (error) {
+        console.warn(`Failed to fetch accepted collateral for market ${marketId}:`, error);
+        acceptedCollateralCache.set(marketId, new Map());
+      }
+    });
+    await Promise.allSettled(collateralPromises);
+    console.log(`Cached accepted collateral for ${acceptedCollateralCache.size} markets`);
 
+    // OPTIMIZATION: Pre-fetch LST market states for all unique LST markets
+    console.log('Pre-fetching LST market states...');
+    const lstMarketStateCache = new Map<string, any>();
+    const uniqueLstMarketIds = new Set<string>();
+    
+    // Collect all unique LST market IDs from accepted collateral
+    acceptedCollateralCache.forEach((collaterals) => {
+      collaterals.forEach((collateral) => {
+        const originatingAppId = collateral.originatingAppId?.toString();
+        if (originatingAppId) {
+          uniqueLstMarketIds.add(originatingAppId);
+        }
+      });
+    });
+
+    const lstStatePromises = Array.from(uniqueLstMarketIds).map(async (lstMarketId) => {
+      try {
+        const lstMarketClient = await getExistingClient(
+          signer,
+          address,
+          Number(lstMarketId)
+        );
+        const lstMarketState = await lstMarketClient.state.global.getAll();
+        lstMarketStateCache.set(lstMarketId, lstMarketState);
+      } catch (error) {
+        console.warn(`Failed to fetch LST market state for ${lstMarketId}:`, error);
+      }
+    });
+    await Promise.allSettled(lstStatePromises);
+    console.log(`Cached LST market states for ${lstMarketStateCache.size} markets`);
+
+    // OPTIMIZATION: Process positions in parallel batches (batch size of 10 to avoid overwhelming)
+    const BATCH_SIZE = 10;
     const debtPositions: DebtPosition[] = [];
 
-    // Process each loan record
-    for (const record of loanRecords) {
+    // Process loan records in batches
+    for (let i = 0; i < loanRecords.length; i += BATCH_SIZE) {
+      const batch = loanRecords.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (record) => {
       try {
         const market = marketsMap.get(record.marketId);
-        if (!market) continue;
+        if (!market) return null;
 
         // Get asset metadata
         const debtTokenMeta = metadataMap.get(
@@ -122,7 +174,7 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
           record.collateralTokenId.toString()
         );
 
-        if (!debtTokenMeta || !collateralTokenMeta) continue;
+        if (!debtTokenMeta || !collateralTokenMeta) return null;
 
         // Calculate current debt with accrued interest
         const borrowIndexWad = BigInt(market.borrowIndexWad || 0);
@@ -154,17 +206,12 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
         let collateralValueUSD = 0;
         let currentCollateralPrice = 0;
 
-        // Get accepted collateral information for this market
+        // Get accepted collateral information from cache
         let acceptedCollateralInfo = null;
-        try {
-          const acceptedCollaterals = await getAcceptedCollateral(
-            address,
-            Number(record.marketId),
-            signer
-          );
-
+        const cachedCollaterals = acceptedCollateralCache.get(record.marketId);
+        if (cachedCollaterals) {
           // Find the collateral info for this specific token
-          for (const [, collateral] of acceptedCollaterals.entries()) {
+          for (const [, collateral] of cachedCollaterals.entries()) {
             if (
               collateral.assetId.toString() ===
               record.collateralTokenId.toString()
@@ -173,8 +220,6 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
               break;
             }
           }
-        } catch (error) {
-          console.warn("Failed to get accepted collateral info:", error);
         }
 
         if (acceptedCollateralInfo) {
@@ -186,105 +231,63 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
             (m) => Number(m.id) === originatingAppId
           );
 
-          console.log(`Looking for LST market with ID ${originatingAppId}, found:`, lstMarket ? `${lstMarket.name} (${lstMarket.id})` : 'NOT FOUND');
-
           if (lstMarket) {
-            try {
-              // Get the LST market data
-              const lstMarketClient = await getExistingClient(
-                signer,
-                address,
-                Number(lstMarket.id)
+            // Get the LST market data from cache
+            const lstMarketState = lstMarketStateCache.get(originatingAppId.toString());
+
+            // Get fresh base token price from oracle
+            let baseTokenPrice = 0;
+            if (oracleAppId > 0) {
+              try {
+                baseTokenPrice = await priceFetcher.getBaseTokenPrice(
+                  baseTokenId,
+                  oracleAppId
+                );
+              } catch (error) {
+                console.warn(`Failed to get base token price for ${baseTokenId}:`, error);
+              }
+            }
+
+            if (
+              lstMarketState &&
+              baseTokenPrice > 0 &&
+              lstMarketState.totalDeposits &&
+              lstMarketState.circulatingLst
+            ) {
+              // Use cached LST price calculation
+              const lstParams = {
+                lstAmount: record.collateralAmount,
+                totalDeposits: lstMarketState.totalDeposits,
+                circulatingLst: lstMarketState.circulatingLst,
+                baseTokenPrice: baseTokenPrice,
+              };
+
+              currentCollateralPrice = await priceFetcher.getLSTTokenPrice(
+                record.collateralTokenId.toString(),
+                record.marketId,
+                lstParams
               );
-              const lstMarketState =
-                await lstMarketClient.state.global.getAll();
 
-              // Get fresh base token price from oracle
-              let baseTokenPrice = 0;
-              if (oracleAppId > 0) {
-                try {
-                  baseTokenPrice = await priceFetcher.getBaseTokenPrice(
-                    baseTokenId,
-                    oracleAppId
-                  );
-                } catch (error) {
-                  console.warn(`Failed to get base token price for ${baseTokenId}:`, error);
-                }
-              }
-
-              console.log(`LST Calculation Debug for ${record.collateralTokenId}:`, {
-                baseTokenPrice,
-                totalDeposits: lstMarketState.totalDeposits?.toString(),
-                circulatingLst: lstMarketState.circulatingLst?.toString(),
-                collateralAmount: record.collateralAmount.toString()
-              });
-
-              if (
-                baseTokenPrice > 0 &&
-                lstMarketState.totalDeposits &&
-                lstMarketState.circulatingLst
-              ) {
-                // Use cached LST price calculation
-                const lstParams = {
-                  lstAmount: record.collateralAmount,
-                  totalDeposits: lstMarketState.totalDeposits,
-                  circulatingLst: lstMarketState.circulatingLst,
-                  baseTokenPrice: baseTokenPrice,
-                };
-
-                console.log(`Calling getLSTTokenPrice with params:`, lstParams);
-                currentCollateralPrice = await priceFetcher.getLSTTokenPrice(
-                  record.collateralTokenId.toString(),
-                  record.marketId,
-                  lstParams
-                );
-                console.log(`LST price result: ${currentCollateralPrice}`);
-
-                // Calculate total collateral value
-                const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
-                collateralValueUSD = collateralAmountInTokens * currentCollateralPrice;
-                
-                console.log(`Collateral calculation: ${collateralAmountInTokens} tokens * $${currentCollateralPrice} = $${collateralValueUSD}`);
-              } else {
-                console.warn(
-                  "Missing data for LST calculation, using fallback",
-                  {
-                    baseTokenPrice,
-                    hasTotalDeposits: !!lstMarketState.totalDeposits,
-                    hasCirculatingLst: !!lstMarketState.circulatingLst
-                  }
-                );
-                collateralValueUSD = debtValueUSD * 1.5;
-                // Calculate fallback price based on collateral amount
-                const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
-                currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
-                console.log(`Using fallback collateral price: $${currentCollateralPrice} per token`);
-              }
-            } catch (error) {
-              console.warn("Failed to get LST market data:", error);
+              // Calculate total collateral value
+              const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+              collateralValueUSD = collateralAmountInTokens * currentCollateralPrice;
+            } else {
+              // Fallback if missing LST market state or price data
               collateralValueUSD = debtValueUSD * 1.5;
-              // Calculate fallback price based on collateral amount
               const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
               currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
-              console.log(`Using fallback collateral price (error case): $${currentCollateralPrice} per token`);
             }
           } else {
-            console.warn(
-              `No LST market found for originating app ID ${originatingAppId}, using fallback`
-            );
+            // Fallback if LST market not found
             collateralValueUSD = debtValueUSD * 1.5;
-            // Calculate fallback price based on collateral amount
             const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
             currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
-            console.log(`Using fallback collateral price (no LST market): $${currentCollateralPrice} per token`);
           }
         } else {
-          console.warn("No accepted collateral info found, using fallback");
+          // Fallback if no accepted collateral info
           collateralValueUSD = debtValueUSD * 1.5;
-          // Calculate fallback price based on collateral amount
           const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
           currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
-          console.log(`Using fallback collateral price (no collateral info): $${currentCollateralPrice} per token`);
         }
 
         // Calculate health ratio
@@ -311,7 +314,6 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
               market.buyoutTokenId,
               oracleAppId
             );
-            console.log(`Fetched live buyout token price for asset ${market.buyoutTokenId}: $${buyoutTokenPrice}`);
           } catch (error) {
             console.warn(`Failed to get buyout token price for ${market.buyoutTokenId}, using fallback $1:`, error);
           }
@@ -360,14 +362,25 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
           currentCollateralPrice: currentCollateralPrice,
         };
 
-        debtPositions.push(debtPosition);
+        return debtPosition;
       } catch (error) {
         console.warn(
           `Failed to transform loan record for ${record.borrowerAddress}:`,
           error
         );
-        // Continue with other records
+        // Return null for failed records
+        return null;
       }
+      });
+
+      // Wait for batch to complete and filter out nulls
+      const batchResults = await Promise.allSettled(batchPromises);
+      const successfulPositions = batchResults
+        .map((result) => result.status === 'fulfilled' ? result.value : null)
+        .filter((pos): pos is DebtPosition => pos !== null);
+      
+      debtPositions.push(...successfulPositions);
+      console.log(`Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(loanRecords.length / BATCH_SIZE)}: ${successfulPositions.length}/${batch.length} positions`);
     }
 
     console.log(`Successfully processed ${debtPositions.length} debt positions with optimized pricing`);

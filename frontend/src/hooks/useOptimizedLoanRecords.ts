@@ -39,6 +39,7 @@ export function useOptimizedDebtPositions() {
     gcTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 30 * 1000, // Refetch every 30 seconds (aligned with price refresh)
     refetchOnWindowFocus: true,
+    refetchOnMount: true, // Always refetch when component mounts to ensure fresh data
     retry: (failureCount, error) => {
       if (error.message === 'Wallet not connected') {
         return false

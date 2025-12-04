@@ -263,6 +263,13 @@ const DebtPositionDetailPage: React.FC = () => {
       ? liveDebt
       : Math.min(Math.max(0, parsedLiquidationAmount), liveDebt);
     
+    // Add 0.1% buffer for full repayments (when repaying the full debt)
+    const isFullRepayment = requestedRepayAmount >= liveDebt * 0.999; // Account for floating point precision
+    const BUFFER_PERCENT = 0.001; // 0.1%
+    const bufferedRepayAmount = isFullRepayment 
+      ? requestedRepayAmount * (1 + BUFFER_PERCENT)
+      : requestedRepayAmount;
+    
     const liveDebtBaseUnits = liveDebt;
     if (!transactionSigner || !activeAddress) {
       openToast({
@@ -332,8 +339,8 @@ const DebtPositionDetailPage: React.FC = () => {
         // Continue with lstAppId = 0, the transaction might still work
       }
       
-      // Use the requested repayment amount from user input
-      const partialRepayAmount = requestedRepayAmount;
+      // Use the buffered repayment amount for full repayments, otherwise use requested amount
+      const partialRepayAmount = bufferedRepayAmount;
       
       let txId: string;
       let attemptedFullRepay = false;
@@ -368,8 +375,9 @@ const DebtPositionDetailPage: React.FC = () => {
             console.log("FULL_REPAY_REQUIRED detected - retrying with full debt repayment");
             attemptedFullRepay = true;
             
-            // Retry with full debt amount
-            const fullRepayMicroAlgos = Math.floor(liveDebtBaseUnits * 1e6);
+            // Retry with full debt amount + 0.1% buffer
+            const fullRepayWithBuffer = liveDebtBaseUnits * (1 + BUFFER_PERCENT);
+            const fullRepayMicroAlgos = Math.floor(fullRepayWithBuffer * 1e6);
             
             txId = await liquidatePartialAlgo({
               liquidatorAddress: activeAddress,
@@ -417,12 +425,14 @@ const DebtPositionDetailPage: React.FC = () => {
             console.log("FULL_REPAY_REQUIRED detected - retrying with full debt repayment");
             attemptedFullRepay = true;
             
-            // Retry with full debt amount
+            // Retry with full debt amount + 0.1% buffer
+            const fullRepayWithBuffer = liveDebtBaseUnits * (1 + BUFFER_PERCENT);
+            
             txId = await liquidatePartialASA({
               liquidatorAddress: activeAddress,
               debtorAddress: position.userAddress,
               appId: marketAppId,
-              repayAmount: liveDebtBaseUnits, // Full debt in base units
+              repayAmount: fullRepayWithBuffer, // Full debt + buffer in base units
               baseTokenAssetId: parseInt(position.debtToken.id),
               collateralTokenId: parseInt(position.collateralToken.id),
               lstAppId,
@@ -453,17 +463,16 @@ const DebtPositionDetailPage: React.FC = () => {
       
       // Optimistic update: Remove the position from the cache immediately
       queryClient.setQueryData<DebtPosition[]>(
-        ['optimized-debt-positions', activeAddress],
+        ['optimized-debt-positions'],
         (oldData) => {
           if (!oldData) return oldData;
           return oldData.filter(p => p.id !== position.id);
         }
       );
       
-      // Trigger background refetch to ensure data is accurate
-      queryClient.invalidateQueries({ 
+      // Trigger refetch and wait for it to complete before navigating
+      await queryClient.refetchQueries({
         queryKey: ['optimized-debt-positions'],
-        refetchType: 'active'
       });
       
       // Navigate back to marketplace after successful liquidation
@@ -601,17 +610,16 @@ const DebtPositionDetailPage: React.FC = () => {
       
       // Optimistic update: Remove the position from the cache immediately
       queryClient.setQueryData<DebtPosition[]>(
-        ['optimized-debt-positions', activeAddress],
+        ['optimized-debt-positions'],
         (oldData) => {
           if (!oldData) return oldData;
           return oldData.filter(p => p.id !== position.id);
         }
       );
       
-      // Trigger background refetch to ensure data is accurate
-      queryClient.invalidateQueries({ 
+      // Trigger refetch and wait for it to complete before navigating
+      await queryClient.refetchQueries({
         queryKey: ['optimized-debt-positions'],
-        refetchType: 'active'
       });
       
       // Navigate back to marketplace after successful buyout
