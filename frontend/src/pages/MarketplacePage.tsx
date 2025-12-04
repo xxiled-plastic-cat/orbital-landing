@@ -9,7 +9,9 @@ import {
   Search,
   Grid3x3,
   List,
-  Wallet
+  Wallet,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import AppLayout from '../components/app/AppLayout';
 import DebtPositionCard from '../components/DebtPositionCard';
@@ -37,6 +39,8 @@ const MarketplacePage: React.FC = () => {
     const saved = localStorage.getItem("orbitalMarketplaceViewMode");
     return (saved === "cards" || saved === "table") ? saved : "cards";
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
   const navigate = useNavigate();
 
   // Use optimized data with cached pricing (fixed LST market lookup)
@@ -74,6 +78,21 @@ const MarketplacePage: React.FC = () => {
       }
     });
   }, [debtPositions, sortOrder, searchQuery]);
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(filteredAndSortedPositions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPositions = filteredAndSortedPositions.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search query or sort order changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortOrder]);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   const handlePositionClick = (position: DebtPosition) => {
     navigate(`/app/marketplace/position/${position.id}`);
@@ -304,12 +323,12 @@ const MarketplacePage: React.FC = () => {
           <>
             {viewMode === "cards" ? (
               <div className="grid gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {filteredAndSortedPositions.map((position, index) => (
+                {paginatedPositions.map((position, index) => (
                   <motion.div
                     key={position.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    transition={{ duration: 0.4, delay: (index % itemsPerPage) * 0.1 }}
                   >
                     <DebtPositionCard 
                       position={position} 
@@ -344,7 +363,7 @@ const MarketplacePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAndSortedPositions.map((position) => (
+                    {paginatedPositions.map((position) => (
                       <tr
                         key={position.id}
                         className="border-b border-slate-700 hover:bg-slate-800/50 cursor-pointer transition-colors"
@@ -397,6 +416,113 @@ const MarketplacePage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <motion.div
+                className="mt-6 md:mt-8 p-4 md:p-6 border-t border-slate-600 bg-slate-800/30"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Page Info */}
+                  <div className="text-sm text-slate-400 font-mono">
+                    Page <span className="text-cyan-400 font-bold">{currentPage}</span> of <span className="text-cyan-400 font-bold">{totalPages}</span>
+                    <span className="hidden sm:inline">
+                      {' '}• Showing {startIndex + 1}-{Math.min(endIndex, filteredAndSortedPositions.length)} of {filteredAndSortedPositions.length}
+                    </span>
+                  </div>
+
+                  {/* Pagination Buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`flex items-center gap-1 px-3 py-2 font-mono text-sm border transition-all duration-150 ${
+                        currentPage === 1
+                          ? 'text-slate-600 border-slate-700 cursor-not-allowed'
+                          : 'text-cyan-400 border-cyan-600 hover:bg-cyan-900/20 hover:border-cyan-500'
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">PREV</span>
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {/* First Page */}
+                      {currentPage > 3 && (
+                        <>
+                          <button
+                            onClick={() => goToPage(1)}
+                            className="w-8 h-8 sm:w-10 sm:h-10 font-mono text-sm border border-cyan-600 text-cyan-400 hover:bg-cyan-900/20 hover:border-cyan-500 transition-all duration-150"
+                          >
+                            1
+                          </button>
+                          {currentPage > 4 && (
+                            <span className="text-slate-500 px-1">...</span>
+                          )}
+                        </>
+                      )}
+
+                      {/* Current page and nearby pages */}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => {
+                          return page === currentPage || 
+                                 page === currentPage - 1 || 
+                                 page === currentPage + 1 ||
+                                 (currentPage <= 2 && page <= 3) ||
+                                 (currentPage >= totalPages - 1 && page >= totalPages - 2);
+                        })
+                        .map(page => (
+                          <button
+                            key={page}
+                            onClick={() => goToPage(page)}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 font-mono text-sm border transition-all duration-150 ${
+                              page === currentPage
+                                ? 'bg-cyan-600 border-cyan-500 text-white font-bold'
+                                : 'border-cyan-600 text-cyan-400 hover:bg-cyan-900/20 hover:border-cyan-500'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+
+                      {/* Last Page */}
+                      {currentPage < totalPages - 2 && (
+                        <>
+                          {currentPage < totalPages - 3 && (
+                            <span className="text-slate-500 px-1">...</span>
+                          )}
+                          <button
+                            onClick={() => goToPage(totalPages)}
+                            className="w-8 h-8 sm:w-10 sm:h-10 font-mono text-sm border border-cyan-600 text-cyan-400 hover:bg-cyan-900/20 hover:border-cyan-500 transition-all duration-150"
+                          >
+                            {totalPages}
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`flex items-center gap-1 px-3 py-2 font-mono text-sm border transition-all duration-150 ${
+                        currentPage === totalPages
+                          ? 'text-slate-600 border-slate-700 cursor-not-allowed'
+                          : 'text-cyan-400 border-cyan-600 hover:bg-cyan-900/20 hover:border-cyan-500'
+                      }`}
+                    >
+                      <span className="hidden sm:inline">NEXT</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             )}
           </>
         ) : null}
