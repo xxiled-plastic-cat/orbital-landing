@@ -259,18 +259,27 @@ const MarketDetailsPage = () => {
       setTransactionLoading(true);
 
       const baseTokenDecimals = market?.baseTokenDecimals ?? 6;
+      const lstDecimals = market?.lstTokenDecimals ?? 6;
       const depositAmountMicrounits = (
         Number(amount) * Math.pow(10, baseTokenDecimals)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
 
+      // Calculate expected LST tokens to receive
+      const expectedLSTMinted = calculateLSTDue(
+        BigInt(Number(amount) * 10 ** baseTokenDecimals),
+        BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
+        BigInt((market?.totalDeposits ?? 0) * 10 ** baseTokenDecimals)
+      );
+      const expectedLSTDisplay = (Number(expectedLSTMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+
       openToast({
         type: "loading",
         message: "Depositing...",
         description: `Please sign the transaction to deposit ${amount} ${getBaseTokenSymbol(
           market?.symbol
-        )} to receive ${amount} ${getLSTTokenSymbol(market?.symbol)}`,
+        )} to receive ${expectedLSTDisplay} ${getLSTTokenSymbol(market?.symbol)}`,
       });
       if (market?.baseTokenId === "0") {
         await depositAlgo({
@@ -300,7 +309,7 @@ const MarketDetailsPage = () => {
             refetchUserDebt();
             refetchUserDepositRecord();
 
-            // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            // Calculate the actual LST tokens minted for this deposit
             const baseDecimals = market?.baseTokenDecimals ?? 6;
             const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
@@ -308,6 +317,7 @@ const MarketDetailsPage = () => {
               BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
               BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
             );
+            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
 
             recordUserAction({
               address: activeAddress as string,
@@ -326,7 +336,7 @@ const MarketDetailsPage = () => {
               message: "Deposit successful",
               description: `You have deposited ${amount} ${getBaseTokenSymbol(
                 market?.symbol
-              )} and received ${amount} ${getLSTTokenSymbol(market?.symbol)}!`,
+              )} and received ${lstMintedDisplay} ${getLSTTokenSymbol(market?.symbol)}!`,
             });
           })
           .catch((error) => {
@@ -368,7 +378,7 @@ const MarketDetailsPage = () => {
             refetchUserDebt();
             refetchUserDepositRecord();
 
-            // Calculate the actual LST tokens minted for this deposit (for analytics, not used in UI here)
+            // Calculate the actual LST tokens minted for this deposit
             const baseDecimals = market?.baseTokenDecimals ?? 6;
             const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
@@ -376,6 +386,7 @@ const MarketDetailsPage = () => {
               BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
               BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
             );
+            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
 
             recordUserAction({
               address: activeAddress as string,
@@ -394,7 +405,7 @@ const MarketDetailsPage = () => {
               message: "Deposit successful",
               description: `You have deposited ${amount} ${getBaseTokenSymbol(
                 market?.symbol
-              )} and received ${amount} ${getLSTTokenSymbol(market?.symbol)}!`,
+              )} and received ${lstMintedDisplay} ${getLSTTokenSymbol(market?.symbol)}!`,
             });
           })
           .catch((error) => {
@@ -419,18 +430,27 @@ const MarketDetailsPage = () => {
       setTransactionLoading(true);
 
       const lstTokenDecimals = market?.lstTokenDecimals ?? 6;
+      const baseDecimals = market?.baseTokenDecimals ?? 6;
       const redeemAmountMicrounits = (
         Number(amount) * Math.pow(10, lstTokenDecimals)
       ).toString();
       const baseTokenId = market?.baseTokenId || "0";
       const lstTokenId = market?.lstTokenId;
 
+      // Calculate expected base tokens to receive
+      const expectedAssetDue = calculateAssetDue(
+        BigInt(Number(amount) * 10 ** lstTokenDecimals),
+        BigInt((market?.circulatingLST ?? 0) * 10 ** lstTokenDecimals),
+        BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
+      );
+      const expectedAssetDisplay = (Number(expectedAssetDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
+
       openToast({
         type: "loading",
         message: "Redeeming...",
         description: `Please sign the transaction to redeem ${amount} ${getLSTTokenSymbol(
           market?.symbol
-        )} to receive ${amount} ${getBaseTokenSymbol(market?.symbol)}`,
+        )} to receive ${expectedAssetDisplay} ${getBaseTokenSymbol(market?.symbol)}`,
       });
 
       await withdraw({
@@ -465,6 +485,7 @@ const MarketDetailsPage = () => {
             BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
             BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
           );
+          const asaDueDisplay = (Number(asaDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
 
           recordUserAction({
             address: activeAddress as string,
@@ -483,7 +504,7 @@ const MarketDetailsPage = () => {
             message: "Redeem successful",
             description: `You have redeemed ${amount} ${getLSTTokenSymbol(
               market?.symbol
-            )} and received ${amount} ${getBaseTokenSymbol(market?.symbol)}!`,
+            )} and received ${asaDueDisplay} ${getBaseTokenSymbol(market?.symbol)}!`,
           });
         })
         .catch((error) => {

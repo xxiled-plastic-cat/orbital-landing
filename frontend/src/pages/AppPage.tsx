@@ -179,7 +179,7 @@ const AppPage = () => {
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-amber-500"></div>
-                      <span>ALGO Consensus Lending Market</span>
+                      <span>ALGO Consensus Lending Market ✓</span>
                     </li>
                   </ul>
                 </div>
