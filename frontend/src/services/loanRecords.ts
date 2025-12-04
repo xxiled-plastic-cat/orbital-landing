@@ -82,6 +82,7 @@ export async function fetchAllLoanRecords(
 /**
  * Fetches ALL active loan records across all markets (all users)
  * Used by Marketplace to show all tradeable debt positions
+ * OPTIMIZED: Fetches all markets in parallel for better performance
  */
 export async function fetchAllLoanRecordsForMarketplace(
   signer: TransactionSigner,
@@ -91,10 +92,8 @@ export async function fetchAllLoanRecordsForMarketplace(
     // 1. Get all markets first
     const markets = await fetchMarkets(signer, address);
 
-    const allLoanRecords: LoanRecordData[] = [];
-
-    // 2. For each market, get ALL loan records (all users)
-    for (const market of markets) {
+    // 2. Fetch ALL loan records in parallel for all markets
+    const loanRecordPromises = markets.map(async (market) => {
       try {
         const marketLoanRecords = await fetchMarketLoanRecordsAll(
           signer,
@@ -103,21 +102,37 @@ export async function fetchAllLoanRecordsForMarketplace(
         );
 
         // Add market ID to each record
-        const recordsWithMarket = marketLoanRecords.map((record) => ({
+        return marketLoanRecords.map((record) => ({
           ...record,
           marketId: market.id,
         }));
-
-        allLoanRecords.push(...recordsWithMarket);
       } catch (error) {
         console.warn(
           `Failed to fetch loan records for market ${market.id}:`,
           error
         );
-        // Continue with other markets even if one fails
+        // Return empty array if market fails, so Promise.allSettled continues
+        return [];
       }
-    }
+    });
 
+    // Wait for all markets to complete (using allSettled to handle partial failures)
+    const results = await Promise.allSettled(loanRecordPromises);
+    
+    // Flatten all successful results
+    const allLoanRecords: LoanRecordData[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        allLoanRecords.push(...result.value);
+      } else {
+        console.warn(
+          `Market ${markets[index]?.id} failed to fetch loan records:`,
+          result.reason
+        );
+      }
+    });
+
+    console.log(`Fetched ${allLoanRecords.length} loan records from ${markets.length} markets`);
     return allLoanRecords;
   } catch (error) {
     console.error("Failed to fetch loan records:", error);

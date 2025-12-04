@@ -103,7 +103,16 @@ const LiquidationActionPanel = ({
   const requestedRepayAmount = isBadDebtScenario 
     ? liveDebt
     : Math.min(Math.max(0, parsedLiquidationAmount), liveDebt);
+  
+  // Add 0.1% buffer for full repayments (when repaying the full debt)
+  const isFullRepayment = requestedRepayAmount >= liveDebt * 0.999; // Account for floating point precision
+  const BUFFER_PERCENT = 0.001; // 0.1%
+  const bufferedRepayAmount = isFullRepayment 
+    ? requestedRepayAmount * (1 + BUFFER_PERCENT)
+    : requestedRepayAmount;
+  
   const requestedRepayAmountUSD = requestedRepayAmount * (liveDebtUSD / liveDebt);
+  const bufferedRepayAmountUSD = bufferedRepayAmount * (liveDebtUSD / liveDebt);
   
   const liquidationBonusBps = market?.liqBonusBps || position.liquidationBonus * 100;
   const liquidationBonusMultiplier = 1 + liquidationBonusBps / 10000;
@@ -192,12 +201,12 @@ const LiquidationActionPanel = ({
                     <span className="text-slate-400 text-sm">
                       ≈ ${formatUSD(parseFloat(userDebtTokenBalance) * (liveDebtUSD / liveDebt))}
                     </span>
-                    {parseFloat(userDebtTokenBalance) < requestedRepayAmount && (
+                    {parseFloat(userDebtTokenBalance) < bufferedRepayAmount && (
                       <span className="ml-auto text-xs text-red-400 font-semibold">
                         ⚠️ INSUFFICIENT
                       </span>
                     )}
-                    {parseFloat(userDebtTokenBalance) >= liveDebt && (
+                    {parseFloat(userDebtTokenBalance) >= bufferedRepayAmount && (
                       <span className="ml-auto text-xs text-green-400 font-semibold">
                         ✓ SUFFICIENT
                       </span>
@@ -210,7 +219,7 @@ const LiquidationActionPanel = ({
                 )}
               </div>
               {/* Buy on Compx Button when insufficient balance */}
-              {userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < requestedRepayAmount && (
+              {userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < bufferedRepayAmount && (
                 <div className="mt-2 flex justify-center">
                   <BuyOnCompxButton
                     tokenSymbol={position.debtToken.symbol}
@@ -284,11 +293,22 @@ const LiquidationActionPanel = ({
               <div className="flex items-center justify-between mt-2 text-xs">
                 <span className={isBadDebtScenario ? 'text-red-300' : 'text-slate-400'}>
                   {isBadDebtScenario ? 'Mandatory' : 'Requested'}: {formatNumber(requestedRepayAmount)} {position.debtToken.symbol}
+                  {isFullRepayment && (
+                    <span className="text-cyan-400 ml-1">(+0.1% buffer)</span>
+                  )}
                 </span>
                 <span className={isBadDebtScenario ? 'text-red-300' : 'text-slate-400'}>
                   ≈ ${formatUSD(requestedRepayAmountUSD)}
+                  {isFullRepayment && (
+                    <span className="text-cyan-400 ml-1">→ ${formatUSD(bufferedRepayAmountUSD)}</span>
+                  )}
                 </span>
               </div>
+              {isFullRepayment && (
+                <div className="mt-2 text-xs text-cyan-400">
+                  Actual repayment with buffer: {formatNumber(bufferedRepayAmount)} {position.debtToken.symbol} (${formatUSD(bufferedRepayAmountUSD)})
+                </div>
+              )}
             </div>
 
             {/* Expected Collateral Seizure */}
@@ -634,6 +654,7 @@ const LiquidationActionPanel = ({
           disabled={
             isExecuting || 
             (isLiquidationZone && !isBadDebtScenario && requestedRepayAmount <= 0) ||
+            (isLiquidationZone && userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < bufferedRepayAmount) ||
             (!isLiquidationZone && userDebtTokenBalance !== null && parseFloat(userDebtTokenBalance) < position.buyoutDebtRepaymentTokens) ||
             (!isLiquidationZone && userPremiumTokenBalance !== null && parseFloat(userPremiumTokenBalance) < bufferedPremiumTokens)
           }
@@ -669,12 +690,16 @@ const LiquidationActionPanel = ({
                 <li>• Liquidate undercollateralized position</li>
                 {isBadDebtScenario ? (
                   <>
-                    <li className="text-red-400 font-semibold">• MANDATORY FULL REPAYMENT: {formatNumber(requestedRepayAmount)} {position.debtToken.symbol} (${formatUSD(requestedRepayAmountUSD)})</li>
+                    <li className="text-red-400 font-semibold">• MANDATORY FULL REPAYMENT: {formatNumber(bufferedRepayAmount)} {position.debtToken.symbol} (${formatUSD(bufferedRepayAmountUSD)})</li>
+                    <li className="text-cyan-400 text-xs pl-4">↳ Includes 0.1% buffer for debt fluctuations</li>
                     <li className="text-orange-400 text-xs pl-4">⚠️ Debt exceeds collateral - partial liquidation disabled</li>
                   </>
                 ) : (
                   <>
-                    <li>• Repay specified amount: {formatNumber(requestedRepayAmount)} {position.debtToken.symbol} (${formatUSD(requestedRepayAmountUSD)})</li>
+                    <li>• Repay specified amount: {formatNumber(isFullRepayment ? bufferedRepayAmount : requestedRepayAmount)} {position.debtToken.symbol} (${formatUSD(isFullRepayment ? bufferedRepayAmountUSD : requestedRepayAmountUSD)})</li>
+                    {isFullRepayment && (
+                      <li className="text-cyan-400 text-xs pl-4">↳ Includes 0.1% buffer for debt fluctuations</li>
+                    )}
                     {isCollateralInsufficient && (
                       <li className="text-orange-400 text-xs pl-4">⚠️ Amount exceeds collateral support - will auto-retry with full debt</li>
                     )}
