@@ -88,26 +88,36 @@ const AnalyticsTab = ({ market }: AnalyticsTabProps) => {
       const date = new Date(point.dateAdded);
       
       // Calculate accumulated lender interest fees: feePool * 9 (90% goes to lenders)
-      // feePool is cumulative, so we use the current value directly
+      // feePool is in base token microunits, so we need to:
+      // 1. Multiply by 9 to get lender share (90% of total interest)
+      // 2. Convert from microunits to human-readable: divide by 10^decimals
+      // 3. Convert to USD: multiply by base token price
       let accumulatedLenderInterestFeesUSD = 0;
       if (point.feePool) {
         const feePoolBigInt = BigInt(point.feePool);
         const lenderShare = feePoolBigInt * 9n; // 90% of total interest
+        // Convert from microunits to human-readable amount, then to USD
         const lenderShareNum = Number(lenderShare) / Math.pow(10, baseTokenDecimals);
         accumulatedLenderInterestFeesUSD = lenderShareNum * baseTokenPrice;
       }
 
       // Calculate accumulated additional rewards: difference in total_commission_earned
-      // total_commission_earned is cumulative, so we track the difference and accumulate
+      // total_commission_earned is cumulative and in base token microunits, so we:
+      // 1. Calculate the difference from previous entry
+      // 2. Convert from microunits to human-readable: divide by 10^decimals
+      // 3. Convert to USD: multiply by base token price
+      // 4. Accumulate the differences
       if (point.totalCommissionEarned) {
         const currentCommission = BigInt(point.totalCommissionEarned);
         
         if (previousCommissionEarned !== null && currentCommission >= previousCommissionEarned) {
           const diff = currentCommission - previousCommissionEarned;
+          // Convert from microunits to human-readable amount, then to USD
           const diffNum = Number(diff) / Math.pow(10, baseTokenDecimals);
           accumulatedAdditionalRewardsUSD += diffNum * baseTokenPrice;
         } else if (previousCommissionEarned === null) {
           // First entry - use the full value
+          // Convert from microunits to human-readable amount, then to USD
           const commissionNum = Number(currentCommission) / Math.pow(10, baseTokenDecimals);
           accumulatedAdditionalRewardsUSD = commissionNum * baseTokenPrice;
         }
@@ -389,26 +399,26 @@ const AnalyticsTab = ({ market }: AnalyticsTabProps) => {
               </ResponsiveContainer>
             </div>
 
-            {/* Summary Stats */}
+            {/* Summary Stats - Show last/most recent values */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="inset-panel cut-corners-sm p-4">
                 <div className="text-slate-400 text-xs font-mono mb-1 uppercase tracking-wider">
-                  Total Lender Interest Fees
+                  Last Lender Interest Fees Paid
                 </div>
                 <div className="text-xl font-mono font-bold text-cyan-400 tabular-nums">
-                  {formatCurrency(
-                    feesChartData.reduce((sum, point) => sum + point.lenderInterestFees, 0)
-                  )}
+                  {feesChartData.length > 0
+                    ? formatCurrency(feesChartData[feesChartData.length - 1].lenderInterestFees)
+                    : formatCurrency(0)}
                 </div>
               </div>
               <div className="inset-panel cut-corners-sm p-4">
                 <div className="text-slate-400 text-xs font-mono mb-1 uppercase tracking-wider">
-                  Total Additional Rewards
+                  Last Additional Rewards Paid
                 </div>
                 <div className="text-xl font-mono font-bold text-purple-400 tabular-nums">
-                  {formatCurrency(
-                    feesChartData.reduce((sum, point) => sum + point.additionalRewards, 0)
-                  )}
+                  {feesChartData.length > 0
+                    ? formatCurrency(feesChartData[feesChartData.length - 1].additionalRewards)
+                    : formatCurrency(0)}
                 </div>
               </div>
             </div>
