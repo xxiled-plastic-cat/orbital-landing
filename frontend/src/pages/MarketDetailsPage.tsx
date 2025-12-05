@@ -5,22 +5,18 @@ import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
-  Info,
-  Copy,
-  CheckCircle,
   AlertCircle,
   Radio,
-  BarChart3,
-  Coins,
-  ExternalLink,
 } from "lucide-react";
 import AppLayout from "../components/app/AppLayout";
-import InterestRateModel from "../components/InterestRateModel";
-import CollateralRelationships from "../components/CollateralRelationships";
 import ActionDrawer from "../components/app/ActionDrawer";
 import PositionHeader from "../components/app/PositionHeader";
 import MomentumSpinner from "../components/MomentumSpinner";
 import Tooltip from "../components/Tooltip";
+import TabSelector from "../components/app/TabSelector";
+import OverviewTab from "../components/market/OverviewTab";
+import CollateralTab from "../components/market/CollateralTab";
+import AnalyticsTab from "../components/market/AnalyticsTab";
 import { useMarket, useRefetchMarkets, useMarkets } from "../hooks/useMarkets";
 import { useInvalidateUserAssets } from "../hooks/useAssets";
 import { WalletContext } from "../context/wallet";
@@ -44,19 +40,7 @@ import {
   getDepositBoxValue,
 } from "../contracts/lending/state";
 import { recordUserAction } from "../services/userStats";
-import { useNetwork } from "../context/networkContext";
-import { ExplorerLinks } from "../components/app/explorerlinks";
 import { BuyOnCompxButton } from "../components/app/BuyOnCompxButton";
-
-// Helper component to display network name
-const NetworkDisplay = () => {
-  const { isTestnet } = useNetwork();
-  return (
-    <span className="font-mono text-white text-sm">
-      Algorand {isTestnet ? 'Testnet' : 'Mainnet'}
-    </span>
-  );
-};
 
 const MarketDetailsPage = () => {
   const [searchParams] = useSearchParams();
@@ -82,6 +66,9 @@ const MarketDetailsPage = () => {
   // Staking pools state management
   const [stakingPools, setStakingPools] = useState<any[]>([]);
   const [loadingStakingPools, setLoadingStakingPools] = useState(true);
+
+  // Tab state management
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   // Ref to track the last fetched collateral combination to prevent unnecessary calls
   const lastFetchedRef = useRef<string | null>(null);
@@ -919,19 +906,6 @@ const MarketDetailsPage = () => {
     );
   }
 
-  const getUtilizationBgColor = (rate: number, market: any) => {
-    // rate is already normalized to the cap (0-100% where 100% = the cap)
-    // kinkNormBps is also normalized (0-10000 where 10000 = 100% of cap)
-    const kinkPercent = (market.kinkNormBps ?? 5000) / 100;
-    
-    // Red zone: 90% or more of the cap
-    if (rate >= 90) return "from-red-500 to-red-600";
-    // Amber zone: at or above the kink point
-    if (rate >= kinkPercent) return "from-amber-500 to-amber-600";
-    // Cyan zone: below the kink point
-    return "from-cyan-500 to-blue-500";
-  };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -1047,330 +1021,43 @@ const MarketDetailsPage = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-8">
           {/* Main Content - Takes full width on mobile, 2/3 on desktop */}
           <div className="xl:col-span-2 space-y-4 md:space-y-8">
-            {/* Market Overview */}
+            {/* Tab Selector */}
             <motion.div
-              className="text-slate-600 cut-corners-lg p-4 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
+              transition={{ duration: 0.6 }}
             >
-              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
-                <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide">
-                  Market Overview
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-                <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
-                    Total Supply
-                    <Tooltip content="Total value of all assets deposited in this market" position="top">
-                      <Info className="w-3 h-3 cursor-help" />
-                    </Tooltip>
-                  </div>
-                  <div className="text-base md:text-xl font-mono font-bold text-white tabular-nums">
-                    ${market.totalDepositsUSD.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-slate-500 font-mono">
-                    {market.totalDeposits.toFixed(6)} {market.symbol}
-                  </div>
-                </div>
-
-                <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
-                    Total Borrows
-                    <Tooltip content="Total value of all assets currently borrowed from this market" position="top">
-                      <Info className="w-3 h-3 cursor-help" />
-                    </Tooltip>
-                  </div>
-                  <div className="text-base md:text-xl font-mono font-bold text-white tabular-nums">
-                    ${market.totalBorrowsUSD.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-slate-500 font-mono">
-                    {market.totalBorrows.toFixed(6)} {market.symbol}
-                  </div>
-                </div>
-
-                <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
-                    Deposit APR
-                    <Tooltip content="Annual rate earned by suppliers. Varies with utilization." position="top">
-                      <Info className="w-3 h-3 cursor-help" />
-                    </Tooltip>
-                  </div>
-                  <div className="text-lg md:text-2xl font-mono font-bold text-cyan-400 tabular-nums">
-                    {market.supplyApr.toFixed(2)}%
-                  </div>
-                </div>
-
-                <div className="inset-panel cut-corners-sm p-3 md:p-4">
-                  <div className="text-slate-400 text-xs font-mono mb-1 md:mb-2 uppercase tracking-wider flex items-center gap-1">
-                    Borrow APR
-                    <Tooltip content="Annual rate charged to borrowers. Increases with utilization." position="top">
-                      <Info className="w-3 h-3 cursor-help" />
-                    </Tooltip>
-                  </div>
-                  <div className="text-lg md:text-2xl font-mono font-bold text-amber-400 tabular-nums">
-                    {market.borrowApr.toFixed(2)}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Utilization Track */}
-              <div className="mb-4 md:mb-6">
-                <div className="flex justify-between items-center mb-3 md:mb-4">
-                  <span className="text-slate-400 text-xs md:text-sm font-mono uppercase tracking-wider flex items-center gap-1">
-                    Market Utilization
-                    <Tooltip content="% of supplied assets currently borrowed. Higher utilization = higher rates" position="top">
-                      <Info className="w-3 h-3 cursor-help" />
-                    </Tooltip>
-                  </span>
-                  <span className="text-white text-xs md:text-sm font-mono font-semibold tabular-nums">
-                    {market.utilizationRate.toFixed(1)}% of Cap
-                  </span>
-                </div>
-                <div className="relative">
-                  <div className="orbital-ring w-full bg-noise-dark">
-                    <motion.div
-                      className={`h-full bg-gradient-to-r ${getUtilizationBgColor(
-                        market.utilizationRate,
-                        market
-                      )} relative rounded-lg`}
-                      initial={{ width: 0 }}
-                      animate={{ 
-                        width: `${Math.min(market.utilizationRate, 100)}%` 
-                      }}
-                      transition={{ duration: 1.2, ease: "easeOut" }}
-                      style={{
-                        minWidth: market.utilizationRate > 0 ? "14px" : "0px",
-                      }}
-                    />
-                  </div>
-                  <Tooltip content="Interest rates accelerate after kink to incentivize supply" position="top">
-                    <div 
-                      className="absolute top-0 h-3.5 w-0.5 bg-yellow-400 opacity-80 transform -translate-x-0.5 rounded-full"
-                      style={{ 
-                        left: `${(market.kinkNormBps ?? 5000) / 100}%` 
-                      }}
-                    ></div>
-                  </Tooltip>
-                  <Tooltip content="Max utilization threshold. No further borrowing beyond this point" position="top">
-                    <div className="absolute top-0 left-[100%] h-3.5 w-1 bg-red-400 opacity-90 transform -translate-x-1 rounded-full"></div>
-                  </Tooltip>
-                </div>
-                <div className="flex justify-between text-xs font-mono text-slate-500 mt-2">
-                  <span>0%</span>
-                  <Tooltip content="Kink point: where interest rate slope increases sharply" position="top">
-                    <span className="text-yellow-400">
-                      Kink: {((market.kinkNormBps ?? 5000) / 100).toFixed(0)}%
-                    </span>
-                  </Tooltip>
-                  <Tooltip content="Utilization cap: maximum % that can be borrowed" position="top">
-                    <span className="text-red-400">Cap: {((market.utilCapBps ?? 8000) / 100).toFixed(0)}%</span>
-                  </Tooltip>
-                </div>
-              </div>
+              <TabSelector
+                tabs={[
+                  { id: "overview", label: "OVERVIEW" },
+                  { id: "collateral", label: "COLLATERAL" },
+                  { id: "analytics", label: "ANALYTICS" },
+                ]}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                className="mb-4 md:mb-6"
+              />
             </motion.div>
 
-            {/* Interest Rate Model */}
-            <InterestRateModel market={market} />
-
-            {/* LST Token Utilities */}
-            <motion.div
-              className="text-slate-600 cut-corners-lg p-4 md:p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                <Coins className="w-5 h-5 md:w-6 md:h-6 text-cyan-400" />
-                <h2 className="text-lg md:text-xl font-mono font-bold text-white uppercase tracking-wide">
-                  What You Can Do With {getLSTTokenSymbol(market.symbol)}
-                </h2>
-              </div>
-
-              <div className="space-y-4">
-                {/* Always show: Use as collateral */}
-                <div className="text-slate-600 cut-corners-sm p-4 border border-slate-600 hover:border-cyan-500 transition-all duration-150 bg-slate-800/50">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-white font-mono font-semibold mb-2 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-cyan-400" />
-                        Use as Collateral on Orbital
-                      </h3>
-                      <p className="text-slate-400 text-sm font-mono mb-3">
-                        Deposit your {getLSTTokenSymbol(market.symbol)} tokens as collateral to borrow other assets on Orbital Lending
-                      </p>
-                      <Link
-                        to="/app/markets"
-                        className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-xs uppercase tracking-wide"
-                      >
-                        <span>View Markets</span>
-                        <ArrowLeft className="w-3 h-3 rotate-180" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conditionally show: Stake on CompX if available */}
-                {!loadingStakingPools && (() => {
-                  const matchingPool = stakingPools.find(
-                    (pool) => pool.stakedAsset === market.lstTokenId && pool.active
-                  );
-                  
-                  if (!matchingPool) return null;
-
-                  // Get reward asset symbol (you might want to enhance this with a lookup)
-                  const getRewardSymbol = (rewardAssetId: string) => {
-                    if (rewardAssetId === "760037151") return "xUSD";
-                    // Add more mappings as needed
-                    return `Asset ${rewardAssetId}`;
-                  };
-
-                  return (
-                    <div className="text-slate-600 cut-corners-sm p-4 border border-slate-600 hover:border-cyan-500 transition-all duration-150 bg-slate-800/50">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-white font-mono font-semibold mb-2 flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-cyan-400" />
-                            Stake on CompX
-                          </h3>
-                          <p className="text-slate-400 text-sm font-mono mb-2">
-                            Stake your {getLSTTokenSymbol(market.symbol)} tokens to earn {getRewardSymbol(matchingPool.rewardAsset)} rewards
-                          </p>
-                          
-                          <a
-                            href={`https://compx.io/app/staking?pool=${matchingPool.appId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors font-mono text-xs uppercase tracking-wide"
-                          >
-                            <span>Stake Now</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {loadingStakingPools && (
-                  <div className="text-center py-4">
-                    <MomentumSpinner
-                      size="32"
-                      speed="1.1"
-                      color="#06b6d4"
-                      className="mx-auto"
-                    />
-                    <p className="text-slate-400 text-xs font-mono mt-2">
-                      Checking for staking opportunities...
-                    </p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Collateral Relationships */}
-            <CollateralRelationships
-              market={market}
-              acceptedCollateral={acceptedCollateral}
-            />
-
-            {/* Contract Information */}
-            <motion.div
-              className="text-slate-600 cut-corners-lg p-8 bg-noise-dark border-2 border-slate-600 shadow-industrial"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <Info className="w-6 h-6 text-cyan-400" />
-                <h2 className="text-xl font-mono font-bold text-white uppercase tracking-wide">
-                  Contract Information
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
-                      Token ID
-                      <Tooltip content="Unique identifier for this market's smart contract" position="right">
-                        <Info className="w-3 h-3 cursor-help" />
-                      </Tooltip>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-white text-sm">
-                        {market.id}
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(market.id)}
-                        className="text-slate-400 hover:text-cyan-400 transition-colors"
-                      >
-                        {copied ? (
-                          <CheckCircle className="w-4 h-4" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
-                      Decimals
-                      <Tooltip content="Token precision: 6 decimals = divide by 1,000,000" position="right">
-                        <Info className="w-3 h-3 cursor-help" />
-                      </Tooltip>
-                    </span>
-                    <span className="font-mono text-white text-sm">6</span>
-                  </div>
-
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
-                      Oracle Price
-                      <Tooltip content="Real-time price from oracle used for collateral calculations" position="right">
-                        <Info className="w-3 h-3 cursor-help" />
-                      </Tooltip>
-                    </span>
-                    <span className="font-mono text-white text-sm">
-                      ${market?.baseTokenPrice.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
-                      Network
-                    </span>
-                    <NetworkDisplay />
-                  </div>
-
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
-                      Market Type
-                      <Tooltip content="LST Pool: Depositors receive cTokens for their share + interest" position="left">
-                        <Info className="w-3 h-3 cursor-help" />
-                      </Tooltip>
-                    </span>
-                    <span className="font-mono text-white text-sm">
-                      LST Pool
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center py-3 border-b border-slate-700">
-                    <span className="font-mono text-slate-400 text-sm uppercase tracking-wide">
-                      View on Explorer
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <ExplorerLinks appId={Number(market.id)} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            {/* Tab Content */}
+            {activeTab === "overview" && (
+              <OverviewTab
+                market={market}
+                copied={copied}
+                onCopy={copyToClipboard}
+              />
+            )}
+            {activeTab === "collateral" && (
+              <CollateralTab
+                market={market}
+                acceptedCollateral={acceptedCollateral}
+                stakingPools={stakingPools}
+                loadingStakingPools={loadingStakingPools}
+              />
+            )}
+            {activeTab === "analytics" && (
+              <AnalyticsTab market={market} />
+            )}
           </div>
 
           {/* Action Panel - Right Side on Desktop, Drawer on Mobile */}

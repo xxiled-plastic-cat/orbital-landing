@@ -17,10 +17,10 @@ const TabSelector = ({ tabs, activeTab, onTabChange, className = "" }: TabSelect
   return (
     <div className={`relative ${className}`}>
       {/* Tab Background Track */}
-      <div className="relative bg-slate-800/50 border border-slate-600  p-1 backdrop-blur-sm">
+      <div className="relative bg-slate-800/50 border border-slate-600 px-2 py-1 backdrop-blur-sm">
         {/* Active Tab Indicator */}
         <motion.div
-          className="absolute top-1 bottom-1 bg-gradient-to-r from-slate-700 to-slate-600 border border-slate-500  shadow-lg"
+          className="absolute top-0 bottom-0 bg-gradient-to-r from-slate-700 to-slate-600 border border-slate-500  shadow-lg"
           initial={false}
           animate={{
             left: `${(tabs.findIndex(tab => tab.id === activeTab) * 100) / tabs.length}%`,
