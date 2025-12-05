@@ -5,7 +5,7 @@ class MarketAnalytics extends Model<
   InferAttributes<MarketAnalytics>,
   InferCreationAttributes<MarketAnalytics>
 > {
-  declare id: number;
+  declare id?: number;
   declare marketAppId: number;
   declare baseTokenId: number;
   declare tvl: number;
@@ -53,7 +53,7 @@ MarketAnalytics.init({
     allowNull: true,
     field: 'fee_pool',
     get() {
-      const value = this.getDataValue('fee_pool');
+      const value = this.getDataValue('feePool');
       return value ? BigInt(value.toString()) : null;
     }
   },
@@ -62,7 +62,7 @@ MarketAnalytics.init({
     allowNull: true,
     field: 'total_commission_earned',
     get() {
-      const value = this.getDataValue('total_commission_earned');
+      const value = this.getDataValue('totalCommissionEarned');
       return value ? BigInt(value.toString()) : null;
     }
   },
