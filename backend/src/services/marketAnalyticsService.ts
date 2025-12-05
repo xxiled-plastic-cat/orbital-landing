@@ -13,14 +13,31 @@ export interface MarketAnalyticsData {
 }
 
 /**
+ * Serialize MarketAnalytics instance to JSON-safe format
+ * Converts BigInt values to strings
+ */
+function serializeMarketAnalytics(analytics: MarketAnalytics): any {
+  return {
+    id: analytics.id,
+    marketAppId: analytics.marketAppId,
+    baseTokenId: analytics.baseTokenId,
+    tvl: analytics.tvl,
+    borrowing: analytics.borrowing,
+    feePool: analytics.feePool !== null ? analytics.feePool.toString() : null,
+    totalCommissionEarned: analytics.totalCommissionEarned !== null ? analytics.totalCommissionEarned.toString() : null,
+    dateAdded: analytics.dateAdded.toISOString()
+  };
+}
+
+/**
  * Get all market analytics records
  */
-export async function getAllMarketAnalytics(): Promise<MarketAnalytics[]> {
+export async function getAllMarketAnalytics(): Promise<any[]> {
   try {
     const analytics = await MarketAnalytics.findAll({
       order: [['dateAdded', 'DESC']]
     });
-    return analytics;
+    return analytics.map(serializeMarketAnalytics);
   } catch (error) {
     console.error('Error fetching all market analytics:', error);
     throw error;
@@ -35,7 +52,7 @@ export async function getMarketAnalytics(
   marketAppId: number,
   startDate?: Date,
   endDate?: Date
-): Promise<MarketAnalytics[]> {
+): Promise<any[]> {
   try {
     const whereClause: any = {
       marketAppId
@@ -55,7 +72,7 @@ export async function getMarketAnalytics(
       where: whereClause,
       order: [['dateAdded', 'ASC']]
     });
-    return analytics;
+    return analytics.map(serializeMarketAnalytics);
   } catch (error) {
     console.error(`Error fetching market analytics for app ${marketAppId}:`, error);
     throw error;
@@ -67,7 +84,7 @@ export async function getMarketAnalytics(
  */
 export async function addMarketAnalytics(
   data: MarketAnalyticsData
-): Promise<MarketAnalytics> {
+): Promise<any> {
   try {
     const analytics = await MarketAnalytics.create({
       marketAppId: data.marketAppId,
@@ -78,7 +95,7 @@ export async function addMarketAnalytics(
       totalCommissionEarned: data.totalCommissionEarned !== undefined ? data.totalCommissionEarned : null,
       dateAdded: data.dateAdded || new Date()
     });
-    return analytics;
+    return serializeMarketAnalytics(analytics);
   } catch (error) {
     console.error('Error adding market analytics:', error);
     throw error;
