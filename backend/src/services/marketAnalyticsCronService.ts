@@ -1,6 +1,8 @@
 import { OrbitalLendingMarket } from '../models/index.js';
 import { getEnrichedMarketData } from './marketService.js';
 import { addMarketAnalytics, cleanupOldMarketAnalytics } from './marketAnalyticsService.js';
+import { getApplicationGlobalState } from './algorandService.js';
+import { getAssetInfo } from './algorandService.js';
 
 /**
  * Collect market analytics for all markets
@@ -40,12 +42,19 @@ export async function collectMarketAnalytics(): Promise<{
         // Fetch enriched market data (includes TVL and totalBorrowsUSD)
         const enrichedData = await getEnrichedMarketData(market.appId);
 
+        // Fetch global state to get fee pool and commission data
+        const globalState = await getApplicationGlobalState(market.appId);
+        const feePool = globalState.fee_pool || null;
+        const totalCommissionEarned = globalState.total_commission_earned || null;
+
         // Store analytics data
         await addMarketAnalytics({
           marketAppId: market.appId,
           baseTokenId: market.baseTokenId,
           tvl: enrichedData.tvl,
           borrowing: enrichedData.totalBorrowsUSD,
+          feePool: feePool,
+          totalCommissionEarned: totalCommissionEarned,
           dateAdded: new Date()
         });
 

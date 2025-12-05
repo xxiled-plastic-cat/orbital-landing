@@ -7,6 +7,8 @@ export interface MarketAnalyticsData {
   baseTokenId: number;
   tvl: number;
   borrowing: number;
+  feePool?: bigint | null;
+  totalCommissionEarned?: bigint | null;
   dateAdded?: Date;
 }
 
@@ -72,6 +74,8 @@ export async function addMarketAnalytics(
       baseTokenId: data.baseTokenId,
       tvl: data.tvl,
       borrowing: data.borrowing,
+      feePool: data.feePool !== undefined ? data.feePool : null,
+      totalCommissionEarned: data.totalCommissionEarned !== undefined ? data.totalCommissionEarned : null,
       dateAdded: data.dateAdded || new Date()
     });
     return analytics;

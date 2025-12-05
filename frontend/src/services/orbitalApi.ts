@@ -125,6 +125,39 @@ export async function getUserStats(address: string) {
   return response.data;
 }
 
+// ==================== Market Analytics Endpoints ====================
+
+export interface MarketAnalytics {
+  id: number;
+  marketAppId: number;
+  baseTokenId: number;
+  tvl: number;
+  borrowing: number;
+  feePool: string | null; // BigInt as string
+  totalCommissionEarned: string | null; // BigInt as string
+  dateAdded: string;
+}
+
+export interface MarketAnalyticsResponse {
+  success: boolean;
+  data: MarketAnalytics[];
+  count: number;
+}
+
+export async function getMarketAnalytics(marketAppId: number, startDate?: string, endDate?: string): Promise<MarketAnalyticsResponse> {
+  const params: Record<string, string> = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  
+  const response = await orbitalApi.get(`/orbital/markets/${marketAppId}/analytics`, { params });
+  return response.data;
+}
+
+export async function getAllMarketAnalytics(): Promise<MarketAnalyticsResponse> {
+  const response = await orbitalApi.get('/orbital/markets/analytics');
+  return response.data;
+}
+
 // ==================== Health Check ====================
 
 export async function checkBackendHealth(): Promise<boolean> {

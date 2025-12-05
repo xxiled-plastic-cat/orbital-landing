@@ -10,6 +10,8 @@ class MarketAnalytics extends Model<
   declare baseTokenId: number;
   declare tvl: number;
   declare borrowing: number;
+  declare feePool: bigint | null;
+  declare totalCommissionEarned: bigint | null;
   declare dateAdded: Date;
 }
 
@@ -44,6 +46,24 @@ MarketAnalytics.init({
     get() {
       const value = this.getDataValue('borrowing');
       return value ? parseFloat(value.toString()) : 0;
+    }
+  },
+  feePool: {
+    type: DataTypes.DECIMAL(30, 0),
+    allowNull: true,
+    field: 'fee_pool',
+    get() {
+      const value = this.getDataValue('fee_pool');
+      return value ? BigInt(value.toString()) : null;
+    }
+  },
+  totalCommissionEarned: {
+    type: DataTypes.DECIMAL(30, 0),
+    allowNull: true,
+    field: 'total_commission_earned',
+    get() {
+      const value = this.getDataValue('total_commission_earned');
+      return value ? BigInt(value.toString()) : null;
     }
   },
   dateAdded: {
