@@ -255,9 +255,9 @@ const MarketDetailsPage = () => {
 
       // Calculate expected LST tokens to receive
       const expectedLSTMinted = calculateLSTDue(
-        BigInt(Number(amount) * 10 ** baseTokenDecimals),
-        BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
-        BigInt((market?.totalDeposits ?? 0) * 10 ** baseTokenDecimals)
+        BigInt(Math.floor(Number(amount) * 10 ** baseTokenDecimals)),
+        BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
+        BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseTokenDecimals))
       );
       const expectedLSTDisplay = (Number(expectedLSTMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
 
@@ -300,9 +300,9 @@ const MarketDetailsPage = () => {
             const baseDecimals = market?.baseTokenDecimals ?? 6;
             const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
-              BigInt(Number(amount) * 10 ** baseDecimals),
-              BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
-              BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
+              BigInt(Math.floor(Number(amount) * 10 ** baseDecimals)),
+              BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
+              BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
             );
             const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
 
@@ -369,9 +369,9 @@ const MarketDetailsPage = () => {
             const baseDecimals = market?.baseTokenDecimals ?? 6;
             const lstDecimals = market?.lstTokenDecimals ?? 6;
             const lstMinted = calculateLSTDue(
-              BigInt(Number(amount) * 10 ** baseDecimals),
-              BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
-              BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
+              BigInt(Math.floor(Number(amount) * 10 ** baseDecimals)),
+              BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
+              BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
             );
             const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
 
@@ -426,9 +426,9 @@ const MarketDetailsPage = () => {
 
       // Calculate expected base tokens to receive
       const expectedAssetDue = calculateAssetDue(
-        BigInt(Number(amount) * 10 ** lstTokenDecimals),
-        BigInt((market?.circulatingLST ?? 0) * 10 ** lstTokenDecimals),
-        BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
+        BigInt(Math.floor(Number(amount) * 10 ** lstTokenDecimals)),
+        BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstTokenDecimals)),
+        BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
       );
       const expectedAssetDisplay = (Number(expectedAssetDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
 
@@ -468,9 +468,9 @@ const MarketDetailsPage = () => {
           const baseDecimals = market?.baseTokenDecimals ?? 6;
           const lstDecimals = market?.lstTokenDecimals ?? 6;
           const asaDue = calculateAssetDue(
-            BigInt(Number(amount) * 10 ** lstDecimals),
-            BigInt((market?.circulatingLST ?? 0) * 10 ** lstDecimals),
-            BigInt((market?.totalDeposits ?? 0) * 10 ** baseDecimals)
+            BigInt(Math.floor(Number(amount) * 10 ** lstDecimals)),
+            BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
+            BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
           );
           const asaDueDisplay = (Number(asaDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
 
