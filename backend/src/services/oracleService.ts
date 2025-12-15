@@ -10,7 +10,7 @@
  *    - Reading prices: Get testnet IDs from box storage
  *    - Writing prices: Update using testnet IDs
  *
- * 2. EXTERNAL PRICE APIS (CompX, Vestige): Use MAINNET asset IDs
+ * 2. EXTERNAL PRICE APIS (CompX): Use MAINNET asset IDs
  *    - Always fetch prices using mainnet IDs (for accuracy)
  *    - Testnet IDs are mapped to mainnet IDs before API calls
  *
@@ -38,6 +38,7 @@ import {
   formatPrice,
 } from "../utils/priceCalculations.js";
 import * as algokit from "@algorandfoundation/algokit-utils";
+import { getCache, setCache, deleteCache, CacheKeys, CacheTTL, invalidateAssetCache, invalidateMarketCache } from "./cacheService.js";
 
 // Testnet to Mainnet Asset ID Mapping
 // Only used when ALGORAND_NETWORK is 'testnet'
@@ -113,15 +114,6 @@ interface CompXPriceMap {
   };
 }
 
-interface VestigePriceData {
-  network_id: number;
-  asset_id: number;
-  denominating_asset_id: number;
-  price: number;
-  confidence: number;
-  total_lockup: number;
-}
-
 interface CompXAssetMetadata {
   index: number;
   params: {
@@ -180,22 +172,44 @@ export async function fetchAssetMetadata(
       console.log(`  ℹ️  Skipping ALGO (asset ID 0) from API request - using hardcoded values`);
     }
 
-    console.log(
-      `  📡 Requesting metadata from CompX for mainnet assets: [${assetIdStrings.join(
-        ", "
-      )}]`
-    );
+    // Check Redis cache first for individual assets
+    const metadataMap = new Map<number, CompXAssetMetadata>();
+    const uncachedAssetIds: number[] = [];
+    const uncachedMainnetIds: number[] = [];
 
-    // Only make API request if there are assets other than ALGO
+    // Try to get from Redis cache for each asset
+    for (let i = 0; i < assetIdsWithoutAlgo.length; i++) {
+      const originalAssetId = assetIdsWithoutAlgo[i];
+      const mainnetAssetId = mainnetAssetIds[i];
+      const cacheKey = `${CacheKeys.ASSET_METADATA}${mainnetAssetId}`;
+      
+      const cached = await getCache<CompXAssetMetadata>(cacheKey);
+      
+      if (cached) {
+        metadataMap.set(originalAssetId, cached);
+        assetMetadataCache.set(originalAssetId, cached);
+      } else {
+        uncachedAssetIds.push(originalAssetId);
+        uncachedMainnetIds.push(mainnetAssetId);
+      }
+    }
+
+    // Only fetch from API if there are uncached assets
     let assetsData: CompXAssetsResponse = {};
-    if (assetIdStrings.length > 0) {
+    if (uncachedMainnetIds.length > 0) {
+      const uncachedAssetIdStrings = uncachedMainnetIds.map((id) => id.toString());
+      
+      console.log(
+        `  📡 Requesting metadata from CompX for ${uncachedAssetIdStrings.length} uncached mainnet assets: [${uncachedAssetIdStrings.join(", ")}]`
+      );
+
       const response = await fetch("https://api-general.compx.io/api/assets", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          assetIds: assetIdStrings,
+          assetIds: uncachedAssetIdStrings,
         }),
       });
 
@@ -203,7 +217,8 @@ export async function fetchAssetMetadata(
         console.error(
           `  ❌ CompX Assets API error: ${response.status} ${response.statusText}`
         );
-        return new Map();
+        // Return what we have from cache
+        return metadataMap;
       }
 
       assetsData = (await response.json()) as CompXAssetsResponse;
@@ -218,12 +233,8 @@ export async function fetchAssetMetadata(
     console.log(
       `  📦 Received metadata for ${
         Object.keys(assetsData).length
-      } mainnet assets${hasAlgo ? ' (ALGO excluded, using hardcoded)' : ''}`
+      } mainnet assets from API${hasAlgo ? ' (ALGO excluded, using hardcoded)' : ''}`
     );
-
-    // Map response back to original (testnet) asset IDs for caching
-    // Note: Response uses mainnet IDs as keys, we cache using original (testnet) IDs
-    const metadataMap = new Map<number, CompXAssetMetadata>();
 
     // Process ALGO first (if present) with hardcoded values
     if (hasAlgo) {
@@ -244,9 +255,8 @@ export async function fetchAssetMetadata(
     }
 
     // Process non-ALGO assets from API response
-    // Note: ALGO (asset ID 0) is already handled above with hardcoded values
-    assetIdsWithoutAlgo.forEach((originalAssetId, index) => {
-      const mainnetAssetId = mainnetAssetIds[index];
+    uncachedAssetIds.forEach((originalAssetId, index) => {
+      const mainnetAssetId = uncachedMainnetIds[index];
       
       // Look up metadata using MAINNET asset ID (the key in the response)
       const metadata = assetsData[mainnetAssetId.toString()];
@@ -255,6 +265,12 @@ export async function fetchAssetMetadata(
         // Cache metadata using ORIGINAL asset ID (testnet or mainnet)
         metadataMap.set(originalAssetId, metadata);
         assetMetadataCache.set(originalAssetId, metadata);
+        
+        // Also cache in Redis using mainnet ID
+        const cacheKey = `${CacheKeys.ASSET_METADATA}${mainnetAssetId}`;
+        setCache(cacheKey, metadata, CacheTTL.ASSET_METADATA).catch((err) => {
+          console.error(`Failed to cache metadata for asset ${mainnetAssetId}:`, err);
+        });
 
         const displayId =
           isTestnet && mainnetAssetId !== originalAssetId
@@ -523,100 +539,6 @@ export async function fetchCompXPrice(
 }
 
 /**
- * Fetch price from Vestige source
- * @param symbol - Asset symbol
- * @param assetId - Asset ID (testnet ID, will be mapped to mainnet if needed)
- * @returns Price or null if unavailable
- */
-export async function fetchVestigePrice(
-  symbol: string,
-  assetId: number
-): Promise<number | null> {
-  console.log(`  🔍 Fetching ${symbol} price from Vestige...`);
-
-  try {
-    // Map testnet asset to mainnet for price fetching
-    const priceAssetId = getMainnetAssetId(assetId);
-
-    // Vestige API configuration
-    const VESTIGE_API_BASE = "https://api.vestigelabs.org/assets/price";
-    // Always use mainnet (0) for price data when we have a mapping, otherwise use actual network
-    const NETWORK_ID =
-      process.env.ALGORAND_NETWORK === "testnet" && priceAssetId !== assetId
-        ? 0
-        : process.env.ALGORAND_NETWORK === "mainnet"
-        ? 0
-        : 1;
-    const DENOMINATING_ASSET_ID = 31566704; // ALGO as the denominating asset
-
-    // Build API URL with query parameters
-    const url = new URL(VESTIGE_API_BASE);
-    url.searchParams.append("asset_ids", priceAssetId.toString());
-    url.searchParams.append("network_id", NETWORK_ID.toString());
-    url.searchParams.append(
-      "denominating_asset_id",
-      DENOMINATING_ASSET_ID.toString()
-    );
-
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      console.error(
-        `  ❌ Vestige API error: ${response.status} ${response.statusText}`
-      );
-      return null;
-    }
-
-    const priceData = (await response.json()) as VestigePriceData[];
-
-    // Response is an array of price objects
-    if (Array.isArray(priceData) && priceData.length > 0) {
-      // Find the price data for our specific asset (use the mapped mainnet ID)
-      const assetPrice = priceData.find(
-        (item) => item.asset_id === priceAssetId
-      );
-
-      if (assetPrice && assetPrice.price !== undefined) {
-        const price = assetPrice.price;
-
-        // Validate the price
-        if (isValidPrice(price)) {
-          // Log confidence if available
-          if (assetPrice.confidence !== undefined) {
-            console.log(
-              `  📊 Confidence: ${(assetPrice.confidence * 100).toFixed(2)}%`
-            );
-          }
-          return price;
-        } else {
-          console.error(
-            `  ⚠️  Invalid price from Vestige for ${symbol}: ${price}`
-          );
-          return null;
-        }
-      }
-    }
-
-    console.log(
-      `  ⚠️  No price data available for ${symbol} (Asset ID: ${priceAssetId}) from Vestige`
-    );
-    return null;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `  ❌ Error fetching Vestige price for ${symbol}:`,
-      errorMessage
-    );
-    return null;
-  }
-}
-
-/**
  * Fetch prices from all sources for a given asset
  * @param symbol - Asset symbol
  * @param assetId - Asset ID
@@ -628,27 +550,14 @@ export async function fetchPricesFromAllSources(
 ): Promise<PriceSource[]> {
   const prices: PriceSource[] = [];
 
-  // Fetch from Vestige (primary source - higher weight)
-  const vestigePrice = await fetchVestigePrice(symbol, assetId);
-  if (isValidPrice(vestigePrice)) {
-    prices.push({ source: "Vestige", price: vestigePrice, weight: 0.85 });
-    console.log(
-      `  ✅ Vestige price: $${formatPrice(vestigePrice)} (weight: 0.85)`
-    );
-  } else {
-    console.log(`  ❌ Vestige price unavailable`);
-  }
-
-  // Fetch from CompX (backup source - lower weight)
+  // Fetch from CompX (primary source)
   const compxPrice = await fetchCompXPrice(symbol, assetId);
   if (isValidPrice(compxPrice)) {
-    prices.push({ source: "CompX", price: compxPrice, weight: 0.15 });
-    console.log(`  ✅ CompX price: $${formatPrice(compxPrice)} (weight: 0.15)`);
+    prices.push({ source: "CompX", price: compxPrice, weight: 1.0 });
+    console.log(`  ✅ CompX price: $${formatPrice(compxPrice)}`);
   } else {
     console.log(`  ❌ CompX price unavailable`);
   }
-
-  // Add more price sources here as needed
 
   return prices;
 }
@@ -671,48 +580,14 @@ export async function getMedianPrice(
       return null;
     }
 
-    console.log(`\n  💰 Price Sources (${pricesWithSources.length}):`);
-    pricesWithSources.forEach(({ source, price, weight }) => {
-      console.log(
-        `     ${source.padEnd(10)} → $${formatPrice(
-          price,
-          8
-        )} (weight: ${weight})`
-      );
-    });
-
-    // Calculate weighted average
-    if (pricesWithSources.length === 1) {
-      const finalPrice = pricesWithSources[0].price;
-      console.log(
-        `  📊 Final Price: $${formatPrice(finalPrice, 8)} (single source)`
-      );
-      console.log("");
-      return finalPrice;
-    }
-
-    // Weighted average calculation
-    const totalWeight = pricesWithSources.reduce((sum, p) => sum + p.weight, 0);
-    const weightedSum = pricesWithSources.reduce(
-      (sum, p) => sum + p.price * p.weight,
-      0
+    console.log(`\n  💰 Price Source: CompX`);
+    const finalPrice = pricesWithSources[0].price;
+    console.log(
+      `  📊 Final Price: $${formatPrice(finalPrice, 8)}`
     );
-    const weightedPrice = weightedSum / totalWeight;
-
-    console.log(`  📊 Calculation:`);
-    pricesWithSources.forEach(({ source, price, weight }) => {
-      const contribution = (price * weight) / totalWeight;
-      console.log(
-        `     ${source}: $${formatPrice(price, 8)} × ${weight} = $${formatPrice(
-          contribution,
-          8
-        )}`
-      );
-    });
-    console.log(`  📊 Weighted Average: $${formatPrice(weightedPrice, 8)}`);
     console.log("");
 
-    return weightedPrice;
+    return finalPrice;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
@@ -811,6 +686,21 @@ export async function updateOracleContract(
         newPrice
       )} [${decimals} decimals]`
     );
+    
+    // Invalidate oracle price cache and market cache (since prices affect market data)
+    const oracleAppId = process.env.ORACLE_APP_ID;
+    if (oracleAppId) {
+      const priceCacheKey = `${CacheKeys.ORACLE_PRICE}${oracleAppId}:${assetId}`;
+      await deleteCache(priceCacheKey).catch((err) => {
+        console.error(`Failed to invalidate price cache:`, err);
+      });
+    }
+    
+    // Invalidate all market cache since prices affect enriched market data
+    await invalidateMarketCache().catch((err) => {
+      console.error(`Failed to invalidate market cache:`, err);
+    });
+    
     return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
