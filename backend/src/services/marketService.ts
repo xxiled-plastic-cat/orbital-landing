@@ -1,11 +1,18 @@
 import { OrbitalLendingMarket } from '../models/index.js';
 import { getApplicationGlobalState, getTokenPriceFromOracle, getAssetInfo } from './algorandService.js';
 import { currentAprBps } from '../utils/apyCalculations.js';
+import { getOrSetCache, CacheKeys, CacheTTL, invalidateMarketCache } from './cacheService.js';
 
 export async function getOrbitalLendingMarkets() {
   try {
-    const markets = await OrbitalLendingMarket.findAll();
-    return markets;
+    const cacheKey = `${CacheKeys.MARKET_BASIC}all`;
+    return await getOrSetCache(
+      cacheKey,
+      async () => {
+        return await OrbitalLendingMarket.findAll();
+      },
+      CacheTTL.MARKET_BASIC
+    );
   } catch (error) {
     console.error('Error fetching orbital lending markets:', error);
     throw error;
@@ -39,6 +46,10 @@ export async function addOrbitalLendingMarket(
       network,
     };
     const market = await OrbitalLendingMarket.create(marketData);
+    
+    // Invalidate market cache after adding new market
+    await invalidateMarketCache();
+    
     return market;
   } catch (error) {
     console.error('Error adding orbital lending market:', error);
@@ -73,15 +84,20 @@ export interface EnrichedMarketData {
  * Fetch enriched market data including on-chain state, APY, and TVL
  */
 export async function getEnrichedMarketData(appId: number): Promise<EnrichedMarketData> {
-  try {
-    // 1. Get market from database
-    const market = await OrbitalLendingMarket.findByPk(appId);
-    if (!market) {
-      throw new Error(`Market with app ID ${appId} not found`);
-    }
+  const cacheKey = `${CacheKeys.MARKET_ENRICHED}${appId}`;
+  
+  return await getOrSetCache(
+    cacheKey,
+    async () => {
+      try {
+        // 1. Get market from database
+        const market = await OrbitalLendingMarket.findByPk(appId);
+        if (!market) {
+          throw new Error(`Market with app ID ${appId} not found`);
+        }
 
-    // 2. Fetch on-chain global state
-    const globalState = await getApplicationGlobalState(appId);
+        // 2. Fetch on-chain global state
+        const globalState = await getApplicationGlobalState(appId);
 
     // 3. Extract values from global state
     const totalDeposits = globalState.total_deposits || 0n;
@@ -166,43 +182,54 @@ export async function getEnrichedMarketData(appId: number): Promise<EnrichedMark
       utilizationRate: Math.round(utilizationRate * 100) / 100,
       availableToBorrow: availableToBorrowNum.toFixed(decimals),
       baseTokenPrice: Math.round(baseTokenPrice * 1000000) / 1000000, // 6 decimals
-      totalBorrowsUSD: Math.round(totalBorrowsUSD * 100) / 100,
-      availableToBorrowUSD: Math.round(availableToBorrowUSD * 100) / 100,
-    };
-  } catch (error) {
-    console.error(`Error fetching enriched market data for app ${appId}:`, error);
-    throw error;
-  }
+        totalBorrowsUSD: Math.round(totalBorrowsUSD * 100) / 100,
+        availableToBorrowUSD: Math.round(availableToBorrowUSD * 100) / 100,
+      };
+      } catch (error) {
+        console.error(`Error fetching enriched market data for app ${appId}:`, error);
+        throw error;
+      }
+    },
+    CacheTTL.MARKET_ENRICHED
+  );
 }
 
 /**
  * Fetch enriched data for all markets
  */
 export async function getAllEnrichedMarketData(network?: 'mainnet' | 'testnet'): Promise<EnrichedMarketData[]> {
-  try {
-    // Get all markets from database
-    let markets = await OrbitalLendingMarket.findAll();
+  const cacheKey = `${CacheKeys.MARKET_ALL_ENRICHED}${network || 'all'}`;
+  
+  return await getOrSetCache(
+    cacheKey,
+    async () => {
+      try {
+        // Get all markets from database
+        let markets = await OrbitalLendingMarket.findAll();
 
-    // Filter by network if specified
-    if (network) {
-      markets = markets.filter((m) => m.network === network);
-    }
+        // Filter by network if specified
+        if (network) {
+          markets = markets.filter((m) => m.network === network);
+        }
 
-    // Fetch enriched data for each market in parallel
-    const enrichedDataPromises = markets.map((market) => 
-      getEnrichedMarketData(market.appId).catch((error) => {
-        console.error(`Failed to enrich market ${market.appId}:`, error);
-        return null;
-      })
-    );
+        // Fetch enriched data for each market in parallel
+        const enrichedDataPromises = markets.map((market) => 
+          getEnrichedMarketData(market.appId).catch((error) => {
+            console.error(`Failed to enrich market ${market.appId}:`, error);
+            return null;
+          })
+        );
 
-    const enrichedData = await Promise.all(enrichedDataPromises);
+        const enrichedData = await Promise.all(enrichedDataPromises);
 
-    // Filter out any failed enrichments
-    return enrichedData.filter((data): data is EnrichedMarketData => data !== null);
-  } catch (error) {
-    console.error('Error fetching all enriched market data:', error);
-    throw error;
-  }
+        // Filter out any failed enrichments
+        return enrichedData.filter((data): data is EnrichedMarketData => data !== null);
+      } catch (error) {
+        console.error('Error fetching all enriched market data:', error);
+        throw error;
+      }
+    },
+    CacheTTL.MARKET_ENRICHED
+  );
 }
 

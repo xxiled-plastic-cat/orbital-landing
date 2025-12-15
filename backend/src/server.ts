@@ -1,5 +1,6 @@
 import app from './app.js';
 import { testConnection } from './config/database.js';
+import { closeCacheConnection } from './services/cacheService.js';
 import { AddressInfo } from 'net';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -47,15 +48,22 @@ const startServer = async (): Promise<void> => {
 };
 
 // Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+const gracefulShutdown = async (signal: string) => {
+  console.log(`${signal} signal received: closing HTTP server and connections`);
+  
+  try {
+    // Close Redis cache connection
+    await closeCacheConnection();
+    console.log('✅ Cache connection closed');
+  } catch (error) {
+    console.error('Error closing cache connection:', error);
+  }
+  
   process.exit(0);
-});
+};
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing HTTP server');
-  process.exit(0);
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 startServer();
 
