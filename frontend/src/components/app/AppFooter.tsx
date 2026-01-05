@@ -137,20 +137,20 @@ const AppFooter = () => {
             </h3>
             <div className="flex flex-col gap-3">
               <a
-                href="https://app.compx.io"
+                href="https://core.compx.io"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 text-slate-400 hover:text-cyan-400 transition-colors group"
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center transition-colors flex-shrink-0">
                   <img
-                    src="/compx-logo-small.png"
-                    alt="CompX Core"
+                    src="/core-logo-small.png"
+                    alt="Core"
                     className="w-6 h-6 object-contain rounded-full"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono">CompX Core</span>
+                  <span className="text-sm font-mono">Core</span>
                   <ExternalLink className="w-3 h-3" />
                 </div>
               </a>
