@@ -275,6 +275,7 @@ const MarketDetailsPage = () => {
           appId: Number(market?.id),
           depositAssetId: Number(market?.baseTokenId),
           lstAssetId: Number(market?.lstTokenId),
+          baseTokenDecimals: market?.baseTokenDecimals ?? 6,
           signer: transactionSigner,
         })
           .then((txId) => {
@@ -344,6 +345,7 @@ const MarketDetailsPage = () => {
           appId: Number(market?.id),
           depositAssetId: Number(market?.baseTokenId),
           lstAssetId: Number(market?.lstTokenId),
+          baseTokenDecimals: market?.baseTokenDecimals ?? 6,
           signer: transactionSigner,
         })
           .then((txId) => {
@@ -446,6 +448,7 @@ const MarketDetailsPage = () => {
         appId: Number(market?.id),
         signer: transactionSigner,
         lstTokenId: Number(market?.lstTokenId),
+        lstTokenDecimals: market?.lstTokenDecimals ?? 6,
       })
         .then((txId) => {
           // Apply optimistic updates for instant UI feedback
@@ -526,6 +529,7 @@ const MarketDetailsPage = () => {
         amount: Number(repayAmount),
         appId: Number(market?.id),
         lstTokenId: Number(market?.lstTokenId),
+        baseTokenDecimals: market?.baseTokenDecimals ?? 6,
         signer: transactionSigner,
       })
         .then((txId) => {
@@ -583,6 +587,7 @@ const MarketDetailsPage = () => {
         appId: Number(market?.id),
         lstTokenId: Number(market?.lstTokenId),
         repayTokenId: Number(market?.baseTokenId),
+        baseTokenDecimals: market?.baseTokenDecimals ?? 6,
         signer: transactionSigner,
       })
         .then((txId) => {
@@ -654,6 +659,7 @@ const MarketDetailsPage = () => {
       appId: Number(market?.id),
       collateralAssetId: Number(collateralAssetId),
       lstAppId: Number(market?.id),
+      lstTokenDecimals: market?.lstTokenDecimals ?? 6,
       signer: transactionSigner,
     })
       .then((txId) => {
@@ -763,6 +769,8 @@ const MarketDetailsPage = () => {
       lstAppId: Number(collateralMarket.id), // Use the collateral market's app ID
       appId: Number(market?.id), // Current market we're borrowing from
       oracleAppId: Number(market?.oracleAppId),
+      collateralTokenDecimals: collateralMarket?.lstTokenDecimals ?? 6,
+      baseTokenDecimals: market?.baseTokenDecimals ?? 6,
       signer: transactionSigner,
     })
       .then((txId) => {

@@ -107,8 +107,8 @@ const TESTNET_ASSET_METADATA: Record<string, AssetMetadata> = {
     verified: true,
     frozen: false,
   },
-  "747010926": {
-    id: "747010926",
+  "754186123": {
+    id: "754186123",
     name: "Collateralized goBTCt Testnet",
     symbol: "cgoBTCt",
     decimals: 8,
@@ -128,7 +128,7 @@ const TESTNET_MARKET_ASSET_IDS = [
   "748908221", // cxUSDt (collateral token)
   "747010543", // cALGO (collateral token)
   "748119416", // cUSDCt (collateral token) - NEW CONTRACT
-  "747010926", // cgoBTCt (collateral token)
+  "754186123", // cgoBTCt (collateral token)
 ];
 
 // Token metadata mapping for markets - you can expand this or fetch from another endpoint

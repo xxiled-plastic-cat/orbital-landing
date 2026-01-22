@@ -317,6 +317,55 @@ const ActionPanel = ({
     }
   };
 
+  // Helper function to sanitize number input - rounds to appropriate decimal places
+  const sanitizeNumberInput = (value: string, maxDecimals: number): string => {
+    if (!value || value === "") return "";
+    
+    // Remove any non-numeric characters except decimal point
+    let cleaned = value.replace(/[^\d.]/g, "");
+    
+    // Ensure only one decimal point
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      cleaned = parts[0] + "." + parts.slice(1).join("");
+    }
+    
+    // Limit decimal places
+    if (parts.length === 2 && parts[1].length > maxDecimals) {
+      cleaned = parts[0] + "." + parts[1].substring(0, maxDecimals);
+    }
+    
+    return cleaned;
+  };
+
+  // Helper function to safely convert input string to integer microunits
+  // Parses the string directly to avoid floating-point precision errors
+  const inputToMicrounits = (value: string, decimals: number): bigint => {
+    if (!value || value === "") return 0n;
+    
+    // Remove any whitespace
+    const trimmed = value.trim();
+    if (trimmed === "" || trimmed === ".") return 0n;
+    
+    // Split into integer and fractional parts
+    const parts = trimmed.split(".");
+    const integerPart = parts[0] || "0";
+    const fractionalPart = parts[1] || "";
+    
+    // Validate: only digits
+    if (!/^\d+$/.test(integerPart.replace(/^-/, "")) || (fractionalPart && !/^\d+$/.test(fractionalPart))) {
+      return 0n;
+    }
+    
+    // Pad fractional part to decimals, then truncate if longer
+    const paddedFractional = fractionalPart.padEnd(decimals, "0").substring(0, decimals);
+    
+    // Combine integer and fractional parts as strings, then convert to BigInt
+    const microunitsString = integerPart + paddedFractional;
+    
+    return BigInt(microunitsString);
+  };
+
   // Helper function to get base token symbol (removes 'c' prefix if LST)
   const getBaseTokenSymbol = (symbol?: string): string => {
     if (!symbol) return "";
@@ -457,20 +506,22 @@ const ActionPanel = ({
     }
   };
 
-  // Format balance from microunits to display units (assuming 6 decimals for most tokens)
-  const formatBalance = (balance: string, decimals = 6): string => {
+  // Format balance from microunits to display units (uses market decimals)
+  const formatBalance = (balance: string, decimals?: number): string => {
     const balanceNum = parseFloat(balance || "0");
     if (isNaN(balanceNum) || balanceNum === 0) return "0";
 
-    const formattedBalance = balanceNum / Math.pow(10, decimals);
+    // Use market decimals if not provided, default to 6 for backwards compatibility
+    const tokenDecimals = decimals ?? market.baseTokenDecimals ?? 6;
+    const formattedBalance = balanceNum / Math.pow(10, tokenDecimals);
 
-    // For very small amounts, show more precision
+    // For very small amounts, show full precision up to token decimals
     if (formattedBalance < 0.01 && formattedBalance > 0) {
-      return formattedBalance.toFixed(8).replace(/\.?0+$/, "");
+      return formattedBalance.toFixed(tokenDecimals).replace(/\.?0+$/, "");
     }
 
-    // For normal amounts, show up to 6 decimal places
-    return formattedBalance.toFixed(6).replace(/\.?0+$/, "");
+    // For normal amounts, show up to token decimal places
+    return formattedBalance.toFixed(tokenDecimals).replace(/\.?0+$/, "");
   };
 
   // Smart formatting for USD amounts (hide decimals for whole numbers)
@@ -481,13 +532,17 @@ const ActionPanel = ({
     return `$${amount.toFixed(2)}`;
   };
 
-  // Smart formatting for token amounts (hide decimals for whole numbers)
-  const formatTokenAmount = (amount: number, maxDecimals = 6): string => {
+  // Smart formatting for token amounts (hide decimals for whole numbers, uses market decimals)
+  const formatTokenAmount = (amount: number, maxDecimals?: number): string => {
     if (amount === 0) return "0";
-    if (amount < 0.000001) return amount.toFixed(8).replace(/\.?0+$/, "");
+    
+    // Use market decimals if not provided, default to 6 for backwards compatibility
+    const tokenDecimals = maxDecimals ?? market.baseTokenDecimals ?? 6;
+    
+    if (amount < 0.000001) return amount.toFixed(tokenDecimals).replace(/\.?0+$/, "");
     if (amount % 1 === 0) return amount.toFixed(0); // Whole number, no decimals
-    if (amount < 1) return amount.toFixed(maxDecimals).replace(/\.?0+$/, "");
-    return amount.toFixed(Math.min(maxDecimals, 2)).replace(/\.?0+$/, "");
+    if (amount < 1) return amount.toFixed(tokenDecimals).replace(/\.?0+$/, "");
+    return amount.toFixed(Math.min(tokenDecimals, 2)).replace(/\.?0+$/, "");
   };
 
   // Dynamic font size based on content length (responsive)
@@ -541,7 +596,25 @@ const ActionPanel = ({
   // Handle MAX button click
   const handleMaxClick = () => {
     const maxBalance = getMaxBalance();
-    const formattedMax = formatBalance(maxBalance);
+    let formattedMax: string;
+    
+    if (activeAction === "redeem") {
+      // For redeem, use LST token decimals
+      formattedMax = formatBalance(maxBalance, market.lstTokenDecimals);
+    } else if (activeAction === "deposit") {
+      // For deposit, use base token decimals
+      formattedMax = formatBalance(maxBalance, market.baseTokenDecimals);
+    } else if (activeAction === "repay") {
+      // For repay, use base token decimals
+      formattedMax = formatBalance(maxBalance, market.baseTokenDecimals);
+    } else if (activeAction === "withdraw") {
+      // For withdraw, use the collateral token decimals
+      const collateralInfo = availableCollateral.find(c => c.assetId === withdrawCollateralAssetId);
+      formattedMax = formatBalance(maxBalance, collateralInfo?.decimals);
+    } else {
+      formattedMax = formatBalance(maxBalance);
+    }
+    
     if (activeAction === "open") {
       setCollateralAmount(formattedMax);
     } else if (activeAction === "repay") {
@@ -751,7 +824,7 @@ const ActionPanel = ({
   // Handle max collateral click
   const handleMaxCollateralClick = () => {
     if (selectedCollateralInfo) {
-      const maxBalance = formatBalance(selectedCollateralInfo.balance);
+      const maxBalance = formatBalance(selectedCollateralInfo.balance, selectedCollateralInfo.decimals);
       setCollateralAmount(maxBalance);
     }
   };
@@ -897,7 +970,7 @@ const ActionPanel = ({
             <>
               <button
                 onClick={() => setActiveAction("open")}
-                className={`flex-1 h-10 md:h-12 px-2 md:px-3 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                className={`flex-1 h-10 md:h-12 px-3 md:px-4 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
                   activeAction === "open"
                     ? "bg-gradient-to-br from-blue-600 to-blue-700 border-blue-400 text-white shadow-blue-500/25 transform scale-[1.02]"
                     : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
@@ -908,7 +981,7 @@ const ActionPanel = ({
               </button>
               <button
                 onClick={() => setActiveAction("repay")}
-                className={`flex-1 h-10 md:h-12 px-2 md:px-3 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                className={`flex-1 h-10 md:h-12 px-3 md:px-4 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
                   activeAction === "repay"
                     ? "bg-gradient-to-br from-amber-600 to-amber-700 border-amber-400 text-white shadow-amber-500/25 transform scale-[1.02]"
                     : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
@@ -919,7 +992,7 @@ const ActionPanel = ({
               </button>
               <button
                 onClick={() => setActiveAction("withdraw")}
-                className={`flex-1 h-10 md:h-12 px-2 md:px-3 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
+                className={`flex-1 h-10 md:h-12 px-3 md:px-4 cut-corners-md font-mono text-xs md:text-sm font-bold uppercase tracking-wide transition-all duration-200 border-2 shadow-lg ${
                   activeAction === "withdraw"
                     ? "bg-gradient-to-br from-purple-600 to-purple-700 border-purple-400 text-white shadow-purple-500/25 transform scale-[1.02]"
                     : "bg-gradient-to-br from-slate-700 to-slate-800 border-slate-600 text-slate-300 hover:text-white hover:border-slate-500 hover:shadow-slate-500/20"
@@ -960,13 +1033,13 @@ const ActionPanel = ({
                     <div>
                       <div className="text-slate-400 font-mono">Collateral</div>
                       <div className="text-white font-mono">
-                        {(Number(userDebt.collateralAmount) / Math.pow(10, market.lstTokenDecimals)).toFixed(market.lstTokenDecimals)} {availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
+                        {formatTokenAmount(Number(userDebt.collateralAmount) / Math.pow(10, market.lstTokenDecimals), market.lstTokenDecimals)} {availableCollateral.find(c => c.assetId === userDebt.collateralTokenId.toString())?.symbol}
                       </div>
                     </div>
                     <div>
                       <div className="text-slate-400 font-mono">Debt</div>
                       <div className="text-white font-mono">
-                        {(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals)).toFixed(market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)}
+                        {formatTokenAmount(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals), market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)}
                       </div>
                     </div>
                   </div>
@@ -1074,8 +1147,14 @@ const ActionPanel = ({
                     <input
                       type="number"
                       value={collateralAmount}
-                      onChange={(e) => setCollateralAmount(e.target.value)}
+                      onChange={(e) => {
+                        const maxDecimals = selectedCollateralInfo?.decimals || 6;
+                        const sanitized = sanitizeNumberInput(e.target.value, maxDecimals);
+                        setCollateralAmount(sanitized);
+                      }}
                       placeholder="0.00"
+                      step={selectedCollateralInfo?.decimals ? `0.${'0'.repeat(selectedCollateralInfo.decimals - 1)}1` : "0.000001"}
+                      min="0"
                       className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-blue-400"
                     />
                     <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
@@ -1086,7 +1165,7 @@ const ActionPanel = ({
                   </div>
                   {selectedCollateralInfo && (
                     <div className="text-xs font-mono text-slate-400 mt-1">
-                      Balance: {formatBalance(selectedCollateralInfo.balance)}{" "}
+                      Balance: {formatBalance(selectedCollateralInfo.balance, selectedCollateralInfo.decimals)}{" "}
                       {selectedCollateralInfo.symbol}
                     </div>
                   )}
@@ -1116,8 +1195,13 @@ const ActionPanel = ({
                     <input
                       type="number"
                       value={borrowAmount}
-                      onChange={(e) => setBorrowAmount(e.target.value)}
+                      onChange={(e) => {
+                        const sanitized = sanitizeNumberInput(e.target.value, market.baseTokenDecimals);
+                        setBorrowAmount(sanitized);
+                      }}
                       placeholder="0.00"
+                      step={`0.${'0'.repeat(market.baseTokenDecimals - 1)}1`}
+                      min="0"
                       className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-blue-400"
                     />
                     <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
@@ -1160,8 +1244,13 @@ const ActionPanel = ({
                 <input
                   type="number"
                   value={repayAmount}
-                  onChange={(e) => setRepayAmount(e.target.value)}
+                  onChange={(e) => {
+                    const sanitized = sanitizeNumberInput(e.target.value, market.baseTokenDecimals);
+                    setRepayAmount(sanitized);
+                  }}
                   placeholder="0.00"
+                  step={`0.${'0'.repeat(market.baseTokenDecimals - 1)}1`}
+                  min="0"
                   className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-amber-400"
                 />
                 <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
@@ -1179,7 +1268,7 @@ const ActionPanel = ({
               </div>
               {userDebt && (
                 <div className="text-xs font-mono text-slate-400 mt-1">
-                    Total Debt: {(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals)).toFixed(market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)}
+                    Total Debt: {formatTokenAmount(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals), market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)}
                 </div>
               )}
             </div>
@@ -1228,8 +1317,14 @@ const ActionPanel = ({
                     <input
                       type="number"
                       value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      onChange={(e) => {
+                        const maxDecimals = availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals || 6;
+                        const sanitized = sanitizeNumberInput(e.target.value, maxDecimals);
+                        setWithdrawAmount(sanitized);
+                      }}
                       placeholder="0.00"
+                      step={availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals ? `0.${'0'.repeat(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)!.decimals - 1)}1` : "0.000001"}
+                      min="0"
                       className="w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors focus:border-purple-400"
                     />
                     <div className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 md:gap-2">
@@ -1240,7 +1335,7 @@ const ActionPanel = ({
                   </div>
                   {withdrawCollateralAssetId && (
                     <div className="text-xs font-mono text-slate-400 mt-1">
-                      Available: {formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0")}{" "}
+                      Available: {formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0", availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals)}{" "}
                       {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
                     </div>
                   )}
@@ -1293,8 +1388,14 @@ const ActionPanel = ({
                 <input
                   type="number"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    const maxDecimals = activeAction === "deposit" ? market.baseTokenDecimals : market.lstTokenDecimals;
+                    const sanitized = sanitizeNumberInput(e.target.value, maxDecimals);
+                    setAmount(sanitized);
+                  }}
                   placeholder="0.00"
+                  step={activeAction === "deposit" ? `0.${'0'.repeat(market.baseTokenDecimals - 1)}1` : `0.${'0'.repeat(market.lstTokenDecimals - 1)}1`}
+                  min="0"
                   className={`w-full h-10 md:h-12 px-3 md:px-4 bg-slate-100 border-2 border-slate-600 text-slate-800 font-mono text-base md:text-lg focus:outline-none transition-colors ${
                     activeAction === "deposit"
                       ? "focus:border-cyan-400"
@@ -1622,14 +1723,17 @@ const ActionPanel = ({
                     <div className="flex justify-between items-center text-sm">
                       <span className="font-mono text-slate-400">Withdraw Amount</span>
                       <span className="font-mono font-bold text-purple-400">
-                        {parseFloat(withdrawAmount).toFixed(6)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                        {formatTokenAmount(parseFloat(withdrawAmount), availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center text-sm">
                       <span className="font-mono text-slate-400">Remaining Collateral</span>
                       <span className="font-mono text-white">
-                        {(parseFloat(formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0")) - parseFloat(withdrawAmount)).toFixed(6)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                        {formatTokenAmount(
+                          parseFloat(formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0", availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals)) - parseFloat(withdrawAmount),
+                          availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals
+                        )} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
                       </span>
                     </div>
 
@@ -1691,16 +1795,16 @@ const ActionPanel = ({
                     </Tooltip>
                   </div>
                   <span className="font-mono text-white">
-                    {isLoadingAssets ? (
+                      {isLoadingAssets ? (
                       <span className="text-slate-500">Loading...</span>
                     ) : (
                       <>
                         {activeAction === "deposit" &&
-                          `${formatBalance(getUserBalance())} ${
+                          `${formatBalance(getUserBalance(), market.baseTokenDecimals)} ${
                             getBaseTokenSymbol(market?.symbol) || "tokens"
                           }`}
                         {activeAction === "redeem" &&
-                          `${formatBalance(getUserBalance())} ${
+                          `${formatBalance(getUserBalance(), market.lstTokenDecimals)} ${
                             getLSTTokenSymbol(market?.symbol) || "LST"
                           }`}
                       </>
@@ -1751,26 +1855,32 @@ const ActionPanel = ({
                     {activeAction === "deposit" &&
                       `${
                         amount
-                          ? (Number(
-                              calculateLSTDue(
-                                BigInt(Number(amount) * 10 ** market.baseTokenDecimals),
-                                BigInt(Math.floor(market.circulatingLST) * 10 ** market.lstTokenDecimals || 0),
-                                BigInt(Math.floor(market.totalDeposits) * 10 ** market.baseTokenDecimals || 0)
-                              )
-                            ) / 10 ** market.lstTokenDecimals).toFixed(market.lstTokenDecimals)
-                          : "0." + "0".repeat(market.lstTokenDecimals)
+                          ? formatTokenAmount(
+                              Number(
+                                calculateLSTDue(
+                                  inputToMicrounits(amount, market.baseTokenDecimals),
+                                  BigInt(Math.floor(market.circulatingLST * 10 ** market.lstTokenDecimals) || 0),
+                                  BigInt(Math.floor(market.totalDeposits * 10 ** market.baseTokenDecimals) || 0)
+                                )
+                              ) / 10 ** market.lstTokenDecimals,
+                              market.lstTokenDecimals
+                            )
+                          : "0"
                       } ${getLSTTokenSymbol(market?.symbol)}`}
                     {activeAction === "redeem" &&
                       `${
                         amount
-                          ? (Number(
-                              calculateAssetDue(
-                                BigInt(Number(amount) * 10 ** market.lstTokenDecimals),
-                                BigInt(Math.floor(market?.circulatingLST) * 10 ** market.lstTokenDecimals || 0),
-                                BigInt(Math.floor(market?.totalDeposits) * 10 ** market.baseTokenDecimals || 0)
-                              )
-                            ) / 10 ** market.baseTokenDecimals).toFixed(market.baseTokenDecimals)
-                          : "0." + "0".repeat(market.baseTokenDecimals)
+                          ? formatTokenAmount(
+                              Number(
+                                calculateAssetDue(
+                                  inputToMicrounits(amount, market.lstTokenDecimals),
+                                  BigInt(Math.floor(market?.circulatingLST * 10 ** market.lstTokenDecimals) || 0),
+                                  BigInt(Math.floor(market?.totalDeposits * 10 ** market.baseTokenDecimals) || 0)
+                                )
+                              ) / 10 ** market.baseTokenDecimals,
+                              market.baseTokenDecimals
+                            )
+                          : "0"
                       } ${getBaseTokenSymbol(market?.symbol)}`}
                   </span>
                 </div>
@@ -1982,7 +2092,7 @@ const ActionPanel = ({
                     <span>
                       Insufficient {selectedCollateralInfo?.symbol} balance
                       (have{" "}
-                      {formatBalance(selectedCollateralInfo?.balance || "0")},
+                      {formatBalance(selectedCollateralInfo?.balance || "0", selectedCollateralInfo?.decimals)},
                       need {collateralAmount})
                     </span>
                   </div>
@@ -1991,7 +2101,7 @@ const ActionPanel = ({
               {!borrowAmount && userDebt && Number(userDebt.principal) > 0 && (
                 <div className="text-xs text-slate-500 font-mono">
                   Enter additional amount to borrow (max{" "}
-                  {borrowDetails.maxBorrowAmount.toFixed(2)}{" "}
+                  {formatTokenAmount(borrowDetails.maxBorrowAmount, market.baseTokenDecimals)}{" "}
                   {getBaseTokenSymbol(market?.symbol)} - limited by {borrowDetails.maxBorrowAmount < market.availableToBorrow ? "collateral" : "market supply"})
                 </div>
               )}
@@ -2005,7 +2115,7 @@ const ActionPanel = ({
               {selectedCollateral && !collateralAmount && (!userDebt || Number(userDebt.principal) === 0) && (
                 <div className="text-xs text-slate-500 font-mono">
                   Enter collateral amount to deposit (balance:{" "}
-                  {formatBalance(selectedCollateralInfo?.balance || "0")}{" "}
+                  {formatBalance(selectedCollateralInfo?.balance || "0", selectedCollateralInfo?.decimals)}{" "}
                   {selectedCollateralInfo?.symbol})
                 </div>
               )}
@@ -2024,9 +2134,10 @@ const ActionPanel = ({
                 parseFloat(borrowAmount) <= market.availableToBorrow && (
                   <div className="text-xs text-green-500 font-mono">
                     Ready to borrow! You'll receive{" "}
-                    {(
-                      parseFloat(borrowAmount) - borrowDetails.originationFee
-                    ).toFixed(6)}{" "}
+                    {formatTokenAmount(
+                      parseFloat(borrowAmount) - borrowDetails.originationFee,
+                      market.baseTokenDecimals
+                    )}{" "}
                     {getBaseTokenSymbol(market?.symbol)} after fees
                   </div>
                 )}
@@ -2047,9 +2158,10 @@ const ActionPanel = ({
                 borrowDetails.ltvRatio <= market.ltv && (
                   <div className="text-xs text-green-500 font-mono">
                     Ready to add to position! You'll receive{" "}
-                    {(
-                      parseFloat(borrowAmount) - borrowDetails.originationFee
-                    ).toFixed(6)}{" "}
+                    {formatTokenAmount(
+                      parseFloat(borrowAmount) - borrowDetails.originationFee,
+                      market.baseTokenDecimals
+                    )}{" "}
                     {getBaseTokenSymbol(market?.symbol)} after fees
                   </div>
                 )}
@@ -2075,7 +2187,7 @@ const ActionPanel = ({
 
               {!repayAmount && userDebt && Number(userDebt.principal) > 0 && (
                 <div className="text-xs text-slate-500 font-mono">
-                  Enter amount to repay (max: {(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals)).toFixed(market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)})
+                  Enter amount to repay (max: {formatTokenAmount(Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals), market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)})
                 </div>
               )}
 
@@ -2087,7 +2199,7 @@ const ActionPanel = ({
 
               {repayAmount && !repaymentDetails.isFullRepayment && repaymentDetails.remainingDebt > 0 && (
                 <div className="text-xs text-amber-500 font-mono">
-                  Partial repayment - {repaymentDetails.remainingDebt.toFixed(6)} {getBaseTokenSymbol(market?.symbol)} debt will remain
+                  Partial repayment - {formatTokenAmount(repaymentDetails.remainingDebt, market.baseTokenDecimals)} {getBaseTokenSymbol(market?.symbol)} debt will remain
                 </div>
               )}
           </>
@@ -2111,13 +2223,13 @@ const ActionPanel = ({
 
               {withdrawCollateralAssetId && !withdrawAmount && (
                 <div className="text-xs text-slate-500 font-mono">
-                  Enter amount to withdraw (available: {formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0")} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol})
+                  Enter amount to withdraw (available: {formatBalance(availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.balance || "0", availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol})
                 </div>
               )}
 
               {withdrawCollateralAssetId && withdrawAmount && (
                 <div className="text-xs text-green-500 font-mono">
-                  Ready to withdraw {parseFloat(withdrawAmount).toFixed(6)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
+                  Ready to withdraw {formatTokenAmount(parseFloat(withdrawAmount), availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.decimals)} {availableCollateral.find(c => c.assetId === withdrawCollateralAssetId)?.symbol}
                 </div>
               )}
           </>
