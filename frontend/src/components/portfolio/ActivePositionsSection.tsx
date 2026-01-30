@@ -198,7 +198,7 @@ const ActivePositionsSection: React.FC = () => {
 
       const collateralMetadata = assetMetadata?.find(m => m.id === record.collateralTokenId.toString());
       const borrowedAmount = Number(record.principal) / Math.pow(10, market.baseTokenDecimals ?? 6);
-      const collateralAmount = Number(record.collateralAmount) / Math.pow(10, collateralMetadata?.decimals || market.lstTokenDecimals ?? 6);
+      const collateralAmount = Number(record.collateralAmount) / Math.pow(10, (collateralMetadata?.decimals || market.lstTokenDecimals) ?? 6);
       
       const borrowValueUSD = borrowedAmount * market.baseTokenPrice;
 
