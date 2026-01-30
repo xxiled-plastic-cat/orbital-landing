@@ -64,7 +64,7 @@ const OverviewTab = ({ market, copied, onCopy }: OverviewTabProps) => {
               ${market.totalDepositsUSD.toLocaleString()}
             </div>
             <div className="text-xs text-slate-500 font-mono">
-              {market.totalDeposits.toFixed(6)} {market.symbol}
+              {market.totalDeposits.toFixed(market.baseTokenDecimals ?? 6)} {market.symbol}
             </div>
           </div>
 
@@ -79,7 +79,7 @@ const OverviewTab = ({ market, copied, onCopy }: OverviewTabProps) => {
               ${market.totalBorrowsUSD.toLocaleString()}
             </div>
             <div className="text-xs text-slate-500 font-mono">
-              {market.totalBorrows.toFixed(6)} {market.symbol}
+              {market.totalBorrows.toFixed(market.baseTokenDecimals ?? 6)} {market.symbol}
             </div>
           </div>
 

@@ -304,7 +304,7 @@ export async function transformLoanRecordsToDebtPositions(
           record.userIndexWad,
           borrowIndexWad
         );
-        const currentDebt = Number(currentDebtBigInt) / 1e6;
+        const currentDebt = Number(currentDebtBigInt) / Math.pow(10, market.baseTokenDecimals ?? 6);
 
         // Calculate debt value in USD
         const oracleAppId = Number(market.oracleAppId || 0);
@@ -398,10 +398,10 @@ export async function transformLoanRecordsToDebtPositions(
                   record.collateralAmount, // LST amount in micro units
                   lstMarketState.totalDeposits, // Total deposits from LST market
                   lstMarketState.circulatingLst, // Circulating LST from LST market
-                  BigInt(Math.floor(baseTokenPrice * 1e6)) // Base token price in micro USD
+                  BigInt(Math.floor(baseTokenPrice * 10 ** (lstMarket.baseTokenDecimals ?? 6))) // Base token price in micro USD
                 );
 
-                collateralValueUSD = Number(collateralValueUSDMicro) / 1e6;
+                collateralValueUSD = Number(collateralValueUSDMicro) / 10 ** (lstMarket.baseTokenDecimals ?? 6); // USD always 6 decimals
               } else {
                 console.warn(
                   "Missing data for LST calculation, using fallback"
@@ -428,7 +428,19 @@ export async function transformLoanRecordsToDebtPositions(
           debtValueUSD > 0 ? collateralValueUSD / debtValueUSD : 0;
 
         // Calculate collateral amount in tokens (convert from micro units)
-        const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+        // Find the LST market to get correct decimals
+        const lstMarket = markets.find((m) => {
+          const cachedCollaterals = acceptedCollateralCache.get(record.marketId);
+          if (cachedCollaterals) {
+            for (const [, collateral] of cachedCollaterals.entries()) {
+              if (collateral.assetId.toString() === record.collateralTokenId.toString()) {
+                return Number(m.id) === Number(collateral.originatingAppId);
+              }
+            }
+          }
+          return false;
+        });
+        const collateralAmountInTokens = Number(record.collateralAmount) / Math.pow(10, lstMarket?.lstTokenDecimals ?? 6);
 
         // Calculate current collateral token price (LST price per token)
         let currentCollateralPrice = 0;
@@ -465,20 +477,22 @@ export async function transformLoanRecordsToDebtPositions(
                 });
               }
 
-              // Calculate LST price per token using collateralUSDFromLST for 1 token (1e6 micro units)
+              // Calculate LST price per token using collateralUSDFromLST for 1 token
               if (
                 baseTokenPrice > 0 &&
                 lstMarketState.totalDeposits &&
                 lstMarketState.circulatingLst
               ) {
-                const oneTokenAmount = BigInt(1e6); // 1 token in micro units
+                const lstDecimals = lstMarket.lstTokenDecimals ?? 6;
+                const baseDecimals = lstMarket.baseTokenDecimals ?? 6;
+                const oneTokenAmount = BigInt(10 ** lstDecimals); // 1 token in microunits
                 const pricePerTokenUSDMicro = collateralUSDFromLST(
                   oneTokenAmount,
                   lstMarketState.totalDeposits,
                   lstMarketState.circulatingLst,
-                  BigInt(Math.floor(baseTokenPrice * 1e6)) // Convert to micro USD
+                  BigInt(Math.floor(baseTokenPrice * 10 ** baseDecimals)) // Convert to micro USD
                 );
-                currentCollateralPrice = Number(pricePerTokenUSDMicro) / 1e6; // Convert back to USD
+                currentCollateralPrice = Number(pricePerTokenUSDMicro) / 10 ** baseDecimals; // Convert back to USD
               }
             } catch (error) {
               console.warn(

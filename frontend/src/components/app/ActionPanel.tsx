@@ -166,16 +166,18 @@ const ActionPanel = ({
         return 0;
       }
 
-      // Calculate LST price per token using collateralUSDFromLST for 1 token (1e6 micro units)
-      const oneTokenAmount = BigInt(1e6); // 1 token in micro units
+      // Calculate LST price per token using collateralUSDFromLST for 1 token
+      const lstDecimals = lstMarket.lstTokenDecimals ?? 6;
+      const oneTokenAmount = BigInt(10 ** lstDecimals); // 1 token in microunits
+      const baseTokenDecimals = lstMarket.baseTokenDecimals ?? 6;
       const pricePerTokenUSDMicro = collateralUSDFromLST(
         oneTokenAmount,
         lstMarketState.totalDeposits,
         lstMarketState.circulatingLst,
-        BigInt(Math.floor(baseTokenPrice * 1e6)) // Convert to micro USD
+        BigInt(Math.floor(baseTokenPrice * 10 ** baseTokenDecimals)) // Convert to micro USD
       );
       
-      const lstPrice = Number(pricePerTokenUSDMicro) / 1e6; // Convert back to USD
+      const lstPrice = Number(pricePerTokenUSDMicro) / 10 ** baseTokenDecimals; // Convert back to USD
       console.log(`Calculated LST price for ${tokenId}: $${lstPrice}`);
       return lstPrice;
 
@@ -484,7 +486,7 @@ const ActionPanel = ({
       case "open":
         // For borrow open, use the available borrow amount (already calculated in market)
         // Convert to microunits for consistency with other balances
-        return (market.availableToBorrow * Math.pow(10, 6)).toString();
+        return (market.availableToBorrow * Math.pow(10, market.baseTokenDecimals)).toString();
 
       case "repay": {
         // For repay, use the total debt amount

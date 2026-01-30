@@ -65,7 +65,7 @@ export const useDepositRecords = () => {
                   marketId: market.id,
                   assetId: depositRecord.assetId.toString(),
                   depositAmount: depositRecord.depositAmount,
-                  depositAmountFormatted: Number(depositRecord.depositAmount) / 1e6,
+                  depositAmountFormatted: Number(depositRecord.depositAmount) / Math.pow(10, market.baseTokenDecimals ?? 6),
                 });
               }
             } catch (error) {

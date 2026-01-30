@@ -259,7 +259,7 @@ const MarketDetailsPage = () => {
         BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
         BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseTokenDecimals))
       );
-      const expectedLSTDisplay = (Number(expectedLSTMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+      const expectedLSTDisplay = (Number(expectedLSTMinted) / 10 ** lstDecimals).toFixed(lstDecimals).replace(/\.?0+$/, '');
 
       openToast({
         type: "loading",
@@ -305,7 +305,7 @@ const MarketDetailsPage = () => {
               BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
               BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
             );
-            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(lstDecimals).replace(/\.?0+$/, '');
 
             recordUserAction({
               address: activeAddress as string,
@@ -375,7 +375,7 @@ const MarketDetailsPage = () => {
               BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
               BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
             );
-            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(lstDecimals).replace(/\.?0+$/, '');
 
             recordUserAction({
               address: activeAddress as string,
@@ -432,7 +432,7 @@ const MarketDetailsPage = () => {
         BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstTokenDecimals)),
         BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
       );
-      const expectedAssetDisplay = (Number(expectedAssetDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
+      const expectedAssetDisplay = (Number(expectedAssetDue) / 10 ** baseDecimals).toFixed(baseDecimals).replace(/\.?0+$/, '');
 
       openToast({
         type: "loading",
@@ -475,7 +475,7 @@ const MarketDetailsPage = () => {
             BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
             BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
           );
-          const asaDueDisplay = (Number(asaDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
+          const asaDueDisplay = (Number(asaDue) / 10 ** baseDecimals).toFixed(baseDecimals).replace(/\.?0+$/, '');
 
           recordUserAction({
             address: activeAddress as string,
