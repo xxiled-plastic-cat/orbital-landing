@@ -40,7 +40,7 @@ const TESTNET_COLLATERAL_TOKENS: Record<
     decimals: 6,
     image: "/cUSDCt.svg",
   },
-  "747010926": {
+  "754186123": {
     symbol: "cgoBTCt",
     name: "Collateralized goBTCt Testnet",
     decimals: 8,

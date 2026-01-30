@@ -64,7 +64,7 @@ const OverviewTab = ({ market, copied, onCopy }: OverviewTabProps) => {
               ${market.totalDepositsUSD.toLocaleString()}
             </div>
             <div className="text-xs text-slate-500 font-mono">
-              {market.totalDeposits.toFixed(6)} {market.symbol}
+              {market.totalDeposits.toFixed(market.baseTokenDecimals ?? 6)} {market.symbol}
             </div>
           </div>
 
@@ -79,7 +79,7 @@ const OverviewTab = ({ market, copied, onCopy }: OverviewTabProps) => {
               ${market.totalBorrowsUSD.toLocaleString()}
             </div>
             <div className="text-xs text-slate-500 font-mono">
-              {market.totalBorrows.toFixed(6)} {market.symbol}
+              {market.totalBorrows.toFixed(market.baseTokenDecimals ?? 6)} {market.symbol}
             </div>
           </div>
 
@@ -185,7 +185,7 @@ const OverviewTab = ({ market, copied, onCopy }: OverviewTabProps) => {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-3 border-b border-slate-700">
               <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
-                Token ID
+                App ID
                 <Tooltip content="Unique identifier for this market's smart contract" position="right">
                   <Info className="w-3 h-3 cursor-help" />
                 </Tooltip>
@@ -210,11 +210,11 @@ const OverviewTab = ({ market, copied, onCopy }: OverviewTabProps) => {
             <div className="flex justify-between items-center py-3 border-b border-slate-700">
               <span className="font-mono text-slate-400 text-sm uppercase tracking-wide flex items-center gap-1">
                 Decimals
-                <Tooltip content="Token precision: 6 decimals = divide by 1,000,000" position="right">
+                <Tooltip content={`Token precision: ${market.baseTokenDecimals} decimals = divide by ${Math.pow(10, market.baseTokenDecimals).toLocaleString()}`} position="right">
                   <Info className="w-3 h-3 cursor-help" />
                 </Tooltip>
               </span>
-              <span className="font-mono text-white text-sm">6</span>
+              <span className="font-mono text-white text-sm">{market.baseTokenDecimals}</span>
             </div>
 
             <div className="flex justify-between items-center py-3 border-b border-slate-700">

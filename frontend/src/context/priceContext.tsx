@@ -16,6 +16,8 @@ interface LSTParams {
   totalDeposits: bigint;
   circulatingLst: bigint;
   baseTokenPrice: number;
+  lstTokenDecimals?: number;
+  baseTokenDecimals?: number;
 }
 
 // Price context interface
@@ -102,14 +104,18 @@ export const PriceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       
       // Calculate LST price using the helper function
-      const oneTokenAmount = BigInt(1e6); // 1 token in micro units
-      const baseTokenPriceMicro = BigInt(Math.floor(lstParams.baseTokenPrice * 1e6));
+      const lstDecimals = lstParams.lstTokenDecimals ?? 6;
+      const baseDecimals = lstParams.baseTokenDecimals ?? 6;
+      const oneTokenAmount = BigInt(10 ** lstDecimals); // 1 token in microunits
+      const baseTokenPriceMicro = BigInt(Math.floor(lstParams.baseTokenPrice * 10 ** baseDecimals));
       
       console.log(`LST price calculation inputs:`, {
         oneTokenAmount: oneTokenAmount.toString(),
         totalDeposits: lstParams.totalDeposits.toString(),
         circulatingLst: lstParams.circulatingLst.toString(),
-        baseTokenPriceMicro: baseTokenPriceMicro.toString()
+        baseTokenPriceMicro: baseTokenPriceMicro.toString(),
+        lstDecimals,
+        baseDecimals
       });
       
       const pricePerTokenUSDMicro = collateralUSDFromLST(
@@ -121,7 +127,7 @@ export const PriceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       console.log(`LST price calculation result (micro USD):`, pricePerTokenUSDMicro.toString());
       
-      const price = Number(pricePerTokenUSDMicro) / 1e6; // Convert back to USD
+      const price = Number(pricePerTokenUSDMicro) / 10 ** baseDecimals; // Convert back to USD
       console.log(`Final LST price (USD):`, price);
 
       // Update cache

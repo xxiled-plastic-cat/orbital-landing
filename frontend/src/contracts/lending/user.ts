@@ -15,9 +15,9 @@ import {
   WithdrawCollateralParams,
   WithdrawParams,
 } from "./interface";
-import { microAlgo } from "@algorandfoundation/algokit-utils";
 import algosdk from "algosdk";
-import { getCollateralBoxValue } from "./state";
+
+const MAX_FEE = AlgoAmount.MicroAlgos(250_000);
 
 export async function depositAsa({
   address,
@@ -26,12 +26,13 @@ export async function depositAsa({
   depositAssetId,
   signer,
   lstAssetId,
+  baseTokenDecimals,
 }: DepositParams) {
   try {
     const appClient = await getExistingClientAsa(signer, address, appId);
 
     appClient.algorand.setDefaultSigner(signer);
-    const upscaledAmount = amount * 10 ** 6;
+    const upscaledAmount = Math.floor(amount * 10 ** baseTokenDecimals);
 
     let optInRequired = false;
     const group = appClient.newGroup();
@@ -45,38 +46,29 @@ export async function depositAsa({
       optInRequired = true;
     }
 
-    console.log("optInRequired", optInRequired);
-
-    const mbrTxn = appClient.algorand.createTransaction.payment({
-      sender: address,
-      amount: AlgoAmount.MicroAlgos(10_000n),
-      receiver: appClient.appAddress,
-      maxFee: AlgoAmount.MicroAlgos(250_000),
-    });
     const depositTxn = appClient.algorand.createTransaction.assetTransfer({
       sender: address,
       receiver: appClient.appAddress,
       assetId: BigInt(depositAssetId),
       amount: BigInt(upscaledAmount),
       note: "Depositing " + depositAssetId,
-      maxFee: AlgoAmount.MicroAlgos(250_000),
+      maxFee: MAX_FEE,
     });
 
     if (optInRequired) {
       const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
         assetId: BigInt(lstAssetId),
         sender: address,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       });
       group.addTransaction(optInTxn);
     }
 
     const result = await group
       .depositAsa({
-        args: [depositTxn, upscaledAmount, mbrTxn],
-        assetReferences: [BigInt(depositAssetId)],
+        args: { amount: upscaledAmount, assetTransferTxn: depositTxn },
         sender: address,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         coverAppCallInnerTransactionFees: true,
@@ -94,15 +86,15 @@ export async function depositAlgo({
   address,
   amount,
   appId,
-  depositAssetId,
   signer,
   lstAssetId,
+  baseTokenDecimals,
 }: DepositParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
 
     appClient.algorand.setDefaultSigner(signer);
-    const upscaledAmount = amount * 10 ** 6;
+    const upscaledAmount = Math.floor(amount * 10 ** baseTokenDecimals);
 
     let optInRequired = false;
     const group = appClient.newGroup();
@@ -116,38 +108,28 @@ export async function depositAlgo({
       optInRequired = true;
     }
 
-    console.log("optInRequired", optInRequired);
-
-    const mbrTxn = appClient.algorand.createTransaction.payment({
-      sender: address,
-      amount: AlgoAmount.MicroAlgos(10_000n),
-      receiver: appClient.appAddress,
-      maxFee: AlgoAmount.MicroAlgos(250_000),
-    });
     const depositTxn = appClient.algorand.createTransaction.payment({
       sender: address,
       receiver: appClient.appAddress,
       amount: AlgoAmount.MicroAlgos(upscaledAmount),
       note: "Depositing ALGO",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
+      maxFee: MAX_FEE,
     });
 
     if (optInRequired) {
       const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
         assetId: BigInt(lstAssetId),
         sender: address,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       });
       group.addTransaction(optInTxn);
     }
 
-    console.log("upscaledAmount", upscaledAmount);
     const result = await group
       .depositAlgo({
-        args: [depositTxn, upscaledAmount, mbrTxn],
-        assetReferences: [BigInt(depositAssetId)],
+        args: { depositTxn, amount: upscaledAmount },
         sender: address,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         coverAppCallInnerTransactionFees: true,
@@ -167,11 +149,12 @@ export async function withdraw({
   appId,
   lstTokenId,
   signer,
+  lstTokenDecimals,
 }: WithdrawParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
-    const upscaledAmount = amount * 10 ** 6;
+    const upscaledAmount = Math.floor(amount * 10 ** lstTokenDecimals);
 
     const axferTxn = appClient.algorand.createTransaction.assetTransfer({
       sender: address,
@@ -181,18 +164,13 @@ export async function withdraw({
       note: "Returning lst to contract",
     });
 
-    const mbrTxn = appClient.algorand.createTransaction.payment({
-      sender: address,
-      receiver: appClient.appAddress,
-      amount: microAlgo(3000n),
-      note: "Funding withdraw",
-    });
 
     const result = await appClient.send.withdrawDeposit({
-      args: [axferTxn, upscaledAmount, appClient.appId, mbrTxn],
-      assetReferences: [BigInt(lstTokenId)],
-      appReferences: [appClient.appId],
+      args: { assetTransferTxn: axferTxn, amount: upscaledAmount },
       sender: address,
+      maxFee: MAX_FEE,
+      coverAppCallInnerTransactionFees: true,
+      populateAppCallResources: true,
     });
 
     return result.txIds[0];
@@ -207,16 +185,16 @@ export async function borrow({
   collateralAmount,
   borrowAmount,
   collateralAssetId,
-  lstAppId,
   appId,
-  oracleAppId,
   signer,
+  collateralTokenDecimals,
+  baseTokenDecimals,
 }: BorrowParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
-    const upscaledCollateralAmount = collateralAmount * 10 ** 6;
-    const upscaledBorrowAmount = borrowAmount * 10 ** 6;
+    const upscaledCollateralAmount = Math.floor(collateralAmount * 10 ** collateralTokenDecimals);
+    const upscaledBorrowAmount = Math.floor(borrowAmount * 10 ** baseTokenDecimals);
 
     const collateralAxferTxn =
       appClient.algorand.createTransaction.assetTransfer({
@@ -225,50 +203,26 @@ export async function borrow({
         assetId: BigInt(collateralAssetId),
         amount: BigInt(upscaledCollateralAmount),
         note: "Depositing collateral: " + collateralAssetId,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       });
-
-    const mbrTxn = appClient.algorand.createTransaction.payment({
-      sender: address,
-      receiver: appClient.appAddress,
-      amount: microAlgo(4000n),
-      note: "Funding borrow",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
-    });
-    const boxValue = await getCollateralBoxValue(
-      BigInt(collateralAssetId),
-      appClient,
-      BigInt(appId)
-    );
-    console.log("box value appId", boxValue.boxRef.appIndex);
-    console.log("box value name", boxValue.boxRef.name);
 
     const result = await appClient
       .newGroup()
-      .gas({ args: [], maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .gas({ args: {}, maxFee: MAX_FEE, sender: address })
       .borrow({
-        args: [
-          collateralAxferTxn,
-          upscaledBorrowAmount,
-          upscaledCollateralAmount,
-          lstAppId,
-          collateralAssetId,
-          mbrTxn,
-        ],
-        assetReferences: [BigInt(collateralAssetId)],
-        appReferences: [BigInt(lstAppId), BigInt(oracleAppId)],
-        boxReferences: [
-          {
-            appId: boxValue.boxRef.appIndex as bigint,
-            name: boxValue.boxRef.name,
-          },
-        ],
+        args: {
+          assetTransferTxn: collateralAxferTxn,
+          requestedLoanAmount: upscaledBorrowAmount,
+          collateralAmount: upscaledCollateralAmount,
+          collateralTokenId: BigInt(collateralAssetId),
+        },
         sender: address,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
         coverAppCallInnerTransactionFees: true,
+        populateAppCallResources: true,
       });
 
     return result.txIds[0];
@@ -282,15 +236,15 @@ export async function repayDebtAsa({
   address,
   amount,
   appId,
-  lstTokenId,
   repayTokenId,
   signer,
+  baseTokenDecimals,
 }: RepayDebtAsaParams) {
   try {
     const appClient = await getExistingClientAsa(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
     // Amount already includes 10,000 micro-units buffer added in frontend
-    const upscaledAmount = amount * 10 ** 6;
+    const upscaledAmount = Math.floor(amount * 10 ** baseTokenDecimals);
 
     const repayTxn = appClient.algorand.createTransaction.assetTransfer({
       sender: address,
@@ -303,14 +257,14 @@ export async function repayDebtAsa({
     const result = await appClient
       .newGroup()
       .repayLoanAsa({
-        args: [repayTxn, upscaledAmount],
-        assetReferences: [BigInt(lstTokenId), BigInt(repayTokenId)],
-        appReferences: [appClient.appId],
+        args: { assetTransferTxn: repayTxn, repaymentAmount: BigInt(upscaledAmount) },
         sender: address,
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
         populateAppCallResources: true,
+        coverAppCallInnerTransactionFees: true,
       });
     return result.txIds[0];
   } catch (error) {
@@ -323,14 +277,14 @@ export async function repayDebtAlgo({
   address,
   amount,
   appId,
-  lstTokenId,
   signer,
+  baseTokenDecimals,
 }: RepayDebtAlgoParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
     // Amount already includes 10,000 micro-units buffer added in frontend
-    const upscaledAmount = amount * 10 ** 6;
+    const upscaledAmount = Math.floor(amount * 10 ** baseTokenDecimals);
 
     const repayTxn = appClient.algorand.createTransaction.payment({
       sender: address,
@@ -342,14 +296,14 @@ export async function repayDebtAlgo({
     const result = await appClient
       .newGroup()
       .repayLoanAlgo({
-        args: [repayTxn, upscaledAmount],
-        assetReferences: [BigInt(lstTokenId)],
-        appReferences: [appClient.appId],
+        args: { paymentTxn: repayTxn, repaymentAmount: BigInt(upscaledAmount) },
         sender: address,
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
         populateAppCallResources: true,
+        coverAppCallInnerTransactionFees: true,
       });
     return result.txIds[0];
   } catch (error) {
@@ -363,14 +317,13 @@ export async function withdrawCollateral({
   amount,
   appId,
   collateralAssetId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  lstAppId, // Unused - lstAppId is fetched from acceptedCollaterals box
   signer,
+  lstTokenDecimals,
 }: WithdrawCollateralParams) {
   try {
     const appClient = await getExistingClient(signer, address, appId);
     appClient.algorand.setDefaultSigner(signer);
-    const upscaledAmount = amount * 10 ** 6;
+    const upscaledAmount = Math.floor(amount * 10 ** lstTokenDecimals);
 
     // Fetch the accepted collateral record to get the correct lstAppId (market ID)
     const acceptedCollateral = await appClient.state.box.acceptedCollaterals.value({
@@ -394,14 +347,14 @@ export async function withdrawCollateral({
       .newGroup()
       .gas()
       .withdrawCollateral({
-        args: [upscaledAmount, collateralAssetId, correctLstAppId],
-        assetReferences: [BigInt(collateralAssetId)],
-        appReferences: [BigInt(correctLstAppId)],
+        args: { amountLst: upscaledAmount, collateralTokenId: BigInt(collateralAssetId) },
         sender: address,
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
         populateAppCallResources: true,
+        coverAppCallInnerTransactionFees: true,
       });
     return result.txIds[0];
   } catch (error) {
@@ -477,23 +430,22 @@ export async function buyoutSplitASA({
   xUSDAssetId,
   baseTokenAssetId,
   collateralTokenId,
-  lstAppId,
-  oracleAppId,
   signer,
+  premiumTokenDecimals,
+  baseTokenDecimals,
 }: BuyoutAsaParams) {
   try {
     const appClient = await getExistingClientAsa(signer, buyerAddress, appId);
     appClient.algorand.setDefaultSigner(signer);
-    console.log("lstAppId", lstAppId);
     // Scale amounts to micro units
-    const upscaledPremiumAmount = premiumAmount * 10 ** 6;
-    const upscaledDebtRepayAmount = debtRepayAmount * 10 ** 6;
+    const upscaledPremiumAmount = Math.floor(premiumAmount * 10 ** premiumTokenDecimals);
+    const upscaledDebtRepayAmount = Math.floor(debtRepayAmount * 10 ** baseTokenDecimals);
 
     const collateralOptInTxn =
       await appClient.algorand.createTransaction.assetOptIn({
         assetId: BigInt(collateralTokenId),
         sender: buyerAddress,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       });
 
     // Create premium transfer transaction (xUSD)
@@ -503,7 +455,7 @@ export async function buyoutSplitASA({
       assetId: BigInt(xUSDAssetId),
       amount: BigInt(upscaledPremiumAmount),
       note: "Paying buyout premium in xUSD",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
+      maxFee: MAX_FEE,
     });
 
     // Create debt repayment transaction (base ASA)
@@ -513,38 +465,25 @@ export async function buyoutSplitASA({
       assetId: BigInt(baseTokenAssetId),
       amount: BigInt(upscaledDebtRepayAmount),
       note: "Repaying loan with ASA",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
+      maxFee: MAX_FEE,
     });
-    const mbrTxn = appClient.algorand.createTransaction.payment({
-      sender: buyerAddress,
-      receiver: appClient.appAddress,
-      amount: AlgoAmount.MicroAlgos(10_000n),
-      note: "Funding buyout",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
-    });
+
 
     // Execute the buyout
     const result = await appClient
       .newGroup()
       .addTransaction(collateralOptInTxn)
-      .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .gas({ args: {}, maxFee: MAX_FEE, sender: buyerAddress })
       .buyoutSplitAsa({
         args: {
           buyer: buyerAddress,
           debtor: debtorAddress,
           premiumAxferTxn: premiumAxferTxn,
           repayAxferTxn: repayAxferTxn,
-          lstAppId: BigInt(lstAppId),
-          mbrTxn: mbrTxn,
         },
-        assetReferences: [
-          BigInt(xUSDAssetId),
-          BigInt(baseTokenAssetId),
-          BigInt(collateralTokenId),
-        ],
-        appReferences: [BigInt(appId), BigInt(lstAppId), BigInt(oracleAppId)],
+
         sender: buyerAddress,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
@@ -566,17 +505,15 @@ export async function buyoutSplitAlgo({
   premiumAmount,
   debtRepayAmount,
   xUSDAssetId,
-  collateralTokenId,
-  lstAppId,
-  oracleAppId,
   signer,
+  premiumTokenDecimals,
 }: BuyoutAlgoParams) {
   try {
     const appClient = await getExistingClient(signer, buyerAddress, appId);
     appClient.algorand.setDefaultSigner(signer);
 
     // Scale premium amount to micro units
-    const upscaledPremiumAmount = premiumAmount * 10 ** 6;
+    const upscaledPremiumAmount = Math.floor(premiumAmount * 10 ** premiumTokenDecimals);
     // debtRepayAmount is already in microAlgos
 
     // Create premium transfer transaction (xUSD)
@@ -586,7 +523,7 @@ export async function buyoutSplitAlgo({
       assetId: BigInt(xUSDAssetId),
       amount: BigInt(upscaledPremiumAmount),
       note: "Paying buyout premium in xUSD",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
+      maxFee: MAX_FEE,
     });
 
     // Create debt repayment transaction (ALGO)
@@ -595,33 +532,23 @@ export async function buyoutSplitAlgo({
       receiver: appClient.appAddress,
       amount: AlgoAmount.MicroAlgos(debtRepayAmount),
       note: "Repaying loan with ALGO",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
+      maxFee: MAX_FEE,
     });
 
-    const mbrTxn = appClient.algorand.createTransaction.payment({
-      sender: buyerAddress,
-      receiver: appClient.appAddress,
-      amount: AlgoAmount.MicroAlgos(10_000n),
-      note: "Funding buyout",
-      maxFee: AlgoAmount.MicroAlgos(250_000),
-    });
+
     // Execute the buyout
     const result = await appClient
       .newGroup()
-      .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .gas({ args: {}, maxFee: MAX_FEE, sender: buyerAddress })
       .buyoutSplitAlgo({
         args: {
           buyer: buyerAddress,
           debtor: debtorAddress,
           premiumAxferTxn: premiumAxferTxn,
           repayPayTxn: repayPayTxn,
-          lstAppId: BigInt(lstAppId),
-          mbrTxn: mbrTxn,
         },
-        assetReferences: [BigInt(xUSDAssetId), BigInt(collateralTokenId)],
-        appReferences: [BigInt(appId), BigInt(lstAppId), BigInt(oracleAppId)],
         sender: buyerAddress,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
@@ -643,7 +570,6 @@ export async function liquidatePartialAlgo({
   repayAmount,
   collateralTokenId,
   lstAppId,
-  oracleAppId,
   signer,
 }: LiquidateAlgoParams) {
   try {
@@ -670,18 +596,16 @@ export async function liquidatePartialAlgo({
     const result = await appClient
       .newGroup()
       .addTransaction(optInTxn)
-      .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .gas({ args: {}, maxFee: MAX_FEE, sender: liquidatorAddress })
       .liquidatePartialAlgo({
-        args: [
-          debtorAddress,
-          repayPayTxn,
-          BigInt(repayAmount),
-          BigInt(lstAppId),
-        ],
-        assetReferences: [BigInt(collateralTokenId)],
-        appReferences: [BigInt(appId), BigInt(lstAppId), BigInt(oracleAppId)],
+        args: {
+          debtor: debtorAddress,
+          repayPay: repayPayTxn,
+          repayBaseAmount: BigInt(repayAmount),
+          lstAppId: BigInt(lstAppId),
+        },
         sender: liquidatorAddress,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,
@@ -704,8 +628,8 @@ export async function liquidatePartialASA({
   baseTokenAssetId,
   collateralTokenId,
   lstAppId,
-  oracleAppId,
   signer,
+  baseTokenDecimals,
 }: LiquidateAsaParams) {
   try {
     const appClient = await getExistingClientAsa(
@@ -716,7 +640,7 @@ export async function liquidatePartialASA({
     appClient.algorand.setDefaultSigner(signer);
 
     // Scale amount to micro units
-    const upscaledRepayAmount = Math.floor(repayAmount * 10 ** 6);
+    const upscaledRepayAmount = Math.floor(repayAmount * 10 ** baseTokenDecimals);
 
     const optInTxn = await appClient.algorand.createTransaction.assetOptIn({
       assetId: BigInt(collateralTokenId),
@@ -738,7 +662,7 @@ export async function liquidatePartialASA({
     const result = await appClient
       .newGroup()
       .addTransaction(optInTxn)
-      .gas({ args: [], note: "1", maxFee: AlgoAmount.MicroAlgos(250_000) })
+      .gas({ args: {}, maxFee: MAX_FEE, sender: liquidatorAddress })
       .liquidatePartialAsa({
         args: {
           debtor: debtorAddress,
@@ -746,10 +670,8 @@ export async function liquidatePartialASA({
           repayBaseAmount: BigInt(upscaledRepayAmount),
           lstAppId: BigInt(lstAppId),
         },
-        assetReferences: [BigInt(baseTokenAssetId), BigInt(collateralTokenId)],
-        appReferences: [BigInt(appId), BigInt(lstAppId), BigInt(oracleAppId)],
         sender: liquidatorAddress,
-        maxFee: AlgoAmount.MicroAlgos(250_000),
+        maxFee: MAX_FEE,
       })
       .send({
         suppressLog: false,

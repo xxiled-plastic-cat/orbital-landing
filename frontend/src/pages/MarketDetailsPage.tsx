@@ -259,7 +259,7 @@ const MarketDetailsPage = () => {
         BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
         BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseTokenDecimals))
       );
-      const expectedLSTDisplay = (Number(expectedLSTMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+      const expectedLSTDisplay = (Number(expectedLSTMinted) / 10 ** lstDecimals).toFixed(lstDecimals).replace(/\.?0+$/, '');
 
       openToast({
         type: "loading",
@@ -275,6 +275,7 @@ const MarketDetailsPage = () => {
           appId: Number(market?.id),
           depositAssetId: Number(market?.baseTokenId),
           lstAssetId: Number(market?.lstTokenId),
+          baseTokenDecimals: market?.baseTokenDecimals ?? 6,
           signer: transactionSigner,
         })
           .then((txId) => {
@@ -304,7 +305,7 @@ const MarketDetailsPage = () => {
               BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
               BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
             );
-            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(lstDecimals).replace(/\.?0+$/, '');
 
             recordUserAction({
               address: activeAddress as string,
@@ -344,6 +345,7 @@ const MarketDetailsPage = () => {
           appId: Number(market?.id),
           depositAssetId: Number(market?.baseTokenId),
           lstAssetId: Number(market?.lstTokenId),
+          baseTokenDecimals: market?.baseTokenDecimals ?? 6,
           signer: transactionSigner,
         })
           .then((txId) => {
@@ -373,7 +375,7 @@ const MarketDetailsPage = () => {
               BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
               BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
             );
-            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(6).replace(/\.?0+$/, '');
+            const lstMintedDisplay = (Number(lstMinted) / 10 ** lstDecimals).toFixed(lstDecimals).replace(/\.?0+$/, '');
 
             recordUserAction({
               address: activeAddress as string,
@@ -430,7 +432,7 @@ const MarketDetailsPage = () => {
         BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstTokenDecimals)),
         BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
       );
-      const expectedAssetDisplay = (Number(expectedAssetDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
+      const expectedAssetDisplay = (Number(expectedAssetDue) / 10 ** baseDecimals).toFixed(baseDecimals).replace(/\.?0+$/, '');
 
       openToast({
         type: "loading",
@@ -446,6 +448,7 @@ const MarketDetailsPage = () => {
         appId: Number(market?.id),
         signer: transactionSigner,
         lstTokenId: Number(market?.lstTokenId),
+        lstTokenDecimals: market?.lstTokenDecimals ?? 6,
       })
         .then((txId) => {
           // Apply optimistic updates for instant UI feedback
@@ -472,7 +475,7 @@ const MarketDetailsPage = () => {
             BigInt(Math.floor((market?.circulatingLST ?? 0) * 10 ** lstDecimals)),
             BigInt(Math.floor((market?.totalDeposits ?? 0) * 10 ** baseDecimals))
           );
-          const asaDueDisplay = (Number(asaDue) / 10 ** baseDecimals).toFixed(6).replace(/\.?0+$/, '');
+          const asaDueDisplay = (Number(asaDue) / 10 ** baseDecimals).toFixed(baseDecimals).replace(/\.?0+$/, '');
 
           recordUserAction({
             address: activeAddress as string,
@@ -526,6 +529,7 @@ const MarketDetailsPage = () => {
         amount: Number(repayAmount),
         appId: Number(market?.id),
         lstTokenId: Number(market?.lstTokenId),
+        baseTokenDecimals: market?.baseTokenDecimals ?? 6,
         signer: transactionSigner,
       })
         .then((txId) => {
@@ -583,6 +587,7 @@ const MarketDetailsPage = () => {
         appId: Number(market?.id),
         lstTokenId: Number(market?.lstTokenId),
         repayTokenId: Number(market?.baseTokenId),
+        baseTokenDecimals: market?.baseTokenDecimals ?? 6,
         signer: transactionSigner,
       })
         .then((txId) => {
@@ -654,6 +659,7 @@ const MarketDetailsPage = () => {
       appId: Number(market?.id),
       collateralAssetId: Number(collateralAssetId),
       lstAppId: Number(market?.id),
+      lstTokenDecimals: market?.lstTokenDecimals ?? 6,
       signer: transactionSigner,
     })
       .then((txId) => {
@@ -763,6 +769,8 @@ const MarketDetailsPage = () => {
       lstAppId: Number(collateralMarket.id), // Use the collateral market's app ID
       appId: Number(market?.id), // Current market we're borrowing from
       oracleAppId: Number(market?.oracleAppId),
+      collateralTokenDecimals: collateralMarket?.lstTokenDecimals ?? 6,
+      baseTokenDecimals: market?.baseTokenDecimals ?? 6,
       signer: transactionSigner,
     })
       .then((txId) => {

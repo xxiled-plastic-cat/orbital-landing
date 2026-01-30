@@ -412,6 +412,7 @@ const DebtPositionDetailPage: React.FC = () => {
             collateralTokenId: parseInt(position.collateralToken.id),
             lstAppId,
             oracleAppId,
+            baseTokenDecimals: market?.baseTokenDecimals ?? 6,
             signer: transactionSigner,
           });
           
@@ -437,6 +438,7 @@ const DebtPositionDetailPage: React.FC = () => {
               collateralTokenId: parseInt(position.collateralToken.id),
               lstAppId,
               oracleAppId,
+              baseTokenDecimals: market?.baseTokenDecimals ?? 6,
               signer: transactionSigner,
             });
             
@@ -581,6 +583,7 @@ const DebtPositionDetailPage: React.FC = () => {
           collateralTokenId: parseInt(position.collateralToken.id),
           lstAppId,
           oracleAppId,
+          premiumTokenDecimals: 6, // xUSD typically has 6 decimals
           signer: transactionSigner,
         });
       } else {
@@ -597,6 +600,8 @@ const DebtPositionDetailPage: React.FC = () => {
           collateralTokenId: parseInt(position.collateralToken.id),
           lstAppId,
           oracleAppId,
+          premiumTokenDecimals: 6, // xUSD typically has 6 decimals
+          baseTokenDecimals: market?.baseTokenDecimals ?? 6,
           signer: transactionSigner,
         });
       }

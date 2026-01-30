@@ -183,7 +183,7 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
           record.userIndexWad,
           borrowIndexWad
         );
-        const currentDebt = Number(currentDebtBigInt) / 1e6;
+        const currentDebt = Number(currentDebtBigInt) / Math.pow(10, market.baseTokenDecimals ?? 6);
 
         // Get fresh debt token price from oracle
         let debtTokenPrice = 0;
@@ -260,6 +260,8 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
                 totalDeposits: lstMarketState.totalDeposits,
                 circulatingLst: lstMarketState.circulatingLst,
                 baseTokenPrice: baseTokenPrice,
+                lstTokenDecimals: lstMarket.lstTokenDecimals,
+                baseTokenDecimals: lstMarket.baseTokenDecimals,
               };
 
               currentCollateralPrice = await priceFetcher.getLSTTokenPrice(
@@ -269,24 +271,25 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
               );
 
               // Calculate total collateral value
-              const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+              const collateralAmountInTokens = Number(record.collateralAmount) / Math.pow(10, lstMarket.lstTokenDecimals ?? 6);
               collateralValueUSD = collateralAmountInTokens * currentCollateralPrice;
             } else {
               // Fallback if missing LST market state or price data
               collateralValueUSD = debtValueUSD * 1.5;
-              const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+              const lstDecimals = lstMarket?.lstTokenDecimals ?? 6;
+              const collateralAmountInTokens = Number(record.collateralAmount) / Math.pow(10, lstDecimals);
               currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
             }
           } else {
             // Fallback if LST market not found
             collateralValueUSD = debtValueUSD * 1.5;
-            const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+            const collateralAmountInTokens = Number(record.collateralAmount) / Math.pow(10, 6); // Default to 6 if market not found
             currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
           }
         } else {
           // Fallback if no accepted collateral info
           collateralValueUSD = debtValueUSD * 1.5;
-          const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+          const collateralAmountInTokens = Number(record.collateralAmount) / Math.pow(10, 6); // Default to 6 if no info
           currentCollateralPrice = collateralAmountInTokens > 0 ? collateralValueUSD / collateralAmountInTokens : 0;
         }
 
@@ -294,8 +297,19 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
         const healthRatio =
           debtValueUSD > 0 ? collateralValueUSD / debtValueUSD : 0;
 
-        // Calculate collateral amount in tokens
-        const collateralAmountInTokens = Number(record.collateralAmount) / 1e6;
+        // Calculate collateral amount in tokens (use lstMarket decimals if available)
+        const lstMarket = markets.find((m) => {
+          const cachedCollaterals = acceptedCollateralCache.get(record.marketId);
+          if (cachedCollaterals) {
+            for (const [, collateral] of cachedCollaterals.entries()) {
+              if (collateral.assetId.toString() === record.collateralTokenId.toString()) {
+                return Number(m.id) === Number(collateral.originatingAppId);
+              }
+            }
+          }
+          return false;
+        });
+        const collateralAmountInTokens = Number(record.collateralAmount) / Math.pow(10, lstMarket?.lstTokenDecimals ?? 6);
 
         // Calculate liquidation price
         // Liquidation occurs when: Debt >= LiquidationThreshold × CollateralValue
@@ -320,13 +334,14 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
         }
 
         // Calculate buyout cost using the optimized bigint function
+        // USD prices are always in micro USD (6 decimals)
         const buyoutInputs: BuyoutInputs = {
           collateralAmount: record.collateralAmount,
           collateralPriceMicroUSD: BigInt(Math.floor(currentCollateralPrice * 1e6)),
           debtBaseTokens: currentDebtBigInt,
           baseTokenPriceMicroUSD: BigInt(Math.floor(debtTokenPrice * 1e6)),
           liqThresholdBps: BigInt(Math.floor(Number(market.liquidationThreshold) * 100)),
-          buyoutTokenPriceMicroUSD: BigInt(Math.floor(buyoutTokenPrice * 1e6)), // Use live oracle price
+          buyoutTokenPriceMicroUSD: BigInt(Math.floor(buyoutTokenPrice * 1e6)), // Use live oracle price (USD always 6 decimals)
         };
 
         const buyoutQuote = quoteBuyoutExact(buyoutInputs);
@@ -350,11 +365,11 @@ export async function transformLoanRecordsToDebtPositionsOptimized(
           totalCollateralTokens: collateralAmountInTokens,
           healthRatio: healthRatio,
           liquidationThreshold: Number(market.liquidationThreshold) / 100,
-          buyoutCost: Number(buyoutQuote.totalCostUSD_micro) / 1e6,
-          buyoutDebtRepayment: Number(buyoutQuote.debtUSD_micro) / 1e6,
-          buyoutDebtRepaymentTokens: Number(buyoutQuote.debtRepaymentTokens) / 1e6,
-          buyoutPremium: Number(buyoutQuote.premiumUSD_micro) / 1e6,
-          buyoutPremiumTokens: Number(buyoutQuote.premiumTokens) / 1e6,
+          buyoutCost: Number(buyoutQuote.totalCostUSD_micro) / 1e6, // USD always 6 decimals
+          buyoutDebtRepayment: Number(buyoutQuote.debtUSD_micro) / 1e6, // USD always 6 decimals
+          buyoutDebtRepaymentTokens: Number(buyoutQuote.debtRepaymentTokens) / Math.pow(10, market.baseTokenDecimals ?? 6),
+          buyoutPremium: Number(buyoutQuote.premiumUSD_micro) / 1e6, // USD always 6 decimals
+          buyoutPremiumTokens: Number(buyoutQuote.premiumTokens) / 1e6, // xUSD typically has 6 decimals
           liquidationBonus: market.liqBonusBps ? market.liqBonusBps / 100 : 7.5, // Convert basis points to percentage
           marketId: record.marketId,
           lastUpdated: new Date(),

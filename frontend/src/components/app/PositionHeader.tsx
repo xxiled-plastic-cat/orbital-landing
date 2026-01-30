@@ -17,13 +17,13 @@ const PositionHeader = ({ market, userDepositRecord, userDebt }: PositionHeaderP
   // Helper function to calculate user's deposit amount for this market
   const getUserDepositAmount = () => {
     if (!userDepositRecord || !userDepositRecord.depositAmount) return 0;
-    return Number(userDepositRecord.depositAmount) / Math.pow(10, 6); // Convert from microunits
+    return Number(userDepositRecord.depositAmount) / Math.pow(10, market.baseTokenDecimals ?? 6); // Convert from microunits
   };
 
   // Helper function to calculate total debt from bigint
   const getTotalDebt = () => {
     if (!userDebt || !userDebt.principal) return 0;
-    return Number(userDebt.principal) / Math.pow(10, 6); // Convert from microunits
+    return Number(userDebt.principal) / Math.pow(10, market.baseTokenDecimals ?? 6); // Convert from microunits
   };
 /* 
   // Helper function to get collateral amount from bigint

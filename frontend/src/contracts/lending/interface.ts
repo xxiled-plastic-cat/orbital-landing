@@ -6,6 +6,7 @@ export interface DepositParams {
   appId: number;
   depositAssetId: number;
   lstAssetId: number;
+  baseTokenDecimals: number;
   signer: TransactionSigner;
 }
 
@@ -14,6 +15,7 @@ export interface WithdrawParams {
   amount: number;
   appId: number;
   lstTokenId: number;
+  lstTokenDecimals: number;
   signer: TransactionSigner;
 }
 
@@ -50,6 +52,8 @@ export interface BorrowParams {
   lstAppId: number;
   appId: number;
   oracleAppId: number;
+  collateralTokenDecimals: number;
+  baseTokenDecimals: number;
   signer: TransactionSigner;
 }
 export interface getBoxValueReturnType {
@@ -67,6 +71,7 @@ export interface RepayDebtAsaParams {
   appId: number;
   lstTokenId: number;
   repayTokenId: number;
+  baseTokenDecimals: number;
   signer: TransactionSigner;
 }
 
@@ -76,6 +81,7 @@ export interface WithdrawCollateralParams {
   appId: number;
   collateralAssetId: number;
   lstAppId: number;
+  lstTokenDecimals: number;
   signer: TransactionSigner;
 }
 
@@ -90,6 +96,8 @@ export interface BuyoutAsaParams {
   collateralTokenId: number;
   lstAppId: number;
   oracleAppId: number;
+  premiumTokenDecimals: number; // xUSD decimals (typically 6)
+  baseTokenDecimals: number;
   signer: TransactionSigner;
 }
 
@@ -103,6 +111,7 @@ export interface BuyoutAlgoParams {
   collateralTokenId: number;
   lstAppId: number;
   oracleAppId: number;
+  premiumTokenDecimals: number; // xUSD decimals (typically 6)
   signer: TransactionSigner;
 }
 
@@ -111,6 +120,7 @@ export interface RepayDebtAlgoParams {
   amount: number;
   appId: number;
   lstTokenId: number;
+  baseTokenDecimals: number;
   signer: TransactionSigner;
 }
 
@@ -134,5 +144,6 @@ export interface LiquidateAsaParams {
   collateralTokenId: number;
   lstAppId: number;
   oracleAppId: number;
+  baseTokenDecimals: number;
   signer: TransactionSigner;
 }
